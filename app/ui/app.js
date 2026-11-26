@@ -1,4 +1,4 @@
-/* QASSIMZ Hub — Frontend Controller (Universal e.code Keyboard Shortcuts + Live State) */
+/* QASSIMZ Hub v1.1.0 — Liquid Glass Zero-Thrash Frontend Controller */
 (() => {
   "use strict";
 
@@ -12,7 +12,15 @@
     selectedId: null,
     state: null,
     pollTimer: null,
+    searchTimer: null,
+    renderedView: null,
+    renderedDrawerSig: "",
   };
+
+  // Restore preferred Liquid Glass environment (Dark vs Daylight)
+  if (localStorage.getItem("qhub_glass_theme") === "light") {
+    document.body.classList.add("light-glass");
+  }
 
   async function api(method, payload = {}) {
     const res = await fetch(`api/${method}`, {
@@ -31,7 +39,7 @@
     el.className = `toast ${kind === "error" ? "error" : ""}`;
     el.textContent = msg;
     box.appendChild(el);
-    setTimeout(() => el.remove(), 3800);
+    setTimeout(() => el.remove(), 3600);
   }
 
   function esc(str) {
@@ -51,9 +59,7 @@
 
   function taskMap() {
     const map = new Map();
-    for (const t of UI.state?.tasks || []) {
-      map.set(t.id, t);
-    }
+    for (const t of UI.state?.tasks || []) map.set(t.id, t);
     return map;
   }
 
@@ -63,40 +69,46 @@
     );
   }
 
-  function filteredItems() {
-    const all = UI.state?.items || [];
+  function itemMatches(it) {
+    if (UI.view === "desktop" && it.category !== "desktop") return false;
+    if (UI.view === "adobe" && it.category !== "adobe") return false;
+    if (UI.view === "installed" && !it.state?.installed) return false;
+    if (UI.filter === "installed" && !it.state?.installed) return false;
+    if (UI.filter === "not-installed" && it.state?.installed) return false;
+
     const q = UI.query.trim().toLowerCase();
-    return all.filter((it) => {
-      if (UI.view === "desktop" && it.category !== "desktop") return false;
-      if (UI.view === "adobe" && it.category !== "adobe") return false;
-      if (UI.view === "installed" && !it.state?.installed) return false;
-
-      if (UI.filter === "installed" && !it.state?.installed) return false;
-      if (UI.filter === "not-installed" && it.state?.installed) return false;
-
-      if (q) {
-        const hay = `${it.name} ${it.name_ar} ${it.code} ${it.tagline_ar} ${it.badge_ar} ${(it.hosts || []).join(" ")}`.toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      return true;
-    });
+    if (q) {
+      const hay = `${it.name} ${it.name_ar} ${it.code} ${it.tagline_ar} ${it.badge_ar} ${(it.hosts || []).join(" ")}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
   }
 
   function updateChrome() {
     const st = UI.state;
     if (!st) return;
 
-    $("#hub-ver").textContent = `v${st.hub_version || "1.0.0"}`;
+    $("#hub-ver").textContent = `v${st.hub_version || "1.1.0"}`;
     $("#cnt-all").textContent = st.counts.total;
     $("#cnt-desktop").textContent = st.counts.desktop;
     $("#cnt-adobe").textContent = st.counts.adobe;
     $("#cnt-installed").textContent = st.counts.installed;
 
-    const activeCount = activeTasks().length;
+    const live = activeTasks();
     const updBadge = $("#cnt-updates");
-    const totalAttention = st.counts.updates + activeCount;
+    const totalAttention = st.counts.updates + live.length;
     updBadge.textContent = totalAttention;
-    updBadge.classList.toggle("warn", st.counts.updates > 0 || activeCount > 0);
+    updBadge.classList.toggle("warn", st.counts.updates > 0 || live.length > 0);
+
+    const hubUpdBtn = $("#btn-hub-self-update");
+    if (hubUpdBtn) {
+      if (st.hub_has_update) {
+        hubUpdBtn.hidden = false;
+        $("#lbl-hub-update").textContent = `تحديث Hub v${st.hub_remote_version}`;
+      } else {
+        hubUpdBtn.hidden = true;
+      }
+    }
 
     const updAllBtn = $("#btn-update-all");
     if (st.counts.updates > 0) {
@@ -106,7 +118,6 @@
       updAllBtn.hidden = true;
     }
 
-    // Adobe CEP box
     const ad = st.adobe || {};
     const dot = $("#cep-dot");
     dot.classList.toggle("warn", !ad.cep_debug_ready);
@@ -114,8 +125,20 @@
     $("#btn-launch-pr").disabled = !ad.premiere_installed;
     $("#btn-launch-ae").disabled = !ad.aftereffects_installed;
 
-    // Live Transfer Strip
-    const live = activeTasks();
+    updateTransferStrip(live);
+
+    $$("#main-nav .nav-pill").forEach((b) => {
+      b.classList.toggle("active", b.dataset.view === UI.view);
+    });
+    $$("#status-filter .seg-pill").forEach((b) => {
+      b.classList.toggle("active", b.dataset.filter === UI.filter);
+    });
+    $("#status-filter").style.visibility = ["updates", "settings"].includes(UI.view)
+      ? "hidden"
+      : "visible";
+  }
+
+  function updateTransferStrip(live) {
     const strip = $("#transfer-strip");
     if (live.length > 0 && UI.view !== "updates") {
       const cur = live[0];
@@ -131,22 +154,50 @@
     } else {
       strip.hidden = true;
     }
+  }
 
-    $$("#main-nav .nav-btn").forEach((b) => {
-      b.classList.toggle("active", b.dataset.view === UI.view);
-    });
-    $$("#status-filter .pill-btn").forEach((b) => {
-      b.classList.toggle("active", b.dataset.filter === UI.filter);
-    });
-    $("#status-filter").style.visibility = ["updates", "settings"].includes(UI.view)
-      ? "hidden"
-      : "visible";
+  function cardFooterHTML(it, task) {
+    const st = it.state || {};
+    const isBusy = task && ["queued", "downloading", "installing"].includes(task.status);
+
+    if (isBusy) {
+      return `<div class="card-progress" data-progress-for="${esc(it.id)}">
+         <div class="card-progress-row">
+           <span class="prog-msg">${esc(task.message_ar)}</span>
+           <div style="display:flex;align-items:center;gap:8px;">
+             <span class="prog-pct" style="direction:ltr">${task.progress}%</span>
+             <button class="btn-glass btn-sm" style="height:24px;padding:0 10px;font-size:11px;" data-act="cancel" data-id="${esc(it.id)}">إلغاء</button>
+           </div>
+         </div>
+         <div class="progress-track" style="max-width:none;height:5px;"><div class="progress-fill" style="width:${task.progress}%"></div></div>
+       </div>`;
+    }
+
+    let actionBtn = "";
+    if (st.has_update) {
+      actionBtn = `<button class="btn-glass-warn btn-sm" data-act="install" data-id="${esc(it.id)}">تحديث</button>`;
+    } else if (st.installed) {
+      const lbl = it.category === "adobe" ? "فتح في Adobe" : "تشغيل";
+      actionBtn = `<button class="btn-glass-success btn-sm" data-act="launch" data-id="${esc(it.id)}">${lbl}</button>`;
+    } else {
+      const sizeHint = it.setup_size > 0 ? ` · ${fmtBytes(it.setup_size)}` : "";
+      actionBtn = `<button class="btn-glass-primary btn-sm" data-act="install" data-id="${esc(it.id)}">تثبيت${sizeHint}</button>`;
+    }
+
+    return `<div class="card-foot">
+       <div class="host-tags">
+         ${(it.hosts || []).map((h) => `<span class="host-tag">${esc(h)}</span>`).join("")}
+       </div>
+       <div class="card-actions">
+         ${actionBtn}
+         <button class="btn-glass btn-round" data-act="details" data-id="${esc(it.id)}" title="التفاصيل والخيارات">⋯</button>
+       </div>
+     </div>`;
   }
 
   function cardHTML(it, tmap) {
     const st = it.state || {};
     const task = tmap.get(it.id);
-    const isBusy = task && ["queued", "downloading", "installing"].includes(task.status);
 
     let pill = `<span class="status-pill available">v${esc(it.version)}</span>`;
     if (st.has_update) {
@@ -155,42 +206,11 @@
       pill = `<span class="status-pill installed">مثبّت · v${esc(st.installed_version || it.version)}</span>`;
     }
 
-    let actionBtn = "";
-    if (isBusy) {
-      actionBtn = `<button class="btn btn-ghost btn-sm" data-act="cancel" data-id="${esc(it.id)}">إلغاء (${task.progress}%)</button>`;
-    } else if (st.has_update) {
-      actionBtn = `<button class="btn btn-warn btn-sm" data-act="install" data-id="${esc(it.id)}">تحديث</button>`;
-    } else if (st.installed) {
-      const lbl = it.category === "adobe" ? "فتح في Adobe" : "تشغيل";
-      actionBtn = `<button class="btn btn-success btn-sm" data-act="launch" data-id="${esc(it.id)}">${lbl}</button>`;
-    } else {
-      const sizeHint = it.setup_size > 0 ? ` · ${fmtBytes(it.setup_size)}` : "";
-      actionBtn = `<button class="btn btn-primary btn-sm" data-act="install" data-id="${esc(it.id)}">تثبيت${sizeHint}</button>`;
-    }
-
-    const progressBlock = isBusy
-      ? `<div class="card-progress">
-           <div class="card-progress-row">
-             <span>${esc(task.message_ar)}</span>
-             <span style="direction:ltr">${task.progress}%</span>
-           </div>
-           <div class="card-progress-track"><div class="card-progress-fill" style="width:${task.progress}%"></div></div>
-         </div>`
-      : `<div class="card-foot">
-           <div class="host-tags">
-             ${(it.hosts || []).map((h) => `<span class="host-tag">${esc(h)}</span>`).join("")}
-           </div>
-           <div class="card-actions">
-             ${actionBtn}
-             <button class="btn btn-ghost btn-icon" data-act="details" data-id="${esc(it.id)}" title="التفاصيل والخيارات">⋯</button>
-           </div>
-         </div>`;
-
     return `
-      <article class="app-card" tabindex="0" data-card-id="${esc(it.id)}" style="--card-tint:${esc(it.accent)}1F">
+      <article class="app-card" tabindex="0" data-card-id="${esc(it.id)}" data-cat="${esc(it.category)}" style="--card-tint:${esc(it.accent)}36">
         <div class="card-top">
           <div class="card-id-wrap">
-            <img class="card-icon" src="./icons/${esc(it.id)}.svg" alt="${esc(it.name)}" loading="lazy" />
+            <img class="card-icon" src="./icons/${esc(it.id)}.svg" alt="${esc(it.name)}" decoding="async" />
             <div class="card-titles">
               <span class="card-name-en">${esc(it.name)}</span>
               <span class="card-name-ar">${esc(it.name_ar)}</span>
@@ -199,92 +219,81 @@
           ${pill}
         </div>
         <p class="card-desc">${esc(it.tagline_ar)}</p>
-        ${progressBlock}
+        <div class="card-foot-slot" data-foot-for="${esc(it.id)}">${cardFooterHTML(it, task)}</div>
       </article>
     `;
   }
 
-  function renderCatalogView() {
+  function renderCatalogView(forceRebuild = false) {
     const ws = $("#workspace");
     const st = UI.state;
     const tmap = taskMap();
-    const list = filteredItems();
+    const allItems = st.items || [];
 
-    let html = "";
+    if (!forceRebuild && UI.renderedView === "catalog" && $("#catalog-root", ws)) {
+      applyCatalogFilterInPlace();
+      return;
+    }
 
-    if (UI.view === "all" && !UI.query && UI.filter === "all") {
-      const hubBannerUpdate = st.hub_has_update
-        ? `<button class="btn btn-warn" id="btn-self-update">تحديث QASSIMZ Hub إلى v${esc(st.hub_remote_version)}</button>`
-        : "";
-      html += `
-        <div class="hero-banner">
-          <div class="hero-copy">
-            <h1>منظومة قَاسِمز الإبداعية في مكان واحد</h1>
-            <p>تصفّح وثبّت وشغّل وحدّث جميع تطبيقات سطح المكتب وإضافات Adobe Premiere Pro و After Effects الرسمية مباشرةً وبدون تسجيل دخول.</p>
-            ${hubBannerUpdate ? `<div style="margin-top:8px">${hubBannerUpdate}</div>` : ""}
+    const desk = allItems.filter((x) => x.category === "desktop");
+    const adobe = allItems.filter((x) => x.category === "adobe");
+    const showcaseIds = ["qassimz-studio", "qassimz-vox-fx", "qassimz-music", "qassimz-producer", "qdm", "qassimz-captions"];
+    const showcaseItems = showcaseIds
+      .map((id) => allItems.find((x) => x.id === id))
+      .filter(Boolean);
+
+    const hubBannerUpdate = st.hub_has_update
+      ? `<button class="btn-glass-warn btn-sm" id="btn-self-update">تحديث Hub إلى v${esc(st.hub_remote_version)}</button>`
+      : "";
+
+    ws.innerHTML = `
+      <div id="catalog-root" style="display:flex;flex-direction:column;gap:20px;">
+        <section class="liquid-hero" id="studio-strip">
+          <div class="hero-left">
+            <h1>منظومة قَاسِمز الإبداعية</h1>
+            <p>تصفّح وثبّت وشغّل وحدّث جميع تطبيقات سطح المكتب وإضافات Adobe Premiere Pro و After Effects الرسمية بنقرة واحدة وبدون تسجيل دخول.</p>
+            <div class="hero-pills">
+              <span class="metric-glass-pill"><strong>${st.counts.total}</strong> أداة رسمية</span>
+              <span class="metric-glass-pill ok"><strong>${st.counts.installed}</strong> مثبّتة على جهازك</span>
+              <span class="metric-glass-pill ${st.counts.updates ? "warn" : ""}"><strong>${st.counts.updates}</strong> تحديثات متاحة</span>
+              ${hubBannerUpdate}
+            </div>
           </div>
-          <div class="hero-stats">
-            <div class="stat-card">
-              <div class="stat-num">${st.counts.total}</div>
-              <div class="stat-lbl">إجمالي الأدوات</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-num" style="color:var(--success)">${st.counts.installed}</div>
-              <div class="stat-lbl">مثبّتة على جهازك</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-num" style="color:${st.counts.updates ? "var(--warning)" : "var(--text-2)"}">${st.counts.updates}</div>
-              <div class="stat-lbl">تحديثات متاحة</div>
-            </div>
+          <div class="hero-showcase" aria-label="وصول سريع للأدوات البارزة">
+            ${showcaseItems
+              .map(
+                (it) =>
+                  `<img src="./icons/${esc(it.id)}.svg" alt="${esc(it.name)}" title="${esc(it.name)}" data-card-id="${esc(it.id)}" decoding="async" />`
+              )
+              .join("")}
           </div>
-        </div>
-      `;
+        </section>
 
-      const desk = list.filter((x) => x.category === "desktop");
-      const adobe = list.filter((x) => x.category === "adobe");
-
-      html += `
-        <div class="section-block">
+        <div class="section-block" id="sec-desktop">
           <div class="section-head">
             <h2>تطبيقات سطح المكتب المستقلة</h2>
-            <span class="section-sub">${desk.length} تطبيقات لنظام Windows 10/11</span>
+            <span class="section-sub" id="sec-desktop-count">${desk.length} تطبيقات لنظام Windows 10/11</span>
           </div>
           <div class="cards-grid">${desk.map((it) => cardHTML(it, tmap)).join("")}</div>
         </div>
-        <div class="section-block">
+
+        <div class="section-block" id="sec-adobe">
           <div class="section-head">
-            <h2>إضافات ومحرّكات Adobe الاحترافية</h2>
-            <span class="section-sub">Premiere Pro & After Effects</span>
+            <h2>إضافات Adobe الاحترافية</h2>
+            <span class="section-sub" id="sec-adobe-count">Premiere Pro & After Effects · ${adobe.length} إضافات</span>
           </div>
           <div class="cards-grid">${adobe.map((it) => cardHTML(it, tmap)).join("")}</div>
         </div>
-      `;
-    } else {
-      const titles = {
-        all: "نتائج البحث والتصفية",
-        desktop: "تطبيقات سطح المكتب المستقلة",
-        adobe: "إضافات Adobe Premiere Pro & After Effects",
-        installed: "التطبيقات والإضافات المثبّتة على جهازك",
-      };
-      html += `
-        <div class="section-block">
-          <div class="section-head">
-            <h2>${titles[UI.view] || "المكتبة"}</h2>
-            <span class="section-sub">${list.length} عنصر</span>
-          </div>
-          ${
-            list.length
-              ? `<div class="cards-grid">${list.map((it) => cardHTML(it, tmap)).join("")}</div>`
-              : `<div class="empty-state">
-                   <strong>لا توجد عناصر مطابقة حالياً</strong>
-                   <span>جرّب تغيير كلمات البحث أو فلتر الحالة من الشريط العلوي.</span>
-                 </div>`
-          }
-        </div>
-      `;
-    }
 
-    ws.innerHTML = html;
+        <div class="empty-state" id="catalog-empty" hidden>
+          <strong>لا توجد عناصر مطابقة حالياً</strong>
+          <span>جرّب تغيير كلمات البحث أو فلتر الحالة من الشريط السفلي.</span>
+        </div>
+      </div>
+    `;
+
+    UI.renderedView = "catalog";
+
     const selfUpd = $("#btn-self-update", ws);
     if (selfUpd) {
       selfUpd.onclick = async () => {
@@ -296,6 +305,96 @@
         }
       };
     }
+
+    applyCatalogFilterInPlace();
+  }
+
+  function applyCatalogFilterInPlace() {
+    const ws = $("#workspace");
+    const root = $("#catalog-root", ws);
+    if (!root || !UI.state) return;
+
+    const byId = new Map((UI.state.items || []).map((x) => [x.id, x]));
+    let deskVisible = 0;
+    let adobeVisible = 0;
+
+    $$(".app-card", root).forEach((card) => {
+      const it = byId.get(card.dataset.cardId);
+      const show = it ? itemMatches(it) : false;
+      card.hidden = !show;
+      if (show) {
+        if (it.category === "desktop") deskVisible++;
+        else adobeVisible++;
+      }
+    });
+
+    const strip = $("#studio-strip", root);
+    if (strip) {
+      strip.hidden = !(UI.view === "all" && !UI.query.trim() && UI.filter === "all");
+    }
+
+    const secDesk = $("#sec-desktop", root);
+    const secAdobe = $("#sec-adobe", root);
+    if (secDesk) {
+      secDesk.hidden = deskVisible === 0;
+      const lbl = $("#sec-desktop-count", root);
+      if (lbl) lbl.textContent = `${deskVisible} تطبيقات لنظام Windows 10/11`;
+    }
+    if (secAdobe) {
+      secAdobe.hidden = adobeVisible === 0;
+      const lbl = $("#sec-adobe-count", root);
+      if (lbl) lbl.textContent = `Premiere Pro & After Effects · ${adobeVisible} إضافات`;
+    }
+
+    const empty = $("#catalog-empty", root);
+    if (empty) empty.hidden = deskVisible + adobeVisible > 0;
+  }
+
+  function patchActiveProgressInPlace() {
+    const live = activeTasks();
+    updateTransferStrip(live);
+
+    const tmap = taskMap();
+    const ws = $("#workspace");
+
+    if (UI.renderedView === "catalog") {
+      for (const it of UI.state?.items || []) {
+        const slot = $(`[data-foot-for="${it.id}"]`, ws);
+        if (!slot) continue;
+        const task = tmap.get(it.id);
+        const isBusy = task && ["queued", "downloading", "installing"].includes(task.status);
+        const progEl = slot.querySelector(".card-progress");
+        if (isBusy && progEl) {
+          const msg = progEl.querySelector(".prog-msg");
+          const pct = progEl.querySelector(".prog-pct");
+          const fill = progEl.querySelector(".progress-fill");
+          if (msg) msg.textContent = task.message_ar;
+          if (pct) pct.textContent = `${task.progress}%`;
+          if (fill) fill.style.width = `${task.progress}%`;
+        } else if (isBusy !== Boolean(progEl)) {
+          slot.innerHTML = cardFooterHTML(it, task);
+        }
+      }
+    } else if (UI.renderedView === "updates") {
+      for (const t of UI.state?.tasks || []) {
+        const row = $(`[data-task-row="${t.id}"]`, ws);
+        if (!row) {
+          renderUpdatesView();
+          return;
+        }
+        const speed = t.speed_bps > 0 ? `${fmtBytes(t.speed_bps)}/s` : "";
+        const bytes = t.total > 0 ? `${fmtBytes(t.downloaded)} / ${fmtBytes(t.total)}` : "";
+        const meta = row.querySelector(".task-meta");
+        const fill = row.querySelector(".progress-fill");
+        const msg = row.querySelector(".task-msg");
+        if (meta) meta.textContent = [bytes, speed, `${t.progress}%`].filter(Boolean).join(" · ");
+        if (fill) fill.style.width = `${t.progress}%`;
+        if (msg) {
+          msg.textContent = t.message_ar;
+          msg.style.color = t.status === "error" ? "#FDA4AF" : "var(--text-2)";
+        }
+      }
+    }
   }
 
   function renderUpdatesView() {
@@ -305,13 +404,13 @@
     const outdated = (st.items || []).filter((x) => x.state?.has_update);
     const tmap = taskMap();
 
-    let html = `
+    ws.innerHTML = `
       <div class="section-block">
         <div class="section-head">
           <h2>طابور التنزيلات والتثبيت</h2>
           ${
             tasks.some((t) => ["completed", "error", "cancelled"].includes(t.status))
-              ? `<button class="btn btn-ghost btn-sm" id="btn-clear-tasks">مسح المكتملة</button>`
+              ? `<button class="btn-glass btn-sm" id="btn-clear-tasks">مسح المكتملة</button>`
               : ""
           }
         </div>
@@ -324,19 +423,19 @@
                      const bytes = t.total > 0 ? `${fmtBytes(t.downloaded)} / ${fmtBytes(t.total)}` : "";
                      const canCancel = ["queued", "downloading"].includes(t.status);
                      return `
-                       <div class="task-row">
-                         <img src="./icons/${esc(t.id)}.svg" alt="${esc(t.name)}" />
+                       <div class="task-row" data-task-row="${esc(t.id)}">
+                         <img src="./icons/${esc(t.id)}.svg" alt="${esc(t.name)}" decoding="async" />
                          <div class="task-main">
                            <div class="task-top">
                              <strong>${esc(t.name)} <span style="color:var(--text-2);font-weight:500;">v${esc(t.version)}</span></strong>
                              <span class="task-meta">${esc([bytes, speed, `${t.progress}%`].filter(Boolean).join(" · "))}</span>
                            </div>
-                           <div class="card-progress-track"><div class="card-progress-fill" style="width:${t.progress}%"></div></div>
-                           <span style="font-size:12px;color:${t.status === "error" ? "#FDA4AF" : "var(--text-2)"}">${esc(t.message_ar)}</span>
+                           <div class="progress-track" style="max-width:none;height:6px;"><div class="progress-fill" style="width:${t.progress}%"></div></div>
+                           <span class="task-msg" style="font-size:12px;color:${t.status === "error" ? "#FDA4AF" : "var(--text-2)"}">${esc(t.message_ar)}</span>
                          </div>
                          ${
                            canCancel
-                             ? `<button class="btn btn-danger btn-sm" data-act="cancel" data-id="${esc(t.id)}">إلغاء</button>`
+                             ? `<button class="btn-glass-danger btn-sm" data-act="cancel" data-id="${esc(t.id)}">إلغاء</button>`
                              : ""
                          }
                        </div>
@@ -367,12 +466,12 @@
       </div>
     `;
 
-    ws.innerHTML = html;
+    UI.renderedView = "updates";
     const clr = $("#btn-clear-tasks", ws);
     if (clr) {
       clr.onclick = async () => {
         await api("clear_tasks");
-        await reloadState();
+        await reloadState(true);
       };
     }
   }
@@ -415,6 +514,28 @@
                 <span class="slider"></span>
               </label>
             </div>
+
+            <div class="toggle-row">
+              <div class="toggle-text">
+                <strong>التحديث التلقائي للبرامج المثبّتة في الخلفية</strong>
+                <span>تنزيل وتثبيت التحديثات الجديدة لبرامجك المثبّتة تلقائياً عبر QASSIMZ Hub.</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" data-setting="auto_update_apps" ${cfg.auto_update_apps !== false ? "checked" : ""} />
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div class="toggle-row">
+              <div class="toggle-text">
+                <strong>التحديث التلقائي لـ QASSIMZ Hub نفسه</strong>
+                <span>تنزيل أحدث إصدار من اللانشر وتطبيقه مع إعادة التشغيل تلقائياً.</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" data-setting="auto_update_hub" ${cfg.auto_update_hub ? "checked" : ""} />
+                <span class="slider"></span>
+              </label>
+            </div>
           </div>
 
           <div class="setting-card">
@@ -444,19 +565,23 @@
           </div>
 
           <div class="setting-card">
-            <h3>التخزين المؤقت وبيئة Adobe</h3>
+            <h3>تحديث الأداة والتخزين المؤقت وبيئة Adobe</h3>
             <p style="font-size:12.5px;color:var(--text-2);">
-              حجم ملفات التثبيت المحمّلة مؤقتاً: <strong style="color:var(--text-1);direction:ltr;display:inline-block;">${esc(cacheSize)}</strong>
+              الإصدار الحالي لـ QASSIMZ Hub: <strong style="color:var(--text-1);direction:ltr;display:inline-block;">v${esc(st.hub_version || "1.1.0")}</strong>
+              · حجم الملفات المؤقتة: <strong style="color:var(--text-1);direction:ltr;display:inline-block;">${esc(cacheSize)}</strong>
             </p>
             <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;">
-              <button class="btn btn-ghost btn-sm" id="set-open-cache">فتح مجلد التحميلات</button>
-              <button class="btn btn-danger btn-sm" id="set-clear-cache">تفريغ الملفات المؤقتة</button>
-              <button class="btn btn-primary btn-sm" id="set-fix-cep">إصلاح PlayerDebugMode لـ Adobe</button>
+              <button class="btn-glass-primary btn-sm" id="set-self-update">${st.hub_has_update ? `تحديث Hub إلى v${esc(st.hub_remote_version)}` : "فحص وتحديث QASSIMZ Hub الآن"}</button>
+              <button class="btn-glass btn-sm" id="set-open-cache">فتح مجلد التحميلات</button>
+              <button class="btn-glass-danger btn-sm" id="set-clear-cache">تفريغ الملفات المؤقتة</button>
+              <button class="btn-glass btn-sm" id="set-fix-cep">إصلاح PlayerDebugMode لـ Adobe</button>
             </div>
           </div>
         </div>
       </div>
     `;
+
+    UI.renderedView = "settings";
 
     $$("input[data-setting]", ws).forEach((chk) => {
       chk.onchange = async () => {
@@ -470,35 +595,45 @@
       };
     });
 
+    $("#set-self-update", ws).onclick = () => triggerHubSelfUpdate();
     $("#set-open-cache", ws).onclick = () => api("open_cache_dir");
     $("#set-clear-cache", ws).onclick = async () => {
       UI.state = await api("clear_cache");
-      render();
+      render(true);
       toast("تم تنظيف مجلد التنزيلات المؤقتة");
     };
     $("#set-fix-cep", ws).onclick = async () => {
       await api("fix_cep");
-      await reloadState();
+      await reloadState(true);
       toast("تم تفعيل PlayerDebugMode لإصدارات CSXS 9–16 بنجاح");
     };
   }
 
-  function renderDrawer() {
+  function renderDrawer(force = false) {
     const backdrop = $("#detail-backdrop");
     if (!UI.selectedId || !UI.state) {
       backdrop.hidden = true;
+      UI.renderedDrawerSig = "";
       return;
     }
     const it = (UI.state.items || []).find((x) => x.id === UI.selectedId);
     if (!it) {
       backdrop.hidden = true;
+      UI.renderedDrawerSig = "";
       return;
     }
 
-    backdrop.hidden = false;
     const st = it.state || {};
+    const sig = `${it.id}|${st.installed}|${st.has_update}|${st.installed_version}|${st.ai_ready}|${it.version}`;
+    if (!force && !backdrop.hidden && UI.renderedDrawerSig === sig) {
+      return;
+    }
+    UI.renderedDrawerSig = sig;
+    backdrop.hidden = false;
+
     const drawer = $("#detail-drawer");
     drawer.style.setProperty("--drawer-accent", it.accent || "#38BDF8");
+    drawer.style.setProperty("--drawer-tint", `${it.accent || "#38BDF8"}38`);
 
     $("#drawer-icon").src = `./icons/${it.id}.svg`;
     $("#drawer-title").textContent = it.name;
@@ -515,15 +650,11 @@
     const aiSection = st.ai_applicable
       ? `<div class="drawer-section">
            <h4>حالة محرّك الذكاء الاصطناعي المحلي</h4>
-           <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg-2);border:1px solid var(--line);padding:10px 12px;border-radius:8px;">
-             <span style="font-size:12.5px;color:${st.ai_ready ? "#34D399" : "var(--warning)"}">
+           <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);padding:10px 12px;border-radius:12px;gap:10px;">
+             <span style="font-size:12.5px;color:${st.ai_ready ? "#6EE7B7" : "#FCD34D"}">
                ${st.ai_ready ? "✓ البيئة والنماذج جاهزة" : "⚠ يحتاج تشغيل أداة التجهيز لمرة واحدة بعد التثبيت"}
              </span>
-             ${
-               st.ai_setup_script
-                 ? `<button class="btn btn-ghost btn-sm" id="dr-ai-setup">تشغيل أداة التجهيز</button>`
-                 : ""
-             }
+             ${st.ai_setup_script ? `<button class="btn-glass btn-sm" id="dr-ai-setup">تشغيل التجهيز</button>` : ""}
            </div>
          </div>`
       : "";
@@ -532,12 +663,7 @@
       ? `<div class="drawer-section">
            <h4>أدوات فرعية سريعة</h4>
            <div style="display:flex;flex-wrap:wrap;gap:8px;">
-             ${st.sub_apps
-               .map(
-                 (sa, idx) =>
-                   `<button class="btn btn-ghost btn-sm" data-sub-idx="${idx}">${esc(sa.label_ar)}</button>`
-               )
-               .join("")}
+             ${st.sub_apps.map((sa, idx) => `<button class="btn-glass btn-sm" data-sub-idx="${idx}">${esc(sa.label_ar)}</button>`).join("")}
            </div>
          </div>`
       : "";
@@ -546,20 +672,17 @@
       ? `<div class="drawer-section">
            <h4>ملحقات إضافية للتحميل</h4>
            <div style="display:flex;flex-wrap:wrap;gap:8px;">
-             ${it.extra_assets
-               .map(
-                 (ea) =>
-                   `<button class="btn btn-ghost btn-sm" data-ext-url="${esc(ea.url)}">${esc(ea.label_ar)}</button>`
-               )
-               .join("")}
+             ${it.extra_assets.map((ea) => `<button class="btn-glass btn-sm" data-ext-url="${esc(ea.url)}">${esc(ea.label_ar)}</button>`).join("")}
            </div>
          </div>`
       : "";
 
+    const catLabel = it.category === "adobe" ? "إضافة Adobe CEP" : "تطبيق سطح مكتب";
+
     $("#drawer-body").innerHTML = `
       <div class="drawer-section">
         <h4>نبذة عن البرنامج</h4>
-        <p style="font-size:13.5px;color:var(--text-1);line-height:1.65;">${esc(it.description_ar)}</p>
+        <p style="font-size:13.5px;color:var(--text-1);line-height:1.68;">${esc(it.description_ar)}</p>
       </div>
 
       <div class="drawer-section">
@@ -576,15 +699,15 @@
         </div>
         <div class="meta-cell">
           <span>حجم الحزمة</span>
-          <strong>${esc(fmtBytes(it.setup_size) || "متاح عبر GitHub")}</strong>
+          <strong style="direction:${it.setup_size ? "ltr" : "rtl"}">${esc(fmtBytes(it.setup_size) || "متاح عبر GitHub")}</strong>
         </div>
         <div class="meta-cell">
           <span>البيئة المستهدفة</span>
           <strong>${esc((it.hosts || []).join(", "))}</strong>
         </div>
         <div class="meta-cell">
-          <span>رمز الهوية</span>
-          <strong style="color:${esc(it.accent)}">${esc(it.code)}</strong>
+          <span>الفئة</span>
+          <strong style="direction:rtl;color:${esc(it.accent)}">${esc(catLabel)}</strong>
         </div>
       </div>
 
@@ -596,7 +719,7 @@
         it.release_notes_ar
           ? `<div class="drawer-section">
                <h4>الجديد في هذا الإصدار</h4>
-               <p style="font-size:12.5px;color:var(--text-2);background:var(--bg-2);border:1px solid var(--line);padding:10px 12px;border-radius:8px;">
+               <p style="font-size:12.5px;color:var(--text-2);background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);padding:11px 13px;border-radius:12px;line-height:1.6;">
                  ${esc(it.release_notes_ar)}
                </p>
              </div>`
@@ -604,33 +727,31 @@
       }
     `;
 
-    // Drawer footer actions
     const foot = $("#drawer-foot");
     const buttons = [];
     if (st.has_update) {
-      buttons.push(`<button class="btn btn-warn" id="dr-install-silent">تحديث الآن (v${esc(it.version)})</button>`);
+      buttons.push(`<button class="btn-glass-warn" id="dr-install-silent">تحديث الآن (v${esc(it.version)})</button>`);
     } else if (st.installed) {
       const lbl = it.category === "adobe" ? "فتح في برنامج Adobe" : "تشغيل البرنامج";
-      buttons.push(`<button class="btn btn-primary" id="dr-launch">${lbl}</button>`);
-      buttons.push(`<button class="btn btn-ghost" id="dr-reinstall">إعادة تثبيت / إصلاح</button>`);
+      buttons.push(`<button class="btn-glass-primary" id="dr-launch">${lbl}</button>`);
+      buttons.push(`<button class="btn-glass" id="dr-reinstall">إعادة تثبيت / إصلاح</button>`);
     } else {
-      buttons.push(`<button class="btn btn-primary" id="dr-install-silent">تثبيت سريع</button>`);
-      buttons.push(`<button class="btn btn-ghost" id="dr-install-wizard">معالج التثبيت التقليدي</button>`);
+      buttons.push(`<button class="btn-glass-primary" id="dr-install-silent">تثبيت سريع</button>`);
+      buttons.push(`<button class="btn-glass" id="dr-install-wizard">معالج التثبيت التقليدي</button>`);
     }
 
     if (st.install_dir) {
-      buttons.push(`<button class="btn btn-ghost" id="dr-open-dir">فتح مجلد التثبيت</button>`);
+      buttons.push(`<button class="btn-glass" id="dr-open-dir">فتح مجلد التثبيت</button>`);
     }
     if (it.portable_url) {
-      buttons.push(`<button class="btn btn-ghost" id="dr-portable">نسخة محمولة (Portable)</button>`);
+      buttons.push(`<button class="btn-glass" id="dr-portable">نسخة محمولة</button>`);
     }
     if (st.installed && st.uninstall_cmd) {
-      buttons.push(`<button class="btn btn-danger" id="dr-uninstall">إلغاء التثبيت</button>`);
+      buttons.push(`<button class="btn-glass-danger" id="dr-uninstall">إلغاء التثبيت</button>`);
     }
 
     foot.innerHTML = buttons.join("");
 
-    // Bind Drawer Events
     const bind = (sel, fn) => {
       const el = $(sel, drawer);
       if (el) el.onclick = fn;
@@ -669,7 +790,7 @@
     });
   }
 
-  function render() {
+  function render(forceRebuild = false) {
     if (!UI.state) return;
     updateChrome();
     if (UI.view === "updates") {
@@ -677,35 +798,67 @@
     } else if (UI.view === "settings") {
       renderSettingsView();
     } else {
-      renderCatalogView();
+      renderCatalogView(forceRebuild);
     }
-    renderDrawer();
+    renderDrawer(forceRebuild);
     manageTaskPolling();
   }
 
-  async function reloadState() {
+  async function reloadState(forceRebuild = false) {
     UI.state = await api("state");
-    render();
+    render(forceRebuild);
   }
+
+  window.__qhubOnCatalogSynced = async () => {
+    try {
+      await reloadState(true);
+    } catch (_) {}
+  };
 
   function manageTaskPolling() {
     const hasActive = activeTasks().length > 0;
     if (hasActive && !UI.pollTimer) {
+      let busy = false;
       UI.pollTimer = setInterval(async () => {
+        if (busy || document.hidden) return;
+        busy = true;
         try {
-          const tasks = await api("tasks");
           const prevActive = activeTasks().length;
+          const tasks = await api("tasks");
           UI.state.tasks = tasks;
           const nowActive = activeTasks().length;
           if (prevActive > 0 && nowActive === 0) {
             UI.state = await api("state");
+            render(true);
+          } else {
+            updateChrome();
+            patchActiveProgressInPlace();
           }
-          render();
-        } catch (_) {}
-      }, 650);
+        } catch (_) {
+        } finally {
+          busy = false;
+        }
+      }, 550);
     } else if (!hasActive && UI.pollTimer) {
       clearInterval(UI.pollTimer);
       UI.pollTimer = null;
+    }
+  }
+
+  async function triggerHubSelfUpdate() {
+    try {
+      UI.state = await api("refresh_catalog");
+      render(true);
+      if (!UI.state.hub_has_update) {
+        toast(`أنت بالفعل على أحدث إصدار من QASSIMZ Hub (v${UI.state.hub_version})`);
+        return;
+      }
+      await api("install_hub_update");
+      toast(`بدأ تحميل تحديث QASSIMZ Hub (v${UI.state.hub_remote_version}) — سيتم إعادة التشغيل تلقائياً`);
+      await reloadState(false);
+      patchActiveProgressInPlace();
+    } catch (e) {
+      toast(e.message, "error");
     }
   }
 
@@ -713,7 +866,8 @@
     try {
       await api("install", { id, silent });
       toast("تمت إضافة البرنامج إلى طابور التنزيل والتثبيت");
-      await reloadState();
+      await reloadState(false);
+      patchActiveProgressInPlace();
     } catch (e) {
       toast(e.message, "error");
     }
@@ -738,39 +892,52 @@
       if (act === "launch") return triggerLaunch(id);
       if (act === "cancel") {
         await api("cancel_task", { id });
-        return reloadState();
+        return reloadState(true);
       }
       if (act === "details") {
         UI.selectedId = id;
-        return renderDrawer();
+        return renderDrawer(true);
       }
     }
 
     const card = e.target.closest("[data-card-id]");
     if (card) {
       UI.selectedId = card.dataset.cardId;
-      renderDrawer();
+      renderDrawer(true);
     }
   });
 
-  // Sidebar & Topbar bindings
-  $$("#main-nav .nav-btn").forEach((btn) => {
+  // Top Floating Nav & Bottom Filter Bindings
+  $$("#main-nav .nav-pill").forEach((btn) => {
     btn.onclick = () => {
       UI.view = btn.dataset.view;
-      render();
+      render(false);
     };
   });
 
-  $$("#status-filter .pill-btn").forEach((btn) => {
+  $$("#status-filter .seg-pill").forEach((btn) => {
     btn.onclick = () => {
       UI.filter = btn.dataset.filter;
-      render();
+      render(false);
     };
   });
+
+  $("#btn-theme").onclick = () => {
+    const isLight = document.body.classList.toggle("light-glass");
+    localStorage.setItem("qhub_glass_theme", isLight ? "light" : "dark");
+  };
 
   $("#q-search").addEventListener("input", (e) => {
     UI.query = e.target.value;
-    render();
+    clearTimeout(UI.searchTimer);
+    UI.searchTimer = setTimeout(() => {
+      if (["updates", "settings"].includes(UI.view)) {
+        UI.view = "all";
+        render(false);
+      } else {
+        applyCatalogFilterInPlace();
+      }
+    }, 45);
   });
 
   $("#btn-refresh").onclick = async () => {
@@ -778,7 +945,7 @@
     btn.disabled = true;
     try {
       UI.state = await api("refresh_catalog");
-      render();
+      render(true);
       toast("تم تحديث الدليل وفحص البرامج المثبّتة");
     } catch (e) {
       toast(e.message, "error");
@@ -787,11 +954,15 @@
     }
   };
 
+  const hubSelfUpdBtn = $("#btn-hub-self-update");
+  if (hubSelfUpdBtn) hubSelfUpdBtn.onclick = () => triggerHubSelfUpdate();
+
   $("#btn-update-all").onclick = async () => {
     try {
       const list = await api("update_all");
       toast(`بدأ تحديث ${list.length} برامج في الخلفية`);
-      await reloadState();
+      await reloadState(false);
+      patchActiveProgressInPlace();
     } catch (e) {
       toast(e.message, "error");
     }
@@ -799,7 +970,7 @@
 
   $("#btn-view-transfers").onclick = () => {
     UI.view = "updates";
-    render();
+    render(false);
   };
 
   $("#btn-launch-pr").onclick = async () => {
@@ -821,7 +992,7 @@
   $("#btn-fix-cep").onclick = async () => {
     try {
       await api("fix_cep");
-      await reloadState();
+      await reloadState(true);
       toast("تم تفعيل إضافات Adobe CEP (CSXS 9–16)");
     } catch (e) {
       toast(e.message, "error");
@@ -831,6 +1002,15 @@
   $("#btn-open-github").onclick = () => {
     api("open_url", { url: UI.state?.hub_repo_url || "https://github.com/ahmedqassimtv-commits/qassimz-hub" });
   };
+
+  // Integrated Frameless Window Controls
+  $("#btn-win-min").onclick = () => api("win_minimize").catch(() => {});
+  $("#btn-win-max").onclick = () => api("win_toggle_maximize").catch(() => {});
+  $("#btn-win-close").onclick = () => api("win_close").catch(() => {});
+  $("#app-titlebar").addEventListener("dblclick", (e) => {
+    if (e.target.closest(".no-drag, button, input")) return;
+    api("win_toggle_maximize").catch(() => {});
+  });
 
   $("#btn-open-shortcuts").onclick = () => {
     $("#shortcuts-modal").hidden = false;
@@ -853,7 +1033,7 @@
     }
   };
 
-  // ── Universal e.code Keyboard Shortcuts (Works on Arabic & English Layouts) ──
+  // Universal e.code Keyboard Shortcuts (Arabic + English)
   document.addEventListener("keydown", (e) => {
     const code = e.code;
     const ctrl = e.ctrlKey || e.metaKey;
@@ -881,14 +1061,13 @@
         if (e.target.id === "q-search" && e.target.value) {
           e.target.value = "";
           UI.query = "";
-          render();
+          applyCatalogFilterInPlace();
         }
         e.target.blur();
         return;
       }
     }
 
-    // Search: Ctrl+F, Ctrl+K, or '/' outside input
     if ((ctrl && (code === "KeyF" || code === "KeyK")) || (!ctrl && !inInput && code === "Slash" && !e.shiftKey)) {
       e.preventDefault();
       const s = $("#q-search");
@@ -897,87 +1076,73 @@
       return;
     }
 
-    // Refresh: Ctrl+R or F5
     if ((ctrl && code === "KeyR") || code === "F5") {
       e.preventDefault();
       $("#btn-refresh").click();
       return;
     }
 
-    // Update All: Ctrl+U
     if (ctrl && code === "KeyU") {
       e.preventDefault();
       if (!$("#btn-update-all").hidden) $("#btn-update-all").click();
       return;
     }
 
-    // Settings: Ctrl+,
     if (ctrl && code === "Comma") {
       e.preventDefault();
       UI.view = "settings";
-      render();
+      render(false);
       return;
     }
 
     if (inInput) return;
 
-    // Shortcuts Help: Shift + / ('?')
     if (e.shiftKey && code === "Slash") {
       e.preventDefault();
       $("#shortcuts-modal").hidden = !$("#shortcuts-modal").hidden;
       return;
     }
 
-    // View switching: 1..6
-    const views = ["all", "desktop", "adobe", "installed", "updates", "settings"];
-    if (!ctrl && !e.altKey && /^Digit[1-6]$/.test(code)) {
-      const idx = Number(code.slice(5)) - 1;
-      UI.view = views[idx];
-      render();
+    const viewByDigit = {
+      Digit1: "all",
+      Digit2: "desktop",
+      Digit3: "adobe",
+      Digit4: "installed",
+      Digit5: "updates",
+      Digit6: "settings",
+    };
+    if (!ctrl && viewByDigit[code]) {
+      e.preventDefault();
+      UI.view = viewByDigit[code];
+      render(false);
       return;
     }
 
-    // Grid Card Navigation with Arrow Keys & Enter
-    const cards = $$(".app-card[data-card-id]");
-    if (!cards.length || UI.selectedId) return;
-
-    const curIdx = cards.indexOf(document.activeElement);
-    if (["ArrowLeft", "ArrowRight", "ArrowDown", "ArrowUp"].includes(code)) {
+    if (["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp"].includes(code)) {
+      const cards = $$(".app-card:not([hidden])", $("#workspace"));
+      if (!cards.length) return;
+      const idx = cards.indexOf(document.activeElement);
+      let next = 0;
+      if (idx === -1) {
+        next = 0;
+      } else if (code === "ArrowLeft" || code === "ArrowDown") {
+        next = (idx + 1) % cards.length;
+      } else {
+        next = (idx - 1 + cards.length) % cards.length;
+      }
       e.preventDefault();
-      if (curIdx === -1) {
-        cards[0].focus();
-        return;
-      }
-      // RTL grid: ArrowLeft moves forward (+1), ArrowRight moves backward (-1)
-      let cols = 1;
-      if (cards.length > 1) {
-        const y0 = cards[0].getBoundingClientRect().top;
-        cols = cards.findIndex((c) => Math.abs(c.getBoundingClientRect().top - y0) > 10);
-        if (cols <= 0) cols = cards.length;
-      }
-      let next = curIdx;
-      if (code === "ArrowLeft") next = Math.min(cards.length - 1, curIdx + 1);
-      if (code === "ArrowRight") next = Math.max(0, curIdx - 1);
-      if (code === "ArrowDown") next = Math.min(cards.length - 1, curIdx + cols);
-      if (code === "ArrowUp") next = Math.max(0, curIdx - cols);
       cards[next].focus();
       return;
     }
 
-    if (code === "Enter" && curIdx !== -1 && !e.target.closest("button, a")) {
+    if (code === "Enter" && document.activeElement?.matches?.(".app-card")) {
       e.preventDefault();
-      UI.selectedId = cards[curIdx].dataset.cardId;
-      renderDrawer();
+      UI.selectedId = document.activeElement.dataset.cardId;
+      renderDrawer(true);
     }
   });
 
-  // Boot & Auto-Focus WebView2
-  window.addEventListener("DOMContentLoaded", async () => {
-    window.focus();
-    try {
-      await reloadState();
-    } catch (e) {
-      toast(e.message, "error");
-    }
+  reloadState(true).catch((err) => {
+    $("#workspace").innerHTML = `<div class="empty-state"><strong>تعذّر الاتصال بالخادم المحلي</strong><span>${esc(err.message)}</span></div>`;
   });
 })();

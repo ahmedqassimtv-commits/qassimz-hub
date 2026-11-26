@@ -97,11 +97,14 @@ def main() -> None:
         width=1360,
         height=860,
         min_size=(1040, 680),
-        background_color="#07090E",
+        background_color="#090A0D",
+        frameless=True,
+        easy_drag=False,
         hidden=minimized,
         text_select=False,
     )
     api.window = win
+    api._is_maximized = False
 
     def quit_app():
         quitting["flag"] = True
@@ -119,6 +122,16 @@ def main() -> None:
             return False
         return True
 
+    api._on_close_request = lambda: (win.hide() if api.settings.all().get("minimize_to_tray", True) else quit_app())
+
+    def _release_lock():
+        try:
+            lock_sock.close()
+        except Exception:
+            pass
+
+    api._on_release_lock = _release_lock
+
     def on_loaded():
         try:
             win.evaluate_js("window.focus(); document.body && document.body.focus();")
@@ -130,12 +143,21 @@ def main() -> None:
 
     _setup_tray(api, show_window, quit_app)
 
-    def background_sync():
-        time.sleep(1.2)
-        if api.settings.all().get("auto_check_updates", True):
-            api.refresh_catalog()
+    def background_auto_updater():
+        time.sleep(2.0)
+        while not quitting["flag"]:
+            try:
+                if api.settings.all().get("auto_check_updates", True):
+                    api.run_auto_update_cycle()
+            except Exception:
+                pass
+            # Re-check automatically every 4 hours while running in tray
+            for _ in range(4 * 60):
+                if quitting["flag"]:
+                    return
+                time.sleep(60)
 
-    threading.Thread(target=background_sync, daemon=True).start()
+    threading.Thread(target=background_auto_updater, daemon=True).start()
 
     webview.start(
         gui="edgechromium" if os.name == "nt" else None,

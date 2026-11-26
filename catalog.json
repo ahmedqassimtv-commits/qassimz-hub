@@ -1,24 +1,24 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-11-26T00:00:00Z",
+  "updated_at": "2026-11-26T15:12:33Z",
   "hub_repo": "ahmedqassimtv-commits/qassimz-hub",
   "hub": {
     "id": "qassimz-hub",
     "code": "Qh",
     "name": "QASSIMZ Hub",
     "name_ar": "مركز قَاسِمز الرسمي",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "accent": "#38BDF8",
-    "setup_filename": "QASSIMZ-Hub-Setup-1.0.0.exe",
-    "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.0.0/QASSIMZ-Hub-Setup-1.0.0.exe",
-    "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.0.0/QASSIMZ-Hub-Portable.zip",
-    "release_notes_ar": "الإصدار الرسمي الأول من اللانشر الموحّد QASSIMZ Hub لتصفح وتثبيت وتشغيل وتحديث جميع برامج وإضافات قَاسِمز مجاناً وبدون تسجيل دخول."
+    "setup_filename": "QASSIMZ-Hub-Setup-1.1.0.exe",
+    "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.1.0/QASSIMZ-Hub-Setup-1.1.0.exe",
+    "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.1.0/QASSIMZ-Hub-Portable.zip",
+    "release_notes_ar": "الإصدار 1.1.0: شريط عنوان علوي مدمج بالكامل (Frameless) مع تأثير الزجاج السائل Liquid Glass، تسريع جذري للأداء بدون تقطيع، كاش ذكي للحالة والملفات الثابتة، وتحديث فوري لشرائط التقدم."
   },
   "apps": {
     "qassimz-music": {
-      "version": "1.1.0",
-      "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qassimz-music-v1.1.0/QASSIMZ-Music-Setup-1.1.0.exe",
-      "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qassimz-music-v1.1.0/QASSIMZ-Music-Portable.zip"
+      "version": "1.2.0",
+      "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qassimz-music-v1.2.0/QASSIMZ-Music-Setup-1.2.0.exe",
+      "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qassimz-music-v1.2.0/QASSIMZ-Music-Portable.zip"
     },
     "qassimz-producer": {
       "version": "1.1.0",
@@ -31,9 +31,9 @@
       "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qassimz-thumbs-v1.1.0/QASSIMZ-Thumbs-Portable.zip"
     },
     "qassimz-organizer": {
-      "version": "1.1.0",
-      "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qassimz-organizer-v1.1.0/QASSIMZ-Organizer-Setup-1.1.0.exe",
-      "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qassimz-organizer-v1.1.0/QASSIMZ-Organizer-Portable.zip"
+      "version": "1.2.0",
+      "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qassimz-organizer-v1.2.0/QASSIMZ-Organizer-Setup-1.2.0.exe",
+      "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qassimz-organizer-v1.2.0/QASSIMZ-Organizer-Portable.zip"
     },
     "qassimz-study": {
       "version": "1.1.0",
@@ -41,18 +41,18 @@
       "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qassimz-study-v1.1.0/QASSIMZ-Study-Portable-1.1.0.exe"
     },
     "qdm": {
-      "version": "2.1.0",
-      "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qdm-v2.1.0/QDM-Setup-2.1.0.exe",
-      "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qdm-v2.1.0/QDM-Portable-2.1.0.zip",
-      "extension_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qdm-v2.1.0/QDM-Chrome-Extension.zip"
+      "version": "2.2.0",
+      "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qdm-v2.2.0/QDM-Setup-2.2.0.exe",
+      "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qdm-v2.2.0/QDM-Portable-2.2.0.zip",
+      "extension_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qdm-v2.2.0/QDM-Chrome-Extension.zip"
     },
     "qassimz-studio": {
       "version": "1.0.0",
       "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qassimz-studio-v1.0.0/QASSIMZ-Studio-Setup-1.0.0.exe"
     },
     "qassimz-footage": {
-      "version": "1.1.0",
-      "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qassimz-footage-v1.1.0/QASSIMZ_FOOTAGE_Setup.exe"
+      "version": "1.2.0",
+      "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qassimz-footage-v1.2.0/QASSIMZ_FOOTAGE_Setup.exe"
     },
     "qassimz-mogrt-hub": {
       "version": "1.1.0",
@@ -63,8 +63,8 @@
       "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qassimz-export-v1.1.0/QASSIMZ_EXPORT_Setup.exe"
     },
     "qassimz-mogrt-maker": {
-      "version": "1.1.0",
-      "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qassimz-mogrt-maker-v1.1.0/QASSIMZ_MOGRT_MAKER_Setup.exe"
+      "version": "1.2.0",
+      "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qassimz-mogrt-maker-v1.2.0/QASSIMZ_MOGRT_MAKER_Setup.exe"
     },
     "qassimz-captions": {
       "version": "1.1.0",
@@ -91,7 +91,9 @@
         "إضافات مؤثرات VOX FX المترجمة بتقنية WebAssembly السريعة",
         "خط Google Sans الرسمي ودعم كامل للّغتين العربية والإنجليزية"
       ],
-      "hosts": ["Windows 10/11 x64"],
+      "hosts": [
+        "Windows 10/11 x64"
+      ],
       "accent": "#0EA5E9",
       "version": "1.0.0",
       "repo": "ahmedqassimtv-commits/qassimz-studio",
@@ -102,20 +104,34 @@
       "setup_sha256": "",
       "release_notes_ar": "الإصدار الأول الموحّد مع واجهة اللانشر الداخلي والهوية البصرية الجديدة وخط Google Sans الكامل.",
       "detection": {
-        "uninstall_ids": ["QASSIMZ.Studio_is1"],
+        "uninstall_ids": [
+          "QASSIMZ.Studio_is1"
+        ],
         "exe_paths": [
           "%LOCALAPPDATA%\\Programs\\QASSIMZ Studio\\QASSIMZ Studio.exe",
           "%LOCALAPPDATA%\\Programs\\QASSIMZ Studio\\filmcraft.exe"
         ],
         "sub_apps": [
-          {"label_ar": "فتح Studio Edit", "rel_exe": "filmcraft.exe"},
-          {"label_ar": "فتح Studio Motion", "rel_exe": "effectcraft.exe"}
+          {
+            "label_ar": "فتح Studio Edit",
+            "rel_exe": "filmcraft.exe"
+          },
+          {
+            "label_ar": "فتح Studio Motion",
+            "rel_exe": "effectcraft.exe"
+          }
         ]
       },
       "install": {
         "installer_type": "inno",
         "requires_admin": false,
-        "silent_args": ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS", "/AUTORUN=0"]
+        "silent_args": [
+          "/VERYSILENT",
+          "/SUPPRESSMSGBOXES",
+          "/NORESTART",
+          "/CLOSEAPPLICATIONS",
+          "/AUTORUN=0"
+        ]
       }
     },
     {
@@ -133,7 +149,9 @@
         "مكتبة ملحقات ذكية لمعاينة الفيديوهات والصور والصوتيات بدون استهلاك ذاكرة",
         "مساعد ذكاء اصطناعي مدمج واختصارات كيبورد شاملة بالعربي والإنجليزي"
       ],
-      "hosts": ["Windows 10/11 x64"],
+      "hosts": [
+        "Windows 10/11 x64"
+      ],
       "accent": "#FF5A36",
       "version": "1.1.0",
       "repo": "ahmedqassimtv-commits/qassimz-producer",
@@ -145,14 +163,25 @@
       "setup_sha256": "",
       "release_notes_ar": "إعادة تصميم شاملة لواجهة غرفة الإنتاج، تضمين خط Google Sans أوفلاين، إصلاح بث معاينة الفيديو والأيقونات واختصارات الكيبورد العربية.",
       "detection": {
-        "uninstall_ids": ["QASSIMZ.Producer_is1"],
-        "exe_paths": ["%LOCALAPPDATA%\\Programs\\QASSIMZ Producer\\QASSIMZ Producer.exe"]
+        "uninstall_ids": [
+          "QASSIMZ.Producer_is1"
+        ],
+        "exe_paths": [
+          "%LOCALAPPDATA%\\Programs\\QASSIMZ Producer\\QASSIMZ Producer.exe"
+        ]
       },
       "install": {
         "installer_type": "inno",
         "requires_admin": false,
-        "silent_args": ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS", "/AUTORUN=0"]
-      }
+        "silent_args": [
+          "/VERYSILENT",
+          "/SUPPRESSMSGBOXES",
+          "/NORESTART",
+          "/CLOSEAPPLICATIONS",
+          "/AUTORUN=0"
+        ]
+      },
+      "fallback_setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-producer/releases/download/v1.1.0/QASSIMZ-Producer-Setup-1.1.0.exe"
     },
     {
       "id": "qassimz-music",
@@ -169,26 +198,39 @@
         "غرف موسيقية مخصّصة ومكتبة ملفات محلية سريعة مع قراءة الأغلفة المدمجة",
         "اختصارات كيبورد فورية تدعم لوحة المفاتيح العربية والإنجليزية"
       ],
-      "hosts": ["Windows 10/11 x64"],
+      "hosts": [
+        "Windows 10/11 x64"
+      ],
       "accent": "#F59E0B",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "repo": "ahmedqassimtv-commits/qassimz-music",
       "repo_public": true,
-      "setup_filename": "QASSIMZ-Music-Setup-1.1.0.exe",
-      "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qassimz-music-v1.1.0/QASSIMZ-Music-Setup-1.1.0.exe",
-      "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qassimz-music-v1.1.0/QASSIMZ-Music-Portable.zip",
+      "setup_filename": "QASSIMZ-Music-Setup-1.2.0.exe",
+      "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qassimz-music-v1.2.0/QASSIMZ-Music-Setup-1.2.0.exe",
+      "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qassimz-music-v1.2.0/QASSIMZ-Music-Portable.zip",
       "setup_size": 0,
       "setup_sha256": "",
       "release_notes_ar": "إصلاح جذري لبث الراديو الحي (metaint و ICY 200 OK)، إصلاح أيقونة pywebview 6.2+، تصميم استوديو صوتي جديد كلياً، وخط Google Sans أوفلاين.",
       "detection": {
-        "uninstall_ids": ["QASSIMZ.Music_is1"],
-        "exe_paths": ["%LOCALAPPDATA%\\Programs\\QASSIMZ Music\\QASSIMZ Music.exe"]
+        "uninstall_ids": [
+          "QASSIMZ.Music_is1"
+        ],
+        "exe_paths": [
+          "%LOCALAPPDATA%\\Programs\\QASSIMZ Music\\QASSIMZ Music.exe"
+        ]
       },
       "install": {
         "installer_type": "inno",
         "requires_admin": false,
-        "silent_args": ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS", "/AUTORUN=0"]
-      }
+        "silent_args": [
+          "/VERYSILENT",
+          "/SUPPRESSMSGBOXES",
+          "/NORESTART",
+          "/CLOSEAPPLICATIONS",
+          "/AUTORUN=0"
+        ]
+      },
+      "fallback_setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-music/releases/download/v1.2.0/QASSIMZ-Music-Setup-1.2.0.exe"
     },
     {
       "id": "qdm",
@@ -205,37 +247,54 @@
         "إضافة متصفح Chrome/Edge لالتقاط الروابط والفيديوهات تلقائياً",
         "مراقب حافظة ذكي وجدولة تحميلات وخط Google Sans الرسمي"
       ],
-      "hosts": ["Windows 10/11 x64", "Chrome / Edge"],
+      "hosts": [
+        "Windows 10/11 x64",
+        "Chrome / Edge"
+      ],
       "accent": "#3B82F6",
-      "version": "2.1.0",
+      "version": "2.2.0",
       "repo": "ahmedqassimtv-commits/qdm",
       "repo_public": false,
-      "setup_filename": "QDM-Setup-2.1.0.exe",
-      "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qdm-v2.1.0/QDM-Setup-2.1.0.exe",
-      "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qdm-v2.1.0/QDM-Portable-2.1.0.zip",
+      "setup_filename": "QDM-Setup-2.2.0.exe",
+      "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qdm-v2.2.0/QDM-Setup-2.2.0.exe",
+      "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qdm-v2.2.0/QDM-Portable-2.2.0.zip",
       "extra_assets": [
         {
           "label_ar": "تحميل إضافة متصفح كروم (ZIP)",
-          "url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qdm-v2.1.0/QDM-Chrome-Extension.zip"
+          "url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qdm-v2.2.0/QDM-Chrome-Extension.zip"
         }
       ],
       "setup_size": 0,
       "setup_sha256": "",
       "release_notes_ar": "توحيد الإصدار 2.1.0، تضمين خط Google Sans أوفلاين ولوجو Qd الموحّد، إصلاح ترميز معالج التثبيت العربي واختصارات الكيبورد.",
       "detection": {
-        "uninstall_ids": ["{8E3F7A52-4C1B-4D6E-9F3A-51A7D2C0A1D1}_is1"],
+        "uninstall_ids": [
+          "{8E3F7A52-4C1B-4D6E-9F3A-51A7D2C0A1D1}_is1"
+        ],
         "exe_paths": [
           "%LOCALAPPDATA%\\Programs\\QDM\\QDM.exe",
           "%PROGRAMFILES%\\QDM\\QDM.exe"
         ],
         "sub_apps": [
-          {"label_ar": "تثبيت إضافة المتصفح", "args": ["--setup-extension"]}
+          {
+            "label_ar": "تثبيت إضافة المتصفح",
+            "args": [
+              "--setup-extension"
+            ]
+          }
         ]
       },
       "install": {
         "installer_type": "inno",
         "requires_admin": false,
-        "silent_args": ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS", "/CURRENTUSER", "/AUTORUN=0"]
+        "silent_args": [
+          "/VERYSILENT",
+          "/SUPPRESSMSGBOXES",
+          "/NORESTART",
+          "/CLOSEAPPLICATIONS",
+          "/CURRENTUSER",
+          "/AUTORUN=0"
+        ]
       }
     },
     {
@@ -253,7 +312,9 @@
         "إدارة ذكية للذاكرة بدون تجميد المستكشف مع الملفات الضخمة",
         "تنقّل كامل بالكيبورد والأسهم بالعربية والإنجليزية"
       ],
-      "hosts": ["Windows 10/11 x64"],
+      "hosts": [
+        "Windows 10/11 x64"
+      ],
       "accent": "#F43F5E",
       "version": "1.1.0",
       "repo": "ahmedqassimtv-commits/qassimz-thumbs",
@@ -265,14 +326,25 @@
       "setup_sha256": "",
       "release_notes_ar": "تحسين جذري لاستهلاك الذاكرة في Shell Extension، واجهة استوديو جديدة بهوية Th، خط Google Sans أوفلاين، وتنقّل كامل بالأسهم.",
       "detection": {
-        "uninstall_ids": ["QASSIMZ.Thumbs_is1"],
-        "exe_paths": ["%LOCALAPPDATA%\\Programs\\QASSIMZ Thumbs\\QASSIMZ Thumbs.exe"]
+        "uninstall_ids": [
+          "QASSIMZ.Thumbs_is1"
+        ],
+        "exe_paths": [
+          "%LOCALAPPDATA%\\Programs\\QASSIMZ Thumbs\\QASSIMZ Thumbs.exe"
+        ]
       },
       "install": {
         "installer_type": "inno",
         "requires_admin": false,
-        "silent_args": ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS", "/AUTORUN=0"]
-      }
+        "silent_args": [
+          "/VERYSILENT",
+          "/SUPPRESSMSGBOXES",
+          "/NORESTART",
+          "/CLOSEAPPLICATIONS",
+          "/AUTORUN=0"
+        ]
+      },
+      "fallback_setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-thumbs/releases/download/v1.1.0/QASSIMZ-Thumbs-Setup-1.1.0.exe"
     },
     {
       "id": "qassimz-organizer",
@@ -289,26 +361,39 @@
         "مراقبة تلقائية في الخلفية وتكامل مع قائمة مستكشف الويندوز",
         "منع تشغيل نسخ مكررة في الخلفية ودعم كامل لاختصارات الكيبورد"
       ],
-      "hosts": ["Windows 10/11 x64"],
+      "hosts": [
+        "Windows 10/11 x64"
+      ],
       "accent": "#10B981",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "repo": "ahmedqassimtv-commits/qassimz-organizer",
       "repo_public": true,
-      "setup_filename": "QASSIMZ-Organizer-Setup-1.1.0.exe",
-      "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qassimz-organizer-v1.1.0/QASSIMZ-Organizer-Setup-1.1.0.exe",
-      "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qassimz-organizer-v1.1.0/QASSIMZ-Organizer-Portable.zip",
+      "setup_filename": "QASSIMZ-Organizer-Setup-1.2.0.exe",
+      "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qassimz-organizer-v1.2.0/QASSIMZ-Organizer-Setup-1.2.0.exe",
+      "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qassimz-organizer-v1.2.0/QASSIMZ-Organizer-Portable.zip",
       "setup_size": 0,
       "setup_sha256": "",
       "release_notes_ar": "واجهة هندسية جديدة بهوية Or الزمردية، إصلاح pywebview 6.2+، قفل النسخة الواحدة في الخلفية، وخط Google Sans أوفلاين.",
       "detection": {
-        "uninstall_ids": ["QASSIMZ.Organizer_is1"],
-        "exe_paths": ["%LOCALAPPDATA%\\Programs\\QASSIMZ Organizer\\QASSIMZ Organizer.exe"]
+        "uninstall_ids": [
+          "QASSIMZ.Organizer_is1"
+        ],
+        "exe_paths": [
+          "%LOCALAPPDATA%\\Programs\\QASSIMZ Organizer\\QASSIMZ Organizer.exe"
+        ]
       },
       "install": {
         "installer_type": "inno",
         "requires_admin": false,
-        "silent_args": ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS", "/AUTORUN=0"]
-      }
+        "silent_args": [
+          "/VERYSILENT",
+          "/SUPPRESSMSGBOXES",
+          "/NORESTART",
+          "/CLOSEAPPLICATIONS",
+          "/AUTORUN=0"
+        ]
+      },
+      "fallback_setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-organizer/releases/download/v1.2.0/QASSIMZ-Organizer-Setup-1.2.0.exe"
     },
     {
       "id": "qassimz-study",
@@ -325,7 +410,9 @@
         "تصدير الصور والملخصات أوفلاين بالكامل بدون الحاجة لاتصال إنترنت",
         "اختصارات أدوات سريعة تعمل مع الكيبورد العربي والإنجليزي معاً"
       ],
-      "hosts": ["Windows 10/11 x64"],
+      "hosts": [
+        "Windows 10/11 x64"
+      ],
       "accent": "#14B8A6",
       "version": "1.1.0",
       "repo": "ahmedqassimtv-commits/qassimz-study",
@@ -337,7 +424,9 @@
       "setup_sha256": "",
       "release_notes_ar": "إعادة تصميم هادئة ومريحة للعين بهوية Sd، خط Google Sans أوفلاين، إصلاح جميع اختصارات الأدوات على الكيبورد العربي، ودعم نماذج AI إضافية.",
       "detection": {
-        "uninstall_ids": ["dab811f2-d847-5d07-b0c6-375c3f781675"],
+        "uninstall_ids": [
+          "dab811f2-d847-5d07-b0c6-375c3f781675"
+        ],
         "display_name_match": "QASSIMZ Study",
         "exe_paths": [
           "%LOCALAPPDATA%\\Programs\\QASSIMZ Study\\QASSIMZ Study.exe",
@@ -347,7 +436,9 @@
       "install": {
         "installer_type": "nsis",
         "requires_admin": false,
-        "silent_args": ["/S"]
+        "silent_args": [
+          "/S"
+        ]
       }
     },
     {
@@ -365,7 +456,9 @@
         "مختبر ذكاء اصطناعي محلي: عزل الخلفية، طبقات عمق 3D، رفع الدقة، وروتوسكوب بالنص",
         "تصميم تحريري جديد بهوية Vx الفولتية ودعم كامل لاختصارات الكيبورد"
       ],
-      "hosts": ["After Effects 2020+"],
+      "hosts": [
+        "After Effects 2020+"
+      ],
       "accent": "#C8FF00",
       "version": "2.3.0",
       "repo": "ahmedqassimtv-commits/qassimz-vox-fx",
@@ -376,18 +469,29 @@
       "setup_sha256": "",
       "release_notes_ar": "الإصدار 2.3.0: إصلاح انترو اللوجو، واجهة استوديو وثائقية جديدة، خط Google Sans أوفلاين، وتثبيت صامت سلس عبر QASSIMZ Hub.",
       "detection": {
-        "uninstall_ids": ["{7C1E4A52-9B0D-4F7E-9C1A-5A1B2C3D4E5F}_is1"],
+        "uninstall_ids": [
+          "{7C1E4A52-9B0D-4F7E-9C1A-5A1B2C3D4E5F}_is1"
+        ],
         "cep_bundle_id": "com.qassimz.voxfx",
         "adobe_host": "aftereffects",
-        "ai_ready_paths": ["%LOCALAPPDATA%\\QASSIMZ\\roto-env\\Scripts\\python.exe"],
+        "ai_ready_paths": [
+          "%LOCALAPPDATA%\\QASSIMZ\\roto-env\\Scripts\\python.exe"
+        ],
         "extra_folders": [
-          {"label_ar": "مجلد ملحقات VOX FX", "path": "%USERPROFILE%\\Documents\\QASSIMZ VOX FX"}
+          {
+            "label_ar": "مجلد ملحقات VOX FX",
+            "path": "%USERPROFILE%\\Documents\\QASSIMZ VOX FX"
+          }
         ]
       },
       "install": {
         "installer_type": "inno",
         "requires_admin": true,
-        "silent_args": ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"]
+        "silent_args": [
+          "/VERYSILENT",
+          "/SUPPRESSMSGBOXES",
+          "/NORESTART"
+        ]
       }
     },
     {
@@ -405,7 +509,9 @@
         "توليد كابشن متحرّك (كلمة بكلمة / كاريوكي / جمل) مع ترجمة ثنائية",
         "خفض تلقائي لصوت الموسيقى (Audio Ducking) متزامن مع الكلام"
       ],
-      "hosts": ["Premiere Pro 2021+"],
+      "hosts": [
+        "Premiere Pro 2021+"
+      ],
       "accent": "#EAB308",
       "version": "1.1.0",
       "repo": "ahmedqassimtv-commits/qassimz-captions",
@@ -416,16 +522,24 @@
       "setup_sha256": "",
       "release_notes_ar": "الإصدار 1.1.0: إصلاح خفض الصوت التلقائي واستعادة الكلمات المتعددة، واجهة تحرير نصوص جديدة بهوية Cc، وخط Google Sans أوفلاين.",
       "detection": {
-        "uninstall_ids": ["{E8510C5C-7B34-403B-83E3-00166D2394B0}_is1"],
+        "uninstall_ids": [
+          "{E8510C5C-7B34-403B-83E3-00166D2394B0}_is1"
+        ],
         "cep_bundle_id": "com.qassimz.captions",
         "adobe_host": "premiere",
-        "ai_ready_paths": ["%LOCALAPPDATA%\\QASSIMZ\\captions-env\\Scripts\\python.exe"],
+        "ai_ready_paths": [
+          "%LOCALAPPDATA%\\QASSIMZ\\captions-env\\Scripts\\python.exe"
+        ],
         "ai_setup_script": "%PROGRAMFILES(X86)%\\Common Files\\Adobe\\CEP\\extensions\\com.qassimz.captions\\python\\setup_captions.bat"
       },
       "install": {
         "installer_type": "inno",
         "requires_admin": true,
-        "silent_args": ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"]
+        "silent_args": [
+          "/VERYSILENT",
+          "/SUPPRESSMSGBOXES",
+          "/NORESTART"
+        ]
       }
     },
     {
@@ -443,18 +557,23 @@
         "إدراج فوري للّقطات المختارة في تايملاين Premiere Pro و After Effects بدقة الفريم",
         "واجهة سينمائية جديدة بهوية Ft ودعم كامل لاختصارات الكيبورد"
       ],
-      "hosts": ["Premiere Pro 2021+", "After Effects 2020+"],
+      "hosts": [
+        "Premiere Pro 2021+",
+        "After Effects 2020+"
+      ],
       "accent": "#06B6D4",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "repo": "ahmedqassimtv-commits/qassimz-footage",
       "repo_public": false,
       "setup_filename": "QASSIMZ_FOOTAGE_Setup.exe",
-      "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qassimz-footage-v1.1.0/QASSIMZ_FOOTAGE_Setup.exe",
+      "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qassimz-footage-v1.2.0/QASSIMZ_FOOTAGE_Setup.exe",
       "setup_size": 0,
       "setup_sha256": "",
       "release_notes_ar": "الإصدار 1.1.0: إصلاح نقاط In/Out في بريميير، تصميم سينمائي جديد بهوية Ft، خط Google Sans أوفلاين، وتثبيت صامت سلس.",
       "detection": {
-        "uninstall_ids": ["{3F6B1D2E-8A4C-4C55-9E1F-0B7A6D2C9F41}_is1"],
+        "uninstall_ids": [
+          "{3F6B1D2E-8A4C-4C55-9E1F-0B7A6D2C9F41}_is1"
+        ],
         "cep_bundle_id": "com.qassimz.footage",
         "adobe_host": "premiere",
         "ai_ready_paths": [
@@ -466,7 +585,11 @@
       "install": {
         "installer_type": "inno",
         "requires_admin": true,
-        "silent_args": ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"]
+        "silent_args": [
+          "/VERYSILENT",
+          "/SUPPRESSMSGBOXES",
+          "/NORESTART"
+        ]
       }
     },
     {
@@ -484,7 +607,9 @@
         "توليد عشرات العناوين تلقائياً من ملفات CSV وبحث واستبدال شامل في التايملاين",
         "مكتبة مشتركة متكاملة مباشرة مع إضافة QASSIMZ MOGRT Maker"
       ],
-      "hosts": ["Premiere Pro 2021+"],
+      "hosts": [
+        "Premiere Pro 2021+"
+      ],
       "accent": "#EC4899",
       "version": "1.1.0",
       "repo": "ahmedqassimtv-commits/qassimz-mogrt-hub",
@@ -495,17 +620,26 @@
       "setup_sha256": "",
       "release_notes_ar": "الإصدار 1.1.0: إصلاح معالجة نصوص JSON الغنية في قوالب MOGRT، واجهة معرض جديدة بهوية Mh، وخط Google Sans أوفلاين.",
       "detection": {
-        "uninstall_ids": ["{3B8F2D61-6C4E-4A9B-8E27-1D5C7A9E0F42}_is1"],
+        "uninstall_ids": [
+          "{3B8F2D61-6C4E-4A9B-8E27-1D5C7A9E0F42}_is1"
+        ],
         "cep_bundle_id": "com.qassimz.mogrthub",
         "adobe_host": "premiere",
         "extra_folders": [
-          {"label_ar": "فتح مجلد قوالب MOGRTS", "path": "%USERPROFILE%\\Documents\\QASSIMZ MOGRTS"}
+          {
+            "label_ar": "فتح مجلد قوالب MOGRTS",
+            "path": "%USERPROFILE%\\Documents\\QASSIMZ MOGRTS"
+          }
         ]
       },
       "install": {
         "installer_type": "inno",
         "requires_admin": true,
-        "silent_args": ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"]
+        "silent_args": [
+          "/VERYSILENT",
+          "/SUPPRESSMSGBOXES",
+          "/NORESTART"
+        ]
       }
     },
     {
@@ -523,28 +657,39 @@
         "تصدير جماعي (Batch Export) مع لقطة مصغّرة وبيانات وصفية لمكتبة MOGRT Hub",
         "واجهة هندسية جديدة بهوية Mm النحاسية وخط Google Sans أوفلاين"
       ],
-      "hosts": ["After Effects 2020+"],
+      "hosts": [
+        "After Effects 2020+"
+      ],
       "accent": "#FB923C",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "repo": "ahmedqassimtv-commits/qassimz-mogrt-maker",
       "repo_public": false,
       "setup_filename": "QASSIMZ_MOGRT_MAKER_Setup.exe",
-      "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qassimz-mogrt-maker-v1.1.0/QASSIMZ_MOGRT_MAKER_Setup.exe",
+      "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qassimz-mogrt-maker-v1.2.0/QASSIMZ_MOGRT_MAKER_Setup.exe",
       "setup_size": 0,
       "setup_sha256": "",
       "release_notes_ar": "الإصدار 1.1.0: تحسين تعبيرات Auto-Rig، واجهة بناء قوالب جديدة بهوية Mm، خط Google Sans أوفلاين، واختصارات كيبورد شاملة.",
       "detection": {
-        "uninstall_ids": ["{3F7B2C91-6E4D-4A8B-B5C2-9D1E0F2A7C64}_is1"],
+        "uninstall_ids": [
+          "{3F7B2C91-6E4D-4A8B-B5C2-9D1E0F2A7C64}_is1"
+        ],
         "cep_bundle_id": "com.qassimz.mogrtmaker",
         "adobe_host": "aftereffects",
         "extra_folders": [
-          {"label_ar": "فتح مجلد قوالب MOGRTS", "path": "%USERPROFILE%\\Documents\\QASSIMZ MOGRTS"}
+          {
+            "label_ar": "فتح مجلد قوالب MOGRTS",
+            "path": "%USERPROFILE%\\Documents\\QASSIMZ MOGRTS"
+          }
         ]
       },
       "install": {
         "installer_type": "inno",
         "requires_admin": true,
-        "silent_args": ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"]
+        "silent_args": [
+          "/VERYSILENT",
+          "/SUPPRESSMSGBOXES",
+          "/NORESTART"
+        ]
       }
     },
     {
@@ -562,7 +707,9 @@
         "منتقي أفضل إطار للصورة المصغّرة (AI Thumbnail Picker) بتحليل تعابير الوجه",
         "طابور تصدير حي مع عدّاد زمني ودعم كامل للمسارات العربية في الويندوز"
       ],
-      "hosts": ["After Effects 2020+"],
+      "hosts": [
+        "After Effects 2020+"
+      ],
       "accent": "#22C55E",
       "version": "1.1.0",
       "repo": "ahmedqassimtv-commits/qassimz-export",
@@ -573,7 +720,9 @@
       "setup_sha256": "",
       "release_notes_ar": "الإصدار 1.1.0: دعم كامل لأسماء المستخدمين والمسارات العربية في نماذج AI، واجهة تصدير جديدة بهوية Ex الخضراء، وخط Google Sans أوفلاين.",
       "detection": {
-        "uninstall_ids": ["{5D9DF31E-2967-4CEE-8038-AB5A1D31EDEE}_is1"],
+        "uninstall_ids": [
+          "{5D9DF31E-2967-4CEE-8038-AB5A1D31EDEE}_is1"
+        ],
         "cep_bundle_id": "com.qassimz.export",
         "adobe_host": "aftereffects",
         "ai_ready_paths": [
@@ -585,7 +734,11 @@
       "install": {
         "installer_type": "inno",
         "requires_admin": true,
-        "silent_args": ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"]
+        "silent_args": [
+          "/VERYSILENT",
+          "/SUPPRESSMSGBOXES",
+          "/NORESTART"
+        ]
       }
     }
   ]

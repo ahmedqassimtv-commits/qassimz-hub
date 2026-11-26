@@ -25,9 +25,10 @@ from detector import (
 )
 from installer_runner import UA, TaskQueue, run_uninstall_command, ssl_context
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 HUB_REPO = "ahmedqassimtv-commits/qassimz-hub"
 REMOTE_CATALOG_URL = f"https://raw.githubusercontent.com/{HUB_REPO}/main/catalog.json"
+STATE_CACHE_TTL = 3.0
 
 mimetypes.add_type("font/woff2", ".woff2")
 mimetypes.add_type("image/svg+xml", ".svg")
@@ -50,6 +51,8 @@ class HubSettings:
         "minimize_to_tray": True,
         "start_with_windows": False,
         "auto_check_updates": True,
+        "auto_update_apps": True,
+        "auto_update_hub": False,
     }
 
     def __init__(self, root: Path):
@@ -105,11 +108,61 @@ class HubApi:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.settings = HubSettings(self.root)
         self.window: Any = None
+        self._on_release_lock: Any = None
         self._catalog_lock = threading.Lock()
+        self._state_lock = threading.Lock()
+        self._enriched_cache: dict[str, Any] | None = None
+        self._enriched_ts = 0.0
         self._catalog = self._load_initial_catalog()
         self._last_sync = 0.0
         self._sync_error = ""
-        self.queue = TaskQueue(self.cache_dir)
+        self.queue = TaskQueue(
+            self.cache_dir,
+            on_finished=self._on_task_finished,
+            on_self_update_ready=self._apply_hub_self_update,
+        )
+
+    def _notify_ui_sync(self) -> None:
+        win = self.window
+        if win is not None:
+            try:
+                win.evaluate_js("window.__qhubOnCatalogSynced && window.__qhubOnCatalogSynced();")
+            except Exception:
+                pass
+
+    def _on_task_finished(self, _item_id: str, item: dict[str, Any]) -> None:
+        if item.get("category") == "adobe":
+            try:
+                enable_cep_player_debug_mode()
+            except Exception:
+                pass
+        self._invalidate_state_cache()
+        self._notify_ui_sync()
+
+    def _apply_hub_self_update(self, setup_exe: Path) -> None:
+        if os.name != "nt":
+            return
+        rel = self._on_release_lock
+        if callable(rel):
+            try:
+                rel()
+            except Exception:
+                pass
+        args = [
+            str(setup_exe),
+            "/VERYSILENT",
+            "/SUPPRESSMSGBOXES",
+            "/NORESTART",
+            "/CLOSEAPPLICATIONS",
+            "/AUTORUN=1",
+        ]
+        subprocess.Popen(args, cwd=str(setup_exe.parent))
+        threading.Timer(0.6, lambda: os._exit(0)).start()
+
+    def _invalidate_state_cache(self) -> None:
+        with self._state_lock:
+            self._enriched_cache = None
+            self._enriched_ts = 0.0
 
     def _load_initial_catalog(self) -> dict[str, Any]:
         bundled = resource("catalog.json")
@@ -147,7 +200,8 @@ class HubApi:
                 )
         except Exception as e:
             self._sync_error = str(e)
-        return self.state()
+        self._invalidate_state_cache()
+        return self.state(force=True)
 
     def _get_item(self, item_id: str) -> dict[str, Any] | None:
         with self._catalog_lock:
@@ -156,10 +210,26 @@ class HubApi:
                     return dict(it)
         return None
 
-    def state(self) -> dict[str, Any]:
+    def _get_enriched(self, force: bool = False) -> dict[str, Any]:
+        now = time.monotonic()
+        with self._state_lock:
+            if not force and self._enriched_cache is not None and (now - self._enriched_ts) < STATE_CACHE_TTL:
+                return self._enriched_cache
         with self._catalog_lock:
-            cat_copy = json.loads(json.dumps(self._catalog))
-        enriched = enrich_catalog(cat_copy)
+            cat_snap = {
+                "schema_version": self._catalog.get("schema_version", 1),
+                "updated_at": self._catalog.get("updated_at", ""),
+                "hub": dict(self._catalog.get("hub") or {}),
+                "items": [dict(it) for it in (self._catalog.get("items") or [])],
+            }
+        enriched = enrich_catalog(cat_snap)
+        with self._state_lock:
+            self._enriched_cache = enriched
+            self._enriched_ts = time.monotonic()
+        return enriched
+
+    def state(self, force: bool = False) -> dict[str, Any]:
+        enriched = self._get_enriched(force=force)
         hub_meta = enriched.get("hub") or {}
         remote_hub_ver = hub_meta.get("version", VERSION)
         hub_has_update = parse_version(remote_hub_ver) > parse_version(VERSION)
@@ -168,7 +238,10 @@ class HubApi:
         if self.cache_dir.is_dir():
             for f in self.cache_dir.iterdir():
                 if f.is_file():
-                    cache_bytes += f.stat().st_size
+                    try:
+                        cache_bytes += f.stat().st_size
+                    except OSError:
+                        pass
 
         return {
             **enriched,
@@ -249,7 +322,8 @@ class HubApi:
 
     def fix_cep(self) -> dict[str, Any]:
         enable_cep_player_debug_mode()
-        return self.state()["adobe"]
+        self._invalidate_state_cache()
+        return self.state(force=True)["adobe"]
 
     def run_ai_setup(self, id: str) -> bool:
         st = self.state()
@@ -271,7 +345,14 @@ class HubApi:
         cmd = target_item["state"].get("uninstall_cmd") or ""
         if not cmd:
             raise RuntimeError("لا يوجد معالج إلغاء تثبيت مسجّل لهذا العنصر.")
-        threading.Thread(target=run_uninstall_command, args=(cmd, False), daemon=True).start()
+
+        def _run_uninst():
+            try:
+                run_uninstall_command(cmd, False)
+            finally:
+                self._invalidate_state_cache()
+
+        threading.Thread(target=_run_uninst, daemon=True).start()
         return True
 
     def open_folder(self, path: str) -> bool:
@@ -319,25 +400,92 @@ class HubApi:
                 pass
         return False
 
-    def install_hub_update(self) -> bool:
+    def win_minimize(self) -> bool:
+        if self.window is not None:
+            try:
+                self.window.minimize()
+                return True
+            except Exception:
+                pass
+        return False
+
+    def win_toggle_maximize(self) -> bool:
+        if self.window is not None:
+            try:
+                if getattr(self, "_is_maximized", False):
+                    self.window.restore()
+                    self._is_maximized = False
+                else:
+                    self.window.maximize()
+                    self._is_maximized = True
+                return self._is_maximized
+            except Exception:
+                pass
+        return False
+
+    def win_close(self) -> bool:
+        cb = getattr(self, "_on_close_request", None)
+        if callable(cb):
+            cb()
+            return True
+        if self.window is not None:
+            try:
+                self.window.destroy()
+                return True
+            except Exception:
+                pass
+        return False
+
+    def install_hub_update(self, force: bool = False) -> dict[str, Any]:
         with self._catalog_lock:
             hub = dict(self._catalog.get("hub") or {})
         url = hub.get("setup_url") or ""
         ver = hub.get("version") or VERSION
-        if not url or parse_version(ver) <= parse_version(VERSION):
-            return False
-        dst = Path(tempfile.gettempdir()) / f"QASSIMZ-Hub-Setup-{ver}.exe"
-        req = urllib.request.Request(url, headers={"User-Agent": UA})
-        with urllib.request.urlopen(req, timeout=180, context=ssl_context()) as r, open(dst, "wb") as fh:
-            shutil.copyfileobj(r, fh)
-        if os.name == "nt":
-            subprocess.Popen([str(dst), "/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS"])
-            threading.Timer(1.0, lambda: os._exit(0)).start()
-        return True
+        if not url:
+            raise RuntimeError("رابط تحديث QASSIMZ Hub غير متاح حالياً.")
+        if not force and parse_version(ver) <= parse_version(VERSION):
+            return {"up_to_date": True, "version": VERSION}
+        hub_item = {
+            "id": "qassimz-hub",
+            "code": "Qh",
+            "name": "QASSIMZ Hub",
+            "name_ar": "تحديث مركز قَاسِمز الرسمي",
+            "accent": "#38BDF8",
+            "version": ver,
+            "setup_filename": hub.get("setup_filename") or f"QASSIMZ-Hub-Setup-{ver}.exe",
+            "setup_url": url,
+            "setup_size": int(hub.get("setup_size") or 0),
+            "setup_sha256": hub.get("setup_sha256") or "",
+            "repo": HUB_REPO,
+            "repo_public": True,
+        }
+        return self.queue.enqueue_install(hub_item, silent=True, self_update=True)
+
+    def run_auto_update_cycle(self) -> dict[str, Any]:
+        """Refresh remote catalog and automatically update installed apps (and Hub if enabled)."""
+        cfg = self.settings.all()
+        st = self.refresh_catalog()
+        queued_apps: list[str] = []
+        hub_queued = False
+        if cfg.get("auto_update_apps", True):
+            for it in st.get("items") or []:
+                if it.get("state", {}).get("has_update"):
+                    self.queue.enqueue_install(it, silent=cfg.get("silent_install", True))
+                    queued_apps.append(it["id"])
+        if cfg.get("auto_update_hub", False) and st.get("hub_has_update"):
+            try:
+                self.install_hub_update()
+                hub_queued = True
+            except Exception:
+                pass
+        self._notify_ui_sync()
+        return {"queued_apps": queued_apps, "hub_queued": hub_queued}
 
 
 def make_handler(api: HubApi, token: str, ui_dir: Path):
     ui_resolved = ui_dir.resolve()
+    static_cache: dict[Path, tuple[int, bytes, str, str]] = {}
+    static_lock = threading.Lock()
 
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
@@ -345,14 +493,24 @@ def make_handler(api: HubApi, token: str, ui_dir: Path):
         def log_message(self, *args: Any) -> None:
             pass
 
-        def _send(self, code: int, body: bytes, ctype: str = "application/json; charset=utf-8") -> None:
+        def _send(
+            self,
+            code: int,
+            body: bytes,
+            ctype: str = "application/json; charset=utf-8",
+            etag: str | None = None,
+        ) -> None:
             try:
                 self.send_response(code)
                 self.send_header("Content-Type", ctype)
                 self.send_header("Content-Length", str(len(body)))
-                self.send_header("Cache-Control", "no-store" if "json" in ctype else "max-age=3600")
+                if etag:
+                    self.send_header("ETag", etag)
+                    self.send_header("Cache-Control", "public, max-age=86400")
+                else:
+                    self.send_header("Cache-Control", "no-store" if "json" in ctype else "max-age=3600")
                 self.end_headers()
-                if self.command != "HEAD":
+                if self.command != "HEAD" and body:
                     self.wfile.write(body)
             except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
                 pass
@@ -377,14 +535,36 @@ def make_handler(api: HubApi, token: str, ui_dir: Path):
             if not target.is_file():
                 return self._send(404, b"not found", "text/plain")
 
-            ctype = mimetypes.guess_type(str(target))[0] or "application/octet-stream"
-            if target.suffix == ".js":
-                ctype = "text/javascript; charset=utf-8"
-            elif target.suffix == ".css":
-                ctype = "text/css; charset=utf-8"
-            elif target.suffix == ".html":
-                ctype = "text/html; charset=utf-8"
-            self._send(200, target.read_bytes(), ctype)
+            try:
+                mtime_ns = target.stat().st_mtime_ns
+            except OSError:
+                return self._send(404, b"not found", "text/plain")
+
+            with static_lock:
+                cached = static_cache.get(target)
+            if cached and cached[0] == mtime_ns:
+                _, data, ctype, etag = cached
+            else:
+                ctype = mimetypes.guess_type(str(target))[0] or "application/octet-stream"
+                if target.suffix == ".js":
+                    ctype = "text/javascript; charset=utf-8"
+                elif target.suffix == ".css":
+                    ctype = "text/css; charset=utf-8"
+                elif target.suffix == ".html":
+                    ctype = "text/html; charset=utf-8"
+                data = target.read_bytes()
+                etag = f'"{mtime_ns:x}-{len(data):x}"'
+                with static_lock:
+                    static_cache[target] = (mtime_ns, data, ctype, etag)
+
+            if self.headers.get("If-None-Match") == etag:
+                self.send_response(304)
+                self.send_header("ETag", etag)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+
+            self._send(200, data, ctype, etag=etag)
 
         do_HEAD = do_GET
 

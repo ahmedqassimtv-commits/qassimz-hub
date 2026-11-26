@@ -1,0 +1,35 @@
+name: Sync App Packages & Catalog
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 */6 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Mirror latest releases and update catalog.json
+        env:
+          # Set QASSIMZ_MIRROR_TOKEN secret (PAT with repo read scope) to mirror private repos too.
+          GH_TOKEN: ${{ secrets.QASSIMZ_MIRROR_TOKEN || github.token }}
+        run: python3 tools/sync_releases.py
+
+      - name: Commit updated catalog.json if changed
+        run: |
+          if ! git diff --quiet catalog.json; then
+            git config user.name "qassimz-bot"
+            git config user.email "bot@qassimz.local"
+            git add catalog.json
+            git commit -m "chore(catalog): sync mirrored package versions, sizes & SHA-256"
+            git push origin HEAD
+          fi
