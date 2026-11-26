@@ -1,4 +1,4 @@
-﻿; QASSIMZ Hub — Inno Setup 6 Script (Per-User, Animated 3D Wizard Logo)
+; QASSIMZ Hub — Inno Setup 6 Script (Per-User, Animated 3D Wizard Logo)
 #ifndef AppVer
   #define AppVer "1.0.0"
 #endif
@@ -65,9 +65,14 @@ Filename: "taskkill.exe"; Parameters: "/F /IM ""QASSIMZ Hub.exe"""; Flags: runhi
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
-Filename: "{app}\{#AppExe}"; Flags: nowait; Check: WizardSilent and (ExpandConstant('{param:AUTORUN|1}') <> '0')
+Filename: "{app}\{#AppExe}"; Flags: nowait; Check: ShouldSilentRun
 
 [Code]
+function ShouldSilentRun: Boolean;
+begin
+  Result := WizardSilent and (ExpandConstant('{param:AUTORUN|1}') = '1');
+end;
+
 const
   FRAMES = 36;
   FRAME_MS = 55;
