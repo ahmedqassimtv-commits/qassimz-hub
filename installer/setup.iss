@@ -1,4 +1,4 @@
-; QASSIMZ Hub — Inno Setup 6 Script (Per-User, Animated 3D Wizard Logo)
+﻿; QASSIMZ Hub — Inno Setup 6 Script (Per-User, Animated 3D Wizard Logo)
 #ifndef AppVer
   #define AppVer "1.0.0"
 #endif
