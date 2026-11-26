@@ -1,0 +1,9 @@
+﻿مرحباً بك في QASSIMZ Hub — اللانشر والمركز الرسمي لمنظومة قَاسِمز!
+
+يتيح لك هذا البرنامج:
+• تصفح وتثبيت جميع برامج قَاسِمز لسطح المكتب (Studio, Producer, Music, QDM, Thumbs, Organizer, Study | ذاكِر) بضغطة زر واحدة وبدون تسجيل دخول.
+• تثبيت وتحديث جميع إضافات Adobe Premiere Pro و After Effects الرسمية (VOX FX, Captions, Footage, MOGRT Hub, MOGRT Maker, Export) مع تفعيل PlayerDebugMode تلقائياً.
+• متابعة التحديثات الجديدة أولاً بأول وتشغيل جميع أدواتك من مكان واحد.
+
+جميع الحقوق محفوظة © Ahmed Qassim — QASSIMZ
+https://github.com/ahmedqassimtv-commits/qassimz-hub

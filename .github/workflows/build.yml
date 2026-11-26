@@ -1,0 +1,61 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Build Windows executable (PyInstaller)
+        run: python -m PyInstaller --noconfirm --clean qassimz-hub.spec
+
+      - name: Build Windows Setup (.exe) & Portable (.zip)
+        shell: pwsh
+        run: |
+          $ver = (Select-String -Path app/server.py -Pattern '^VERSION\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
+          echo "APP_VER=$ver" >> $env:GITHUB_ENV
+          choco install innosetup -y --no-progress
+          $islUrl = "https://raw.githubusercontent.com/jrsoftware/issrc/main/Files/Languages/Unofficial/Arabic.isl"
+          try { Invoke-WebRequest -Uri $islUrl -OutFile installer/Arabic.isl -UseBasicParsing } catch {}
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVer=$ver" installer\setup.iss
+          Compress-Archive -Path "dist\QASSIMZ Hub\*" -DestinationPath "dist\QASSIMZ-Hub-Portable.zip" -Force
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QASSIMZ-Hub
+          path: |
+            dist/QASSIMZ-Hub-Setup-*.exe
+            dist/QASSIMZ-Hub-Portable.zip
+
+      - name: Publish GitHub Release on tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "QASSIMZ Hub ${{ github.ref_name }}"
+          files: |
+            dist/QASSIMZ-Hub-Setup-*.exe
+            dist/QASSIMZ-Hub-Portable.zip
+            catalog.json

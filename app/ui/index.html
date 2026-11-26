@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="QASSIMZ Hub — اللانشر والمركز الرسمي لتصفح وتثبيت وتشغيل وتحديث جميع تطبيقات وإضافات قَاسِمز" />
+  <title>QASSIMZ Hub — مركز قَاسِمز الرسمي</title>
+  <link rel="icon" href="./logo.png" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="shell">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" aria-label="التنقّل الرئيسي">
+      <div class="brand">
+        <img src="./logo.svg" alt="QASSIMZ Hub" class="brand-logo" />
+        <div class="brand-meta">
+          <div class="brand-title">
+            <span>QASSIMZ Hub</span>
+            <span class="brand-ver" id="hub-ver">v1.0.0</span>
+          </div>
+          <span class="brand-sub">اللانشر والمركز الرسمي</span>
+        </div>
+      </div>
+
+      <nav class="nav-group" id="main-nav">
+        <span class="nav-label">المكتبة</span>
+        <button class="nav-btn active" data-view="all" id="nav-all">
+          <span class="nav-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>
+            <span>جميع الأدوات</span>
+          </span>
+          <span class="nav-count" id="cnt-all">13</span>
+        </button>
+
+        <button class="nav-btn" data-view="desktop" id="nav-desktop">
+          <span class="nav-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            <span>تطبيقات سطح المكتب</span>
+          </span>
+          <span class="nav-count" id="cnt-desktop">7</span>
+        </button>
+
+        <button class="nav-btn" data-view="adobe" id="nav-adobe">
+          <span class="nav-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+            <span>إضافات Adobe</span>
+          </span>
+          <span class="nav-count" id="cnt-adobe">6</span>
+        </button>
+
+        <span class="nav-label" style="margin-top:8px;">إدارة الجهاز</span>
+        <button class="nav-btn" data-view="installed" id="nav-installed">
+          <span class="nav-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <span>المثبّتة حالياً</span>
+          </span>
+          <span class="nav-count" id="cnt-installed">0</span>
+        </button>
+
+        <button class="nav-btn" data-view="updates" id="nav-updates">
+          <span class="nav-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>التحديثات والتنزيلات</span>
+          </span>
+          <span class="nav-count" id="cnt-updates">0</span>
+        </button>
+
+        <button class="nav-btn" data-view="settings" id="nav-settings">
+          <span class="nav-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.09a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span>الإعدادات</span>
+          </span>
+        </button>
+      </nav>
+
+      <!-- Adobe CC Quick Host Box -->
+      <div class="adobe-box" id="adobe-status-box">
+        <div class="adobe-box-head">
+          <span>بيئة Adobe CEP</span>
+          <span class="status-dot" id="cep-dot" title="جاهز"></span>
+        </div>
+        <div class="adobe-hosts">
+          <button class="host-btn" id="btn-launch-pr" title="تشغيل Adobe Premiere Pro">Premiere</button>
+          <button class="host-btn" id="btn-launch-ae" title="تشغيل Adobe After Effects">AfterFX</button>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="btn-fix-cep" style="width:100%;font-size:11.5px;">
+          تفعيل PlayerDebugMode
+        </button>
+      </div>
+
+      <div class="sidebar-foot">
+        <button class="icon-link" id="btn-open-github">GitHub</button>
+        <button class="icon-link" id="btn-open-shortcuts" title="اختصارات لوحة المفاتيح (?)">الاختصارات ؟</button>
+      </div>
+    </aside>
+
+    <!-- Main Stage -->
+    <main class="stage">
+      <header class="topbar">
+        <div class="search-wrap">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input
+            type="search"
+            id="q-search"
+            class="search-input"
+            placeholder="ابحث عن برنامج أو إضافة (مثل: Music, VOX FX, ذاكِر)..."
+            autocomplete="off"
+          />
+          <span class="kbd-hint">Ctrl+F</span>
+        </div>
+
+        <div class="topbar-actions">
+          <div class="filter-pills" id="status-filter" role="group" aria-label="تصفية الحالة">
+            <button class="pill-btn active" data-filter="all">الكل</button>
+            <button class="pill-btn" data-filter="installed">المثبّت</button>
+            <button class="pill-btn" data-filter="not-installed">غير المثبّت</button>
+          </div>
+
+          <button class="btn btn-warn" id="btn-update-all" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span id="lbl-update-all">تحديث الكل</span>
+          </button>
+
+          <button class="btn btn-ghost" id="btn-refresh" title="فحص التحديثات ومزامنة الدليل (Ctrl+R)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            <span>تحديث الدليل</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Live Download / Install Strip -->
+      <div class="transfer-strip" id="transfer-strip" hidden>
+        <div class="transfer-info">
+          <strong id="strip-title">جارٍ التحميل...</strong>
+          <div class="transfer-bar-track">
+            <div class="transfer-bar-fill" id="strip-fill" style="width:0%"></div>
+          </div>
+          <span id="strip-meta" style="font-size:12px;color:var(--text-2);direction:ltr;"></span>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="btn-view-transfers">عرض التنزيلات</button>
+      </div>
+
+      <!-- Dynamic Workspace Container -->
+      <section class="content" id="workspace" tabindex="-1"></section>
+    </main>
+  </div>
+
+  <!-- Slide-Over Product Detail Drawer -->
+  <div class="backdrop" id="detail-backdrop" hidden>
+    <aside class="drawer" id="detail-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+      <div class="drawer-head">
+        <div class="drawer-id">
+          <img id="drawer-icon" src="./logo.svg" alt="" />
+          <div>
+            <h2 id="drawer-title" style="font-size:18px;font-weight:700;direction:ltr;text-align:start;"></h2>
+            <p id="drawer-name-ar" style="font-size:13px;color:var(--text-2);"></p>
+            <span class="status-pill available" id="drawer-badge" style="margin-top:6px;display:inline-block;"></span>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-icon" id="btn-close-drawer" title="إغلاق (Esc)">✕</button>
+      </div>
+      <div class="drawer-body" id="drawer-body"></div>
+      <div class="drawer-foot" id="drawer-foot"></div>
+    </aside>
+  </div>
+
+  <!-- Keyboard Shortcuts Modal -->
+  <div class="modal-center" id="shortcuts-modal" hidden>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="shortcuts-heading">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h3 id="shortcuts-heading" style="font-size:16px;font-weight:700;">اختصارات لوحة المفاتيح (عربي + إنجليزي)</h3>
+        <button class="btn btn-ghost btn-icon" id="btn-close-shortcuts">✕</button>
+      </div>
+      <p style="font-size:12.5px;color:var(--text-2);">تعمل جميع الاختصارات تلقائياً بغضّ النظر عن لغة الكيبورد الحالية.</p>
+      <div class="kbd-list">
+        <div class="kbd-item"><span>البحث الفوري</span><kbd>Ctrl+F / /</kbd></div>
+        <div class="kbd-item"><span>تحديث الدليل</span><kbd>Ctrl+R / F5</kbd></div>
+        <div class="kbd-item"><span>تحديث كل البرامج</span><kbd>Ctrl+U</kbd></div>
+        <div class="kbd-item"><span>فتح الإعدادات</span><kbd>Ctrl+,</kbd></div>
+        <div class="kbd-item"><span>التنقّل بين الأقسام</span><kbd>1 – 6</kbd></div>
+        <div class="kbd-item"><span>التنقّل بين البطاقات</span><kbd> الأسهم </kbd></div>
+        <div class="kbd-item"><span>ملء الشاشة</span><kbd>F11</kbd></div>
+        <div class="kbd-item"><span>إغلاق النوافذ</span><kbd>Esc</kbd></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-stack" id="toasts"></div>
+  <script src="./app.js"></script>
+</body>
+</html>

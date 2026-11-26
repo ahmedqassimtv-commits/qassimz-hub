@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Deep obsidian dark interior -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#141821"/>
+      <stop offset="52%" stop-color="#0B0E14"/>
+      <stop offset="100%" stop-color="#07090D"/>
+    </linearGradient>
+
+    <!-- Signature ambient corner glow -->
+    <radialGradient id="ambientBR" cx="82%" cy="86%" r="72%">
+      <stop offset="0%" stop-color="#14B8A6" stop-opacity="0.26"/>
+      <stop offset="55%" stop-color="#0D9488" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="ambientTL" cx="18%" cy="12%" r="58%">
+      <stop offset="0%" stop-color="#99F6E4" stop-opacity="0.13"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Glowing border gradient -->
+    <linearGradient id="rimGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#99F6E4"/>
+      <stop offset="45%" stop-color="#14B8A6"/>
+      <stop offset="100%" stop-color="#0D9488"/>
+    </linearGradient>
+
+    <!-- Luminous 2-letter monogram fill -->
+    <linearGradient id="textGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#99F6E4"/>
+      <stop offset="42%" stop-color="#14B8A6"/>
+      <stop offset="100%" stop-color="#14B8A6"/>
+    </linearGradient>
+
+    <!-- Outer & inner rim neon glow -->
+    <filter id="rimGlow" x="-12%" y="-12%" width="124%" height="124%">
+      <feGaussianBlur stdDeviation="15" result="blur"/>
+    </filter>
+
+    <filter id="textShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.65"/>
+    </filter>
+
+    <clipPath id="tileClip">
+      <rect x="40" y="40" width="944" height="944" rx="212"/>
+    </clipPath>
+  </defs>
+
+  <!-- Soft outer neon halo -->
+  <rect x="40" y="40" width="944" height="944" rx="212"
+        fill="none" stroke="#14B8A6" stroke-width="34" stroke-opacity="0.42" filter="url(#rimGlow)"/>
+
+  <!-- Clipped dark tile interior -->
+  <g clip-path="url(#tileClip)">
+    <rect x="40" y="40" width="944" height="944" fill="url(#bgGrad)"/>
+    <rect x="40" y="40" width="944" height="944" fill="url(#ambientBR)"/>
+    <rect x="40" y="40" width="944" height="944" fill="url(#ambientTL)"/>
+    <!-- Subtle inner glass sheen -->
+    <rect x="64" y="64" width="896" height="896" rx="190"
+          fill="none" stroke="#FFFFFF" stroke-opacity="0.05" stroke-width="4"/>
+  </g>
+
+  <!-- Crisp glowing colored border -->
+  <rect x="40" y="40" width="944" height="944" rx="212"
+        fill="none" stroke="url(#rimGrad)" stroke-width="26"/>
+  <rect x="40" y="40" width="944" height="944" rx="212"
+        fill="none" stroke="#99F6E4" stroke-opacity="0.55" stroke-width="5"/>
+
+  <!-- Mini functional symbol badge (top-right) -->
+  <g transform="translate(792, 218)">
+    <rect x="-102" y="-102" width="204" height="204" rx="56"
+          fill="#0C1018" fill-opacity="0.92" stroke="#14B8A6" stroke-opacity="0.52" stroke-width="6.5"/>
+    <g transform="scale(1.30)">
+      
+        <path d="M0 -34 C-14 -44 -34 -44 -48 -36 V32 C-34 24 -14 24 0 34 C14 24 34 24 48 32 V-36 C34 -44 14 -44 0 -34 Z" fill="none" stroke="#99F6E4" stroke-width="9.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <line x1="0" y1="-32" x2="0" y2="34" stroke="#99F6E4" stroke-width="8.5" stroke-linecap="round"/>
+        
+    </g>
+  </g>
+
+  <!-- Prominent 2-letter Adobe-style monogram -->
+  <g fill="url(#textGrad)" filter="url(#textShadow)">
+      <path d="M571 -26Q362 -26 226.0 63.5Q90 153 27 345Q23 357 28.0 367.5Q33 378 45 382L294 466Q305 469 314.5 465.0Q324 461 329 451Q365 353 427.0 306.5Q489 260 576 260Q649 260 693.5 294.5Q738 329 738 391V405Q738 471 679.0 513.0Q620 555 458 616Q254 693 162.0 792.5Q70 892 70 1040V1049Q70 1230 208.0 1344.0Q346 1458 566 1458Q749 1458 871.5 1378.5Q994 1299 1055 1138Q1060 1126 1055.5 1116.0Q1051 1106 1040 1102L800 1019Q790 1015 780.5 1018.5Q771 1022 766 1031Q731 1107 683.0 1142.5Q635 1178 566 1178Q502 1178 460.0 1146.0Q418 1114 418 1064V1056Q418 1002 470.0 965.0Q522 928 701 862Q910 788 999.0 681.5Q1088 575 1088 417V404Q1088 204 942.5 89.0Q797 -26 571 -26Z" transform="translate(108.36,792.00) scale(0.30278,-0.30278)"/>
+      <path d="M465 -25Q278 -25 156.5 112.5Q35 250 35 495V553Q35 790 158.0 930.5Q281 1071 472 1071Q567 1071 640.5 1035.0Q714 999 754 940L746 933L745 1405Q745 1418 754.0 1426.5Q763 1435 775 1435H1046Q1058 1435 1067.0 1426.5Q1076 1418 1076 1405V25Q1076 14 1067.5 5.5Q1059 -3 1047 -3H794Q783 -3 775.0 4.0Q767 11 767 21V175L817 126H768Q724 55 645.5 15.0Q567 -25 465 -25ZM560 263Q644 263 698.0 325.5Q752 388 752 487V558Q752 658 697.5 719.0Q643 780 561 780Q476 780 422.5 720.0Q369 660 369 557V487Q369 381 423.0 322.0Q477 263 560 263Z" transform="translate(435.90,792.00) scale(0.30278,-0.30278)"/>
+  </g>
+</svg>

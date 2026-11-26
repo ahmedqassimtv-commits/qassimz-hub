@@ -1,0 +1,416 @@
+"""QASSIMZ Hub — Local HTTP/1.1 API server & settings manager."""
+from __future__ import annotations
+
+import json
+import mimetypes
+import os
+import secrets
+import shutil
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+import urllib.parse
+import urllib.request
+import webbrowser
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from typing import Any
+
+from detector import (
+    enable_cep_player_debug_mode,
+    enrich_catalog,
+    parse_version,
+)
+from installer_runner import UA, TaskQueue, run_uninstall_command, ssl_context
+
+VERSION = "1.0.0"
+HUB_REPO = "ahmedqassimtv-commits/qassimz-hub"
+REMOTE_CATALOG_URL = f"https://raw.githubusercontent.com/{HUB_REPO}/main/catalog.json"
+
+mimetypes.add_type("font/woff2", ".woff2")
+mimetypes.add_type("image/svg+xml", ".svg")
+
+
+def resource(rel: str) -> Path:
+    base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent))
+    return base / rel
+
+
+def data_dir() -> Path:
+    base = Path(os.environ.get("APPDATA", Path.home())) / "QASSIMZ Hub"
+    base.mkdir(parents=True, exist_ok=True)
+    return base
+
+
+class HubSettings:
+    DEFAULTS = {
+        "silent_install": True,
+        "minimize_to_tray": True,
+        "start_with_windows": False,
+        "auto_check_updates": True,
+    }
+
+    def __init__(self, root: Path):
+        self.file = root / "settings.json"
+        self._lock = threading.Lock()
+        self._data = dict(self.DEFAULTS)
+        if self.file.is_file():
+            try:
+                loaded = json.loads(self.file.read_text(encoding="utf-8"))
+                if isinstance(loaded, dict):
+                    self._data.update(loaded)
+            except Exception:
+                pass
+
+    def all(self) -> dict[str, Any]:
+        with self._lock:
+            return dict(self._data)
+
+    def update(self, values: dict[str, Any]) -> dict[str, Any]:
+        with self._lock:
+            for k, v in (values or {}).items():
+                if k in self.DEFAULTS:
+                    self._data[k] = bool(v)
+            self.file.write_text(json.dumps(self._data, ensure_ascii=False, indent=2), encoding="utf-8")
+            snap = dict(self._data)
+        if "start_with_windows" in (values or {}):
+            self._apply_startup(snap["start_with_windows"])
+        return snap
+
+    @staticmethod
+    def _apply_startup(enabled: bool) -> None:
+        if os.name != "nt":
+            return
+        try:
+            import winreg  # type: ignore
+
+            with winreg.CreateKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Run") as k:
+                if enabled and getattr(sys, "frozen", False):
+                    winreg.SetValueEx(k, "QASSIMZ Hub", 0, winreg.REG_SZ, f'"{sys.executable}" --minimized')
+                elif not enabled:
+                    try:
+                        winreg.DeleteValue(k, "QASSIMZ Hub")
+                    except OSError:
+                        pass
+        except Exception:
+            pass
+
+
+class HubApi:
+    def __init__(self, root: Path | None = None):
+        self.root = root or data_dir()
+        self.cache_dir = self.root / "downloads"
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.settings = HubSettings(self.root)
+        self.window: Any = None
+        self._catalog_lock = threading.Lock()
+        self._catalog = self._load_initial_catalog()
+        self._last_sync = 0.0
+        self._sync_error = ""
+        self.queue = TaskQueue(self.cache_dir)
+
+    def _load_initial_catalog(self) -> dict[str, Any]:
+        bundled = resource("catalog.json")
+        cached = self.root / "cached_catalog.json"
+        bundled_data: dict[str, Any] = {"items": [], "hub": {"version": VERSION}}
+        if bundled.is_file():
+            try:
+                bundled_data = json.loads(bundled.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+        if cached.is_file():
+            try:
+                cached_data = json.loads(cached.read_text(encoding="utf-8"))
+                if cached_data.get("updated_at", "") >= bundled_data.get("updated_at", "") and cached_data.get("items"):
+                    return cached_data
+            except Exception:
+                pass
+        return bundled_data
+
+    def refresh_catalog(self) -> dict[str, Any]:
+        """Fetch latest public catalog.json from qassimz-hub GitHub without login."""
+        url = f"{REMOTE_CATALOG_URL}?t={int(time.time())}"
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": UA, "Cache-Control": "no-cache"})
+            with urllib.request.urlopen(req, timeout=15, context=ssl_context()) as r:
+                raw = r.read().decode("utf-8")
+            parsed = json.loads(raw)
+            if isinstance(parsed, dict) and isinstance(parsed.get("items"), list) and parsed["items"]:
+                with self._catalog_lock:
+                    self._catalog = parsed
+                    self._last_sync = time.time()
+                    self._sync_error = ""
+                (self.root / "cached_catalog.json").write_text(
+                    json.dumps(parsed, ensure_ascii=False, indent=2), encoding="utf-8"
+                )
+        except Exception as e:
+            self._sync_error = str(e)
+        return self.state()
+
+    def _get_item(self, item_id: str) -> dict[str, Any] | None:
+        with self._catalog_lock:
+            for it in self._catalog.get("items") or []:
+                if it.get("id") == item_id:
+                    return dict(it)
+        return None
+
+    def state(self) -> dict[str, Any]:
+        with self._catalog_lock:
+            cat_copy = json.loads(json.dumps(self._catalog))
+        enriched = enrich_catalog(cat_copy)
+        hub_meta = enriched.get("hub") or {}
+        remote_hub_ver = hub_meta.get("version", VERSION)
+        hub_has_update = parse_version(remote_hub_ver) > parse_version(VERSION)
+
+        cache_bytes = 0
+        if self.cache_dir.is_dir():
+            for f in self.cache_dir.iterdir():
+                if f.is_file():
+                    cache_bytes += f.stat().st_size
+
+        return {
+            **enriched,
+            "hub_version": VERSION,
+            "hub_has_update": hub_has_update,
+            "hub_remote_version": remote_hub_ver,
+            "hub_repo_url": f"https://github.com/{HUB_REPO}",
+            "last_sync": self._last_sync,
+            "sync_error": self._sync_error,
+            "settings": self.settings.all(),
+            "tasks": self.queue.snapshot(),
+            "cache_dir": str(self.cache_dir),
+            "cache_size_bytes": cache_bytes,
+            "platform": os.name,
+        }
+
+    def tasks(self) -> list[dict[str, Any]]:
+        return self.queue.snapshot()
+
+    def install(self, id: str, silent: bool | None = None) -> dict[str, Any]:
+        item = self._get_item(id)
+        if not item:
+            raise ValueError(f"البرنامج غير موجود في الدليل: {id}")
+        use_silent = self.settings.all()["silent_install"] if silent is None else bool(silent)
+        return self.queue.enqueue_install(item, silent=use_silent)
+
+    def update_all(self) -> list[dict[str, Any]]:
+        st = self.state()
+        use_silent = self.settings.all()["silent_install"]
+        queued = []
+        for it in st["items"]:
+            if it["state"]["has_update"]:
+                queued.append(self.queue.enqueue_install(it, silent=use_silent))
+        return queued
+
+    def cancel_task(self, id: str) -> bool:
+        return self.queue.cancel(id)
+
+    def clear_tasks(self) -> bool:
+        return self.queue.clear_finished()
+
+    def launch(self, id: str, sub_idx: int | None = None) -> bool:
+        st = self.state()
+        target_item = next((x for x in st["items"] if x["id"] == id), None)
+        if not target_item:
+            raise ValueError("العنصر غير موجود.")
+        istate = target_item["state"]
+
+        if sub_idx is not None:
+            subs = istate.get("sub_apps") or []
+            if 0 <= sub_idx < len(subs):
+                sa = subs[sub_idx]
+                subprocess.Popen([sa["exe"], *sa.get("args", [])], cwd=str(Path(sa["exe"]).parent))
+                return True
+
+        if istate.get("exe_path"):
+            exe = istate["exe_path"]
+            subprocess.Popen([exe], cwd=str(Path(exe).parent))
+            return True
+
+        # Adobe CEP extension: open matching Adobe host if installed
+        if target_item.get("category") == "adobe":
+            host = (target_item.get("detection") or {}).get("adobe_host", "aftereffects")
+            return self.launch_adobe(host)
+
+        raise RuntimeError("التطبيق غير مثبّت حالياً على هذا الجهاز.")
+
+    def launch_adobe(self, host: str = "premiere") -> bool:
+        st = self.state()
+        adobe = st["adobe"]
+        exe = adobe["premiere_exe"] if host == "premiere" else adobe["aftereffects_exe"]
+        if not exe:
+            exe = adobe["aftereffects_exe"] or adobe["premiere_exe"]
+        if not exe:
+            raise RuntimeError("لم يتم العثور على Adobe Premiere Pro أو After Effects مثبّتاً على الجهاز.")
+        subprocess.Popen([exe], cwd=str(Path(exe).parent))
+        return True
+
+    def fix_cep(self) -> dict[str, Any]:
+        enable_cep_player_debug_mode()
+        return self.state()["adobe"]
+
+    def run_ai_setup(self, id: str) -> bool:
+        st = self.state()
+        target_item = next((x for x in st["items"] if x["id"] == id), None)
+        if not target_item:
+            raise ValueError("العنصر غير موجود.")
+        script = target_item["state"].get("ai_setup_script") or ""
+        if not script or not os.path.isfile(script):
+            raise RuntimeError("ملف تجهيز الذكاء الاصطناعي غير موجود بعد — ثبّت الإضافة أولاً.")
+        if os.name == "nt":
+            subprocess.Popen(["cmd.exe", "/c", "start", "", script], cwd=str(Path(script).parent))
+        return True
+
+    def uninstall(self, id: str) -> bool:
+        st = self.state()
+        target_item = next((x for x in st["items"] if x["id"] == id), None)
+        if not target_item:
+            raise ValueError("العنصر غير موجود.")
+        cmd = target_item["state"].get("uninstall_cmd") or ""
+        if not cmd:
+            raise RuntimeError("لا يوجد معالج إلغاء تثبيت مسجّل لهذا العنصر.")
+        threading.Thread(target=run_uninstall_command, args=(cmd, False), daemon=True).start()
+        return True
+
+    def open_folder(self, path: str) -> bool:
+        if not path:
+            return False
+        p = Path(path)
+        if p.is_file():
+            if os.name == "nt":
+                subprocess.Popen(f'explorer.exe /select,"{os.path.normpath(str(p))}"')
+                return True
+            p = p.parent
+        p.mkdir(parents=True, exist_ok=True)
+        if os.name == "nt":
+            os.startfile(str(p))  # type: ignore[attr-defined]
+        else:
+            webbrowser.open(p.as_uri())
+        return True
+
+    def open_cache_dir(self) -> bool:
+        return self.open_folder(str(self.cache_dir))
+
+    def clear_cache(self) -> dict[str, Any]:
+        if self.cache_dir.is_dir():
+            for child in self.cache_dir.iterdir():
+                if child.is_file() and not child.name.endswith(".part"):
+                    child.unlink(missing_ok=True)
+                elif child.is_dir():
+                    shutil.rmtree(child, ignore_errors=True)
+        return self.state()
+
+    def open_url(self, url: str) -> bool:
+        if str(url).startswith(("http://", "https://")):
+            webbrowser.open(str(url))
+        return True
+
+    def save_settings(self, values: dict[str, Any]) -> dict[str, Any]:
+        return self.settings.update(values)
+
+    def toggle_fullscreen(self) -> bool:
+        if self.window is not None:
+            try:
+                self.window.toggle_fullscreen()
+                return True
+            except Exception:
+                pass
+        return False
+
+    def install_hub_update(self) -> bool:
+        with self._catalog_lock:
+            hub = dict(self._catalog.get("hub") or {})
+        url = hub.get("setup_url") or ""
+        ver = hub.get("version") or VERSION
+        if not url or parse_version(ver) <= parse_version(VERSION):
+            return False
+        dst = Path(tempfile.gettempdir()) / f"QASSIMZ-Hub-Setup-{ver}.exe"
+        req = urllib.request.Request(url, headers={"User-Agent": UA})
+        with urllib.request.urlopen(req, timeout=180, context=ssl_context()) as r, open(dst, "wb") as fh:
+            shutil.copyfileobj(r, fh)
+        if os.name == "nt":
+            subprocess.Popen([str(dst), "/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS"])
+            threading.Timer(1.0, lambda: os._exit(0)).start()
+        return True
+
+
+def make_handler(api: HubApi, token: str, ui_dir: Path):
+    ui_resolved = ui_dir.resolve()
+
+    class Handler(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def log_message(self, *args: Any) -> None:
+            pass
+
+        def _send(self, code: int, body: bytes, ctype: str = "application/json; charset=utf-8") -> None:
+            try:
+                self.send_response(code)
+                self.send_header("Content-Type", ctype)
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Cache-Control", "no-store" if "json" in ctype else "max-age=3600")
+                self.end_headers()
+                if self.command != "HEAD":
+                    self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+                pass
+
+        def _strip_token(self) -> str | None:
+            prefix = f"/{token}/"
+            if not self.path.startswith(prefix):
+                return None
+            return self.path[len(token) + 1 :]
+
+        def do_GET(self) -> None:
+            rel = self._strip_token()
+            if rel is None:
+                return self._send(403, b"forbidden", "text/plain")
+            route, _, _ = rel.partition("?")
+            route = urllib.parse.unquote(route)
+            if route in ("", "/"):
+                route = "/index.html"
+            target = (ui_resolved / route.lstrip("/")).resolve()
+            if ui_resolved not in target.parents and target != ui_resolved:
+                return self._send(403, b"forbidden", "text/plain")
+            if not target.is_file():
+                return self._send(404, b"not found", "text/plain")
+
+            ctype = mimetypes.guess_type(str(target))[0] or "application/octet-stream"
+            if target.suffix == ".js":
+                ctype = "text/javascript; charset=utf-8"
+            elif target.suffix == ".css":
+                ctype = "text/css; charset=utf-8"
+            elif target.suffix == ".html":
+                ctype = "text/html; charset=utf-8"
+            self._send(200, target.read_bytes(), ctype)
+
+        do_HEAD = do_GET
+
+        def do_POST(self) -> None:
+            rel = self._strip_token()
+            if rel is None:
+                return self._send(403, b"forbidden", "text/plain")
+            method_name = rel.split("?", 1)[0].removeprefix("/api/")
+            fn = getattr(api, method_name, None)
+            if method_name.startswith("_") or not callable(fn):
+                return self._send(404, b'{"ok":false,"error":"unknown endpoint"}')
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+                payload = json.loads(self.rfile.read(length) or b"{}") if length > 0 else {}
+                result = fn(**payload) if isinstance(payload, dict) else fn()
+                resp = json.dumps({"ok": True, "data": result}, ensure_ascii=False, default=str)
+            except Exception as e:
+                resp = json.dumps({"ok": False, "error": str(e)}, ensure_ascii=False)
+            self._send(200, resp.encode("utf-8"))
+
+    return Handler
+
+
+def start_server(api: HubApi, port: int = 0) -> str:
+    token = secrets.token_urlsafe(16)
+    httpd = ThreadingHTTPServer(("127.0.0.1", port), make_handler(api, token, resource("app/ui")))
+    httpd.daemon_threads = True
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    return f"http://127.0.0.1:{httpd.server_address[1]}/{token}/"

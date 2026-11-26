@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Deep obsidian dark interior -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#141821"/>
+      <stop offset="52%" stop-color="#0B0E14"/>
+      <stop offset="100%" stop-color="#07090D"/>
+    </linearGradient>
+
+    <!-- Signature ambient corner glow -->
+    <radialGradient id="ambientBR" cx="82%" cy="86%" r="72%">
+      <stop offset="0%" stop-color="#C8FF00" stop-opacity="0.26"/>
+      <stop offset="55%" stop-color="#84CC16" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="ambientTL" cx="18%" cy="12%" r="58%">
+      <stop offset="0%" stop-color="#ECFCCB" stop-opacity="0.13"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Glowing border gradient -->
+    <linearGradient id="rimGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ECFCCB"/>
+      <stop offset="45%" stop-color="#C8FF00"/>
+      <stop offset="100%" stop-color="#84CC16"/>
+    </linearGradient>
+
+    <!-- Luminous 2-letter monogram fill -->
+    <linearGradient id="textGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ECFCCB"/>
+      <stop offset="42%" stop-color="#C8FF00"/>
+      <stop offset="100%" stop-color="#C8FF00"/>
+    </linearGradient>
+
+    <!-- Outer & inner rim neon glow -->
+    <filter id="rimGlow" x="-12%" y="-12%" width="124%" height="124%">
+      <feGaussianBlur stdDeviation="15" result="blur"/>
+    </filter>
+
+    <filter id="textShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.65"/>
+    </filter>
+
+    <clipPath id="tileClip">
+      <rect x="40" y="40" width="944" height="944" rx="212"/>
+    </clipPath>
+  </defs>
+
+  <!-- Soft outer neon halo -->
+  <rect x="40" y="40" width="944" height="944" rx="212"
+        fill="none" stroke="#C8FF00" stroke-width="34" stroke-opacity="0.42" filter="url(#rimGlow)"/>
+
+  <!-- Clipped dark tile interior -->
+  <g clip-path="url(#tileClip)">
+    <rect x="40" y="40" width="944" height="944" fill="url(#bgGrad)"/>
+    <rect x="40" y="40" width="944" height="944" fill="url(#ambientBR)"/>
+    <rect x="40" y="40" width="944" height="944" fill="url(#ambientTL)"/>
+    <!-- Subtle inner glass sheen -->
+    <rect x="64" y="64" width="896" height="896" rx="190"
+          fill="none" stroke="#FFFFFF" stroke-opacity="0.05" stroke-width="4"/>
+  </g>
+
+  <!-- Crisp glowing colored border -->
+  <rect x="40" y="40" width="944" height="944" rx="212"
+        fill="none" stroke="url(#rimGrad)" stroke-width="26"/>
+  <rect x="40" y="40" width="944" height="944" rx="212"
+        fill="none" stroke="#ECFCCB" stroke-opacity="0.55" stroke-width="5"/>
+
+  <!-- Mini functional symbol badge (top-right) -->
+  <g transform="translate(792, 218)">
+    <rect x="-102" y="-102" width="204" height="204" rx="56"
+          fill="#0C1018" fill-opacity="0.92" stroke="#C8FF00" stroke-opacity="0.52" stroke-width="6.5"/>
+    <g transform="scale(1.30)">
+      
+        <rect x="-46" y="-8" width="68" height="24" rx="6" transform="rotate(-28 -12 4)" fill="#C8FF00" opacity="0.92"/>
+        <path d="M26 -46 L33 -26 L52 -19 L33 -12 L26 8 L19 -12 L0 -19 L19 -26 Z" fill="#ECFCCB"/>
+        <line x1="-36" y1="38" x2="34" y2="38" stroke="#ECFCCB" stroke-width="9" stroke-linecap="round"/>
+        
+    </g>
+  </g>
+
+  <!-- Prominent 2-letter Adobe-style monogram -->
+  <g fill="url(#textGrad)" filter="url(#textShadow)">
+      <path d="M470 -4Q457 -4 446.5 4.0Q436 12 432 24L-4 1395Q-10 1411 -1.0 1423.0Q8 1435 24 1435H322Q334 1435 341.5 1428.0Q349 1421 352 1412L594 599L621 499H624L650 599L886 1413Q889 1422 897.0 1428.5Q905 1435 915 1435H1205Q1221 1435 1229.5 1423.0Q1238 1411 1232 1396L785 24Q780 12 770.0 4.0Q760 -4 747 -4Z" transform="translate(117.94,792.00) scale(0.30278,-0.30278)"/>
+      <path d="M709 -3Q702 -3 696.5 0.5Q691 4 685 10L406 468L351 471L4 1003Q-9 1017 -2.0 1033.0Q5 1049 23 1049H336Q345 1049 351.5 1044.5Q358 1040 363 1034L630 586L695 582L1036 44Q1049 29 1042.0 13.0Q1035 -3 1017 -3ZM17 -3Q0 -3 -7.0 11.5Q-14 26 -1 41L339 590L426 595L685 1035Q690 1040 696.5 1044.5Q703 1049 710 1049H1003Q1020 1049 1026.0 1034.0Q1032 1019 1019 1005L677 467L588 461L324 8Q319 3 314.0 0.0Q309 -3 303 -3Z" transform="translate(476.74,792.00) scale(0.30278,-0.30278)"/>
+  </g>
+</svg>
