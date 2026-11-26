@@ -97,7 +97,7 @@ def main() -> None:
         width=1360,
         height=860,
         min_size=(1040, 680),
-        background_color="#090A0D",
+        background_color="#0B0F17",
         frameless=True,
         easy_drag=False,
         hidden=minimized,

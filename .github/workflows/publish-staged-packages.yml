@@ -1,0 +1,90 @@
+name: Publish Staged App Packages
+
+on:
+  push:
+    branches:
+      - "_pkg_staging*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reassemble, verify SHA-256, and publish public releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, subprocess
+          from pathlib import Path
+
+          manifest_path = Path("manifest.json")
+          if not manifest_path.exists():
+              raise SystemExit("No manifest.json found on staging branch")
+
+          manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+          out_dir = Path("_assembled")
+          out_dir.mkdir(exist_ok=True)
+
+          for rel in manifest["releases"]:
+              tag = rel["tag"]
+              title = rel["title"]
+              notes = rel.get("notes", f"Official public installer mirror for {title}")
+              built_files = []
+
+              for asset in rel["assets"]:
+                  name = asset["name"]
+                  expected_sha = asset["sha256"]
+                  target = out_dir / name
+                  with target.open("wb") as wf:
+                      for part_rel in asset["parts"]:
+                          wf.write(Path(part_rel).read_bytes())
+
+                  actual_sha = hashlib.sha256(target.read_bytes()).hexdigest()
+                  if actual_sha != expected_sha:
+                      raise SystemExit(f"SHA-256 mismatch for {name}: {actual_sha} != {expected_sha}")
+                  print(f"Verified {name} ({target.stat().st_size} bytes, sha256={actual_sha[:12]}...)")
+                  built_files.append(str(target))
+
+              # Create or update release on qassimz-hub
+              exists = subprocess.run(
+                  ["gh", "release", "view", tag],
+                  stdout=subprocess.DEVNULL,
+                  stderr=subprocess.DEVNULL,
+              ).returncode == 0
+
+              if exists:
+                  subprocess.run(
+                      ["gh", "release", "upload", tag, "--clobber", *built_files],
+                      check=True,
+                  )
+              else:
+                  subprocess.run(
+                      [
+                          "gh",
+                          "release",
+                          "create",
+                          tag,
+                          "--title",
+                          title,
+                          "--notes",
+                          notes,
+                          "--latest=false",
+                          *built_files,
+                      ],
+                      check=True,
+                  )
+              print(f"Published public release {tag}!")
+          PY
+
+      - name: Clean up temporary staging branch
+        if: startsWith(github.ref_name, '_pkg_staging')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/${GITHUB_REF_NAME}" || true
