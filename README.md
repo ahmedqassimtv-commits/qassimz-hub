@@ -58,3 +58,14 @@ python app/main.py
 ```
 
 جميع الحقوق محفوظة © **Ahmed Qassim — QASSIMZ**
+
+<!-- QASSIMZ-LIQUID-GLASS-RELEASE -->
+---
+
+## ✨ الجديد في الإصدار `v1.3.0` — تصميم Apple Liquid Glass & أيقونات v2
+
+- إعادة تصميم شاملة بلغة **Apple Liquid Glass (iOS 26)** مع شريط علوي وسفلي زجاجي عائم وبطاقات Squircle وأزرار كبسولية.
+- الوضع الداكن افتراضي مع زر تبديل فوري بين الوضع الداكن والفاتح في الهيدر، واستبدال الخلفيات الشبكية بإضاءة **Liquid Aurora**.
+- اعتماد نظام الأيقونات الجديد (**v2 · Adobe 2022 Style**) لشعار `Qh` وجميع تطبيقات المنظومة.
+
+<!-- /QASSIMZ-LIQUID-GLASS-RELEASE -->

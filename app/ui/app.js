@@ -118,7 +118,7 @@
     "qassimz-export": {
       prefix: "Smart",
       suffix: "Export",
-      color: "#22C55E",
+      color: "#28DB5B",
       inkLight: "#15803D",
       inkDark: "#86EFAC",
       taglineEn: "Social presets, loudness normalization & batch render",
@@ -131,7 +131,7 @@
     layout: localStorage.getItem("qhub_layout") || "grid", // grid | table
     sort: localStorage.getItem("qhub_sort") || "default",
     lang: localStorage.getItem("qhub_lang") || "en",
-    themePref: localStorage.getItem("qhub_theme") || "light", // light | dark | system
+    themePref: localStorage.getItem("qhub_theme") || "dark", // dark | light | system
     query: "",
     selectedId: null,
     settingsOpen: false,
@@ -1384,6 +1384,14 @@
       localStorage.setItem("qhub_lang", UI.lang);
       render();
     };
+    const btnTheme = $("#btn-theme-toggle");
+    if (btnTheme) {
+      btnTheme.onclick = () => {
+        UI.themePref = isDarkActive() ? "light" : "dark";
+        localStorage.setItem("qhub_theme", UI.themePref);
+        render();
+      };
+    }
 
     // Frameless window buttons
     $("#btn-win-min").onclick = () => api("win_minimize").catch(() => {});
