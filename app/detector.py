@@ -1,6 +1,7 @@
 """QASSIMZ Hub — Windows installation, version, Adobe CEP, and AI-engine detector."""
 from __future__ import annotations
 
+import json
 import os
 import re
 import xml.etree.ElementTree as ET
@@ -229,10 +230,27 @@ def detect_item_state(item: dict[str, Any], reg_map: dict[str, dict[str, str]] |
     # Determine whether genuinely installed on disk (avoid stale orphaned registry entries)
     if bundle_id:
         is_installed = bool(cep_dir)
+        if cep_dir and not install_dir:
+            install_dir = cep_dir
     elif det.get("exe_paths"):
         is_installed = bool(exe_path)
     else:
         is_installed = reg_entry is not None
+
+    # Check delta version stamp (.qassimz-version.json) for post-delta version parity
+    stamp_dir = Path(install_dir) if install_dir else (Path(cep_dir) if cep_dir else None)
+    if stamp_dir and stamp_dir.is_dir():
+        stamp_file = stamp_dir / ".qassimz-version.json"
+        if stamp_file.is_file():
+            try:
+                stamp_data = json.loads(stamp_file.read_text(encoding="utf-8"))
+                stamp_ver = str(stamp_data.get("version") or "").strip()
+                if stamp_ver:
+                    is_installed = True
+                    if not installed_ver or parse_version(stamp_ver) > parse_version(installed_ver):
+                        installed_ver = stamp_ver
+            except Exception:
+                pass
 
     if is_installed and not installed_ver:
         installed_ver = "1.0.0"

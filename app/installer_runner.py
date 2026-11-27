@@ -201,11 +201,19 @@ class TaskQueue:
                 "accent": item.get("accent", "#38BDF8"),
                 "version": item.get("version", "1.0.0"),
                 "status": "queued",
+                "stage": "queued",
+                "update_mode": "full",
                 "progress": 0,
                 "downloaded": 0,
                 "total": int(item.get("setup_size") or 0),
                 "speed_bps": 0,
                 "eta_sec": 0,
+                "delta_saved_bytes": 0,
+                "delta_saved_pct": 0.0,
+                "delta_full_size": int(item.get("delta_qpkg_size") or item.get("setup_size") or 0),
+                "delta_chunks_done": 0,
+                "delta_chunks_total": 0,
+                "delta_fallback_reason": "",
                 "silent": silent,
                 "self_update": self_update,
                 "message_ar": "في انتظار بدء التحميل...",
@@ -319,11 +327,161 @@ class TaskQueue:
 
         raise RuntimeError(_friendly_download_error(last_err or RuntimeError("رابط التحميل غير متاح.")))
 
+    def _try_delta_update(self, item: dict[str, Any], silent: bool, self_update: bool) -> tuple[bool, str]:
+        """Attempt differential update via DeltaUpdater.
+
+        Returns `(handled, fallback_reason)`:
+          - `(True, "")` when delta completed or was cancelled (caller should stop).
+          - `(False, reason)` when caller should proceed with full Setup.exe download.
+        """
+        item_id = item["id"]
+        if not silent and not self_update:
+            return False, ""
+
+        state = item.get("state") or {}
+        install_dir_raw = (item.get("install_dir") or state.get("install_dir") or state.get("cep_dir") or "").strip()
+        is_installed = bool(state.get("installed") or self_update or install_dir_raw)
+
+        # Only attempt delta when app is already installed and we have a manifest URL or repo+version
+        if not is_installed or not install_dir_raw:
+            return False, ""
+
+        try:
+            from delta_updater import DeltaUpdater
+        except Exception:
+            return False, ""
+
+        manifest_urls = DeltaUpdater.candidate_manifest_urls(item)
+        if not manifest_urls:
+            return False, ""
+
+        install_dir = Path(install_dir_raw)
+        updater = DeltaUpdater()
+
+        stage_ar_map = {
+            "manifest": "جارٍ فحص بيان التحديث الذكي (manifest.json)...",
+            "scanning": "جارٍ مقارنة الملفات المثبّتة لحساب الفروقات...",
+            "downloading": "جارٍ تنزيل الأجزاء المتغيرة فقط (تحديث تفاضلي)...",
+            "verifying": "جارٍ التحقق من سلامة الأجزاء (SHA-256)...",
+            "applying": "جارٍ تطبيق التحديث التفاضلي بشكل ذري آمن...",
+            "completed": "اكتمل التحديث التفاضلي بنجاح ✓",
+        }
+
+        def _on_progress(payload: dict[str, Any]) -> None:
+            st = payload.get("stage", "downloading")
+            status_val = "installing" if st in ("verifying", "applying") else "downloading"
+            if st == "completed":
+                status_val = "completed"
+            upd = dict(payload)
+            upd["status"] = status_val
+            upd["message_ar"] = stage_ar_map.get(st, "جارٍ التحديث التفاضلي...")
+            self._update(item_id, **upd)
+
+        def _cancel_check() -> bool:
+            with self._lock:
+                return item_id in self._cancel_flags
+
+        self._update(
+            item_id,
+            update_mode="delta",
+            stage="manifest",
+            status="downloading",
+            progress=1,
+            message_ar=stage_ar_map["manifest"],
+        )
+
+        res = updater.apply_delta_update(
+            item,
+            install_dir,
+            self.cache_dir,
+            cancel_check=_cancel_check,
+            on_progress=_on_progress,
+            stage_only=self_update,
+        )
+
+        if res.cancelled:
+            self._update(
+                item_id,
+                status="cancelled",
+                stage="cancelled",
+                speed_bps=0,
+                eta_sec=0,
+                message_ar="تم إلغاء التحديث",
+            )
+            return True, ""
+
+        if res.ok:
+            if self_update:
+                self._update(
+                    item_id,
+                    status="installing",
+                    stage="applying",
+                    progress=99,
+                    speed_bps=0,
+                    eta_sec=0,
+                    delta_saved_bytes=res.saved_bytes,
+                    delta_saved_pct=res.saved_pct,
+                    delta_full_size=res.full_package_bytes,
+                    delta_chunks_done=res.chunks_downloaded,
+                    delta_chunks_total=res.chunks_downloaded,
+                    message_ar="جارٍ تطبيق التحديث التفاضلي وإعادة التشغيل تلقائياً...",
+                )
+                if self.on_self_update_ready and res.staged_dir:
+                    self.on_self_update_ready(Path(res.staged_dir))
+                self._update(
+                    item_id,
+                    status="completed",
+                    stage="completed",
+                    progress=100,
+                    message_ar=f"اكتمل التحديث التفاضلي — تم توفير {res.saved_pct:.0f}% من الحجم ✓",
+                )
+                return True, ""
+
+            self._update(
+                item_id,
+                status="completed",
+                stage="completed",
+                progress=100,
+                speed_bps=0,
+                eta_sec=0,
+                downloaded=res.downloaded_bytes,
+                total=res.downloaded_bytes,
+                delta_saved_bytes=res.saved_bytes,
+                delta_saved_pct=res.saved_pct,
+                delta_full_size=res.full_package_bytes,
+                delta_chunks_done=res.chunks_downloaded,
+                delta_chunks_total=res.chunks_downloaded,
+                message_ar=f"اكتمل التحديث التفاضلي — تم توفير {res.saved_pct:.0f}% من الحجم ✓",
+            )
+            if self.on_finished:
+                self.on_finished(item_id, item)
+            return True, ""
+
+        # Fallback needed
+        reason = res.fallback_reason or "delta_error"
+        self._update(
+            item_id,
+            update_mode="fallback",
+            stage="downloading",
+            delta_fallback_reason=reason,
+            progress=0,
+            downloaded=0,
+            total=int(item.get("setup_size") or 0),
+            message_ar="جارٍ التبديل التلقائي إلى التنزيل الكامل (Setup.exe)...",
+        )
+        return False, reason
+
     def _worker(self, item: dict[str, Any], silent: bool, self_update: bool) -> None:
         item_id = item["id"]
+
+        # 1. Try delta update first when eligible
+        handled, fallback_reason = self._try_delta_update(item, silent, self_update)
+        if handled:
+            return
+
         urls = self._candidate_urls(item)
         if not urls:
-            self._update(item_id, status="error", error="رابط التحميل غير متاح حالياً.", message_ar="فشل التحميل")
+            self._update(item_id, status="error", stage="error", error="رابط التحميل غير متاح حالياً.", message_ar="فشل التحميل")
             return
 
         fname = item.get("setup_filename") or urls[0].rsplit("/", 1)[-1]
@@ -334,6 +492,8 @@ class TaskQueue:
         expected_size = int(item.get("setup_size") or 0)
 
         try:
+            if not fallback_reason:
+                self._update(item_id, update_mode="full", stage="downloading")
             need_download = True
             if dst.is_file():
                 fsize = dst.stat().st_size

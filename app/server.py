@@ -25,7 +25,7 @@ from detector import (
 )
 from installer_runner import UA, TaskQueue, run_uninstall_command, ssl_context
 
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 HUB_REPO = "ahmedqassimtv-commits/qassimz-hub"
 REMOTE_CATALOG_URL = f"https://raw.githubusercontent.com/{HUB_REPO}/main/catalog.json"
 STATE_CACHE_TTL = 3.0
@@ -269,8 +269,14 @@ class HubApi:
         item = self._get_item(id)
         if not item:
             raise ValueError(f"البرنامج غير موجود في الدليل: {id}")
+        item_copy = dict(item)
+        if "state" not in item_copy or not item_copy.get("state"):
+            try:
+                item_copy["state"] = detect_item_state(item_copy)
+            except Exception:
+                pass
         use_silent = self.settings.all()["silent_install"] if silent is None else bool(silent)
-        return self.queue.enqueue_install(item, silent=use_silent)
+        return self.queue.enqueue_install(item_copy, silent=use_silent)
 
     def update_all(self) -> list[dict[str, Any]]:
         st = self.state()
@@ -477,6 +483,11 @@ class HubApi:
             "setup_url": url,
             "setup_size": int(hub.get("setup_size") or 0),
             "setup_sha256": hub.get("setup_sha256") or "",
+            "delta_manifest_url": hub.get("delta_manifest_url") or "",
+            "delta_qpkg_url": hub.get("delta_qpkg_url") or "",
+            "delta_qpkg_size": int(hub.get("delta_qpkg_size") or 0),
+            "delta_manifest_sha256": hub.get("delta_manifest_sha256") or "",
+            "install_dir": str(Path(sys.executable).parent) if getattr(sys, "frozen", False) else "",
             "repo": HUB_REPO,
             "repo_public": True,
         }

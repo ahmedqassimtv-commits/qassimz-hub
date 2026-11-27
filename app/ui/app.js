@@ -846,16 +846,35 @@
       : terminal;
     UI.theaterTaskId = cur.id;
 
+    const isDelta = cur.update_mode === "delta";
+    const isFallback = cur.update_mode === "fallback";
+    const isAr = UI.lang === "ar";
     const speedTxt = cur.speed_bps > 0 ? `${humanBytes(cur.speed_bps)}/s` : "";
+    const etaTxt = cur.eta_sec > 0 ? (isAr ? `متبقي ~${cur.eta_sec} ث` : `~${cur.eta_sec}s left`) : "";
     const sizeTxt = cur.total > 0 ? `${humanBytes(cur.downloaded)} / ${humanBytes(cur.total)}` : "";
-    const tele = [sizeTxt, speedTxt].filter(Boolean).join(" · ") || cur.message_ar || t.preparing;
+    const chunksTxt =
+      isDelta && cur.delta_chunks_total > 0
+        ? (isAr
+            ? `الأجزاء ${cur.delta_chunks_done}/${cur.delta_chunks_total}`
+            : `Chunks ${cur.delta_chunks_done}/${cur.delta_chunks_total}`)
+        : "";
+    const savedPctVal = Number(cur.delta_saved_pct) || 0;
+    const savedBytesVal = Number(cur.delta_saved_bytes) || 0;
+    const savedTxt =
+      isDelta && (savedBytesVal > 0 || savedPctVal > 0)
+        ? (isAr
+            ? `توفير ${savedPctVal.toFixed(0)}% (${humanBytes(savedBytesVal)})`
+            : `Saved ${savedPctVal.toFixed(0)}% (${humanBytes(savedBytesVal)})`)
+        : "";
+    const tele = [sizeTxt, speedTxt, etaTxt].filter(Boolean).join(" · ") || cur.message_ar || t.preparing;
 
     if (live.length && UI.theaterMinimized) {
       theater.hidden = true;
       strip.hidden = false;
-      $("#strip-title").textContent = `${cur.name} · ${cur.progress}%`;
+      const modePrefix = isDelta ? (isAr ? "تفاضلي · " : "Delta · ") : "";
+      $("#strip-title").textContent = `${modePrefix}${cur.name} · ${cur.progress}%`;
       $("#strip-fill").style.width = `${cur.progress}%`;
-      $("#strip-meta").textContent = tele;
+      $("#strip-meta").textContent = [tele, savedTxt].filter(Boolean).join(" · ");
       return;
     }
 
@@ -868,10 +887,36 @@
     $("#th-app-ver").textContent = `v${cur.version}`;
     $("#th-status-msg").textContent = cur.message_ar || t.connecting;
 
-    const isDone = cur.status === "completed";
-    const isErr = cur.status === "error";
-    const isInst = cur.status === "installing";
-    const isVerify = !isInst && !isDone && !isErr && cur.progress >= 98;
+    // Delta / Fallback / Full mode badge
+    const badgeEl = $("#th-delta-badge");
+    if (badgeEl) {
+      badgeEl.classList.remove("mode-delta", "mode-fallback");
+      if (isDelta) {
+        badgeEl.hidden = false;
+        badgeEl.classList.add("mode-delta");
+        badgeEl.textContent = isAr ? "تحديث تفاضلي" : "Delta Update";
+      } else if (isFallback) {
+        badgeEl.hidden = false;
+        badgeEl.classList.add("mode-fallback");
+        const reasonTag = cur.delta_fallback_reason ? ` (${cur.delta_fallback_reason})` : "";
+        badgeEl.textContent = isAr ? `تنزيل كامل تلقائي${reasonTag}` : `Full Fallback${reasonTag}`;
+      } else {
+        badgeEl.hidden = true;
+      }
+    }
+
+    const stg = cur.stage || "";
+    const isDone = cur.status === "completed" || stg === "completed";
+    const isErr = cur.status === "error" || stg === "error";
+    const isVerify =
+      !isDone &&
+      !isErr &&
+      (stg === "verifying" || (cur.status !== "installing" && cur.progress >= 98));
+    const isInst =
+      !isDone &&
+      !isErr &&
+      !isVerify &&
+      (stg === "applying" || stg === "installing" || cur.status === "installing");
 
     $("#th-step-dl").classList.toggle("active", !isInst && !isVerify && !isDone && !isErr);
     $("#th-step-dl").classList.toggle("done", isVerify || isInst || isDone);
@@ -886,10 +931,29 @@
     $("#th-complete-box").hidden = !isDone;
     $("#th-error-box").hidden = !isErr;
 
+    const savedEl = $("#th-delta-saved");
     if (!isDone && !isErr) {
       $("#th-pct").textContent = `${cur.progress}%`;
       $("#th-fill").style.width = `${cur.progress}%`;
       $("#th-telemetry").textContent = tele;
+      if (savedEl) {
+        const metaParts = [savedTxt, chunksTxt].filter(Boolean);
+        if (metaParts.length) {
+          savedEl.hidden = false;
+          const fullTxt =
+            cur.delta_full_size > 0
+              ? (isAr ? `الحجم الكامل ${humanBytes(cur.delta_full_size)}` : `Full ${humanBytes(cur.delta_full_size)}`)
+              : "";
+          savedEl.textContent = [...metaParts, fullTxt].filter(Boolean).join(" · ");
+        } else {
+          savedEl.hidden = true;
+        }
+      }
+    } else if (isDone) {
+      const compSub = $("#th-complete-sub");
+      if (compSub) {
+        compSub.textContent = savedTxt ? `${t.completeSub} · ${savedTxt}` : t.completeSub;
+      }
     } else if (isErr) {
       $("#th-error-sub").textContent = cur.message_ar || "";
     }
