@@ -49,7 +49,7 @@ def _acquire_single_instance(on_activate) -> socket.socket | None:
     return srv
 
 
-def _setup_tray(api: HubApi, show_fn, quit_fn) -> None:
+def _setup_tray(api: HubApi, show_fn, quit_fn):
     try:
         import pystray  # type: ignore
         from PIL import Image
@@ -64,14 +64,16 @@ def _setup_tray(api: HubApi, show_fn, quit_fn) -> None:
         )
         tray = pystray.Icon("QASSIMZ Hub", icon_img, "QASSIMZ Hub", menu)
         threading.Thread(target=tray.run, daemon=True).start()
+        return tray
     except Exception:
-        pass
+        return None
 
 
 def main() -> None:
     minimized = "--minimized" in sys.argv
     api = HubApi(data_dir())
     quitting = {"flag": False}
+    tray_ref = {"icon": None}
 
     def show_window():
         win = api.window
@@ -97,7 +99,7 @@ def main() -> None:
         width=1360,
         height=860,
         min_size=(1040, 680),
-        background_color="#070B14",
+        background_color="#1D1D1D",
         frameless=True,
         easy_drag=False,
         hidden=minimized,
@@ -108,6 +110,15 @@ def main() -> None:
 
     def quit_app():
         quitting["flag"] = True
+        try:
+            if tray_ref["icon"] is not None:
+                tray_ref["icon"].stop()
+        except Exception:
+            pass
+        try:
+            lock_sock.close()
+        except Exception:
+            pass
         try:
             win.destroy()
         except Exception:
@@ -123,6 +134,7 @@ def main() -> None:
         return True
 
     api._on_close_request = lambda: (win.hide() if api.settings.all().get("minimize_to_tray", True) else quit_app())
+    api._on_quit_request = quit_app
 
     def _release_lock():
         try:
@@ -141,7 +153,7 @@ def main() -> None:
     win.events.closing += on_closing
     win.events.loaded += on_loaded
 
-    _setup_tray(api, show_window, quit_app)
+    tray_ref["icon"] = _setup_tray(api, show_window, quit_app)
 
     def background_auto_updater():
         time.sleep(2.0)

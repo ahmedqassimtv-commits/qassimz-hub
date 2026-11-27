@@ -25,7 +25,7 @@ from detector import (
 )
 from installer_runner import UA, TaskQueue, run_uninstall_command, ssl_context
 
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 HUB_REPO = "ahmedqassimtv-commits/qassimz-hub"
 REMOTE_CATALOG_URL = f"https://raw.githubusercontent.com/{HUB_REPO}/main/catalog.json"
 STATE_CACHE_TTL = 3.0
@@ -109,6 +109,9 @@ class HubApi:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.settings = HubSettings(self.root)
         self.window: Any = None
+        self._is_maximized = False
+        self._on_close_request: Any = None
+        self._on_quit_request: Any = None
         self._on_release_lock: Any = None
         self._catalog_lock = threading.Lock()
         self._state_lock = threading.Lock()
@@ -389,8 +392,10 @@ class HubApi:
             webbrowser.open(str(url))
         return True
 
-    def save_settings(self, values: dict[str, Any]) -> dict[str, Any]:
-        return self.settings.update(values)
+    def save_settings(self, values: dict[str, Any] | None = None, **kwargs: Any) -> dict[str, Any]:
+        merged = dict(values or {})
+        merged.update(kwargs)
+        return self.settings.update(merged)
 
     def toggle_fullscreen(self) -> bool:
         if self.window is not None:
@@ -401,16 +406,16 @@ class HubApi:
                 pass
         return False
 
-    def win_minimize(self) -> bool:
+    def win_minimize(self) -> dict[str, Any]:
         if self.window is not None:
             try:
                 self.window.minimize()
-                return True
+                return {"ok": True}
             except Exception:
                 pass
-        return False
+        return {"ok": True}
 
-    def win_toggle_maximize(self) -> bool:
+    def win_toggle_maximize(self) -> dict[str, Any]:
         if self.window is not None:
             try:
                 if getattr(self, "_is_maximized", False):
@@ -419,23 +424,38 @@ class HubApi:
                 else:
                     self.window.maximize()
                     self._is_maximized = True
-                return self._is_maximized
+                return {"ok": True, "maximized": self._is_maximized}
             except Exception:
-                pass
-        return False
+                return {"ok": False, "maximized": getattr(self, "_is_maximized", False)}
+        else:
+            self._is_maximized = not getattr(self, "_is_maximized", False)
+            return {"ok": True, "maximized": self._is_maximized}
 
-    def win_close(self) -> bool:
+    def win_close(self) -> dict[str, Any]:
         cb = getattr(self, "_on_close_request", None)
         if callable(cb):
             cb()
-            return True
+            return {"ok": True}
         if self.window is not None:
             try:
                 self.window.destroy()
-                return True
+                return {"ok": True}
             except Exception:
                 pass
-        return False
+        return {"ok": True}
+
+    def win_quit(self) -> dict[str, Any]:
+        cb = getattr(self, "_on_quit_request", None)
+        if callable(cb):
+            cb()
+            return {"ok": True}
+        if self.window is not None:
+            try:
+                self.window.destroy()
+                return {"ok": True}
+            except Exception:
+                pass
+        return {"ok": True}
 
     def install_hub_update(self, force: bool = False) -> dict[str, Any]:
         with self._catalog_lock:

@@ -1,6 +1,6 @@
 ﻿; QASSIMZ Hub — Inno Setup 6 Script (Per-User, Animated 3D Wizard Logo)
 #ifndef AppVer
-  #define AppVer "1.2.0"
+  #define AppVer "1.3.0"
 #endif
 #define AppName "QASSIMZ Hub"
 #define AppExe "QASSIMZ Hub.exe"
@@ -111,19 +111,20 @@ end;
 procedure QzApplyDarkStudioWizard;
 begin
   try
-    WizardForm.Color := $170F0B;
-    WizardForm.WelcomePage.Color := $170F0B;
-    WizardForm.InnerPage.Color := $1C120D;
-    WizardForm.MainPanel.Color := $140C08;
-    WizardForm.FinishedPage.Color := $170F0B;
-    WizardForm.PageNameLabel.Font.Color := $FFFFFF;
-    WizardForm.PageDescriptionLabel.Font.Color := $E1D5CB;
-    WizardForm.WelcomeLabel1.Font.Color := $FFFFFF;
-    WizardForm.WelcomeLabel2.Font.Color := $E1D5CB;
-    WizardForm.FinishedHeadingLabel.Font.Color := $FFFFFF;
-    WizardForm.FinishedLabel.Font.Color := $E1D5CB;
-    WizardForm.StatusLabel.Font.Color := $FFFFFF;
-    WizardForm.FilenameLabel.Font.Color := $E1D5CB;
+    // Adobe Spectrum 2 Dark palette (BGR hex: #1D1D1D, #222222, #2A2A2A, #F5F5F5, #B3B3B3, accent #3B63FB = $FB633B)
+    WizardForm.Color := $1D1D1D;
+    WizardForm.WelcomePage.Color := $1D1D1D;
+    WizardForm.InnerPage.Color := $222222;
+    WizardForm.MainPanel.Color := $2A2A2A;
+    WizardForm.FinishedPage.Color := $1D1D1D;
+    WizardForm.PageNameLabel.Font.Color := $F5F5F5;
+    WizardForm.PageDescriptionLabel.Font.Color := $B3B3B3;
+    WizardForm.WelcomeLabel1.Font.Color := $F5F5F5;
+    WizardForm.WelcomeLabel2.Font.Color := $B3B3B3;
+    WizardForm.FinishedHeadingLabel.Font.Color := $F5F5F5;
+    WizardForm.FinishedLabel.Font.Color := $B3B3B3;
+    WizardForm.StatusLabel.Font.Color := $F5F5F5;
+    WizardForm.FilenameLabel.Font.Color := $B3B3B3;
   except
   end;
   try

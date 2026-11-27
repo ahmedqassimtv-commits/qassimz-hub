@@ -1,18 +1,15 @@
-/* QASSIMZ Hub v1.2.0 — Ported from Open-Source `storytold/craft-launcher` (MIT/Apache-2.0) + Kinetic قَاسِـمز Stages */
+/* QASSIMZ Hub v1.3.0 — Adobe Creative Cloud Desktop / Spectrum 2 Frontend */
 (() => {
   "use strict";
 
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-  // App Brand Palette & English Editorial Copy (`catalog.rs` + `details.rs` style)
   const APP_META = {
     "qassimz-studio": {
       prefix: "Studio",
       suffix: "Craft",
       color: "#0EA5E9",
-      inkLight: "#0369A1",
-      inkDark: "#7DD3FC",
       taglineEn: "Video editing, keyframes & motion compositing",
       blurbEn: "Unified timeline editing, cubic-bezier keyframe motion curves, and GPU WebAssembly effects.",
     },
@@ -20,8 +17,6 @@
       prefix: "Producer",
       suffix: "Pro",
       color: "#EF4444",
-      inkLight: "#B91C1C",
-      inkDark: "#FCA5A5",
       taglineEn: "YouTube production planning & AI script studio",
       blurbEn: "End-to-end episode production workbench with shot lists, hooks, and timeline planning.",
     },
@@ -29,8 +24,6 @@
       prefix: "Music",
       suffix: "Studio",
       color: "#F59E0B",
-      inkLight: "#B45309",
-      inkDark: "#FCD34D",
       taglineEn: "Stem separation, BPM waveforms & sound library",
       blurbEn: "Organize soundtracks, separate vocals & stems locally, and drag cues straight into your NLE.",
     },
@@ -38,8 +31,6 @@
       prefix: "QDM",
       suffix: "Turbo",
       color: "#3B82F6",
-      inkLight: "#1D4ED8",
-      inkDark: "#93C5FD",
       taglineEn: "Multi-stream media & 4K video downloader",
       blurbEn: "High-speed segmented download manager with built-in yt-dlp + FFmpeg remuxing.",
     },
@@ -47,8 +38,6 @@
       prefix: "Thumbs",
       suffix: "View",
       color: "#EC4899",
-      inkLight: "#BE185D",
-      inkDark: "#F9A8D4",
       taglineEn: "YouTube feed simulator & A/B CTR tester",
       blurbEn: "Preview thumbnails live inside dark/light home, search, and mobile feeds before publishing.",
     },
@@ -56,8 +45,6 @@
       prefix: "Organize",
       suffix: "Pro",
       color: "#10B981",
-      inkLight: "#047857",
-      inkDark: "#6EE7B7",
       taglineEn: "Production folder templates & asset sorting",
       blurbEn: "One-click project folder structures and rule-based media sorting for editors.",
     },
@@ -65,8 +52,6 @@
       prefix: "Study",
       suffix: "Flow",
       color: "#14B8A6",
-      inkLight: "#0F766E",
-      inkDark: "#5EEAD4",
       taglineEn: "Focused deep-work & visual study companion",
       blurbEn: "Distraction-free study sessions, structured notes, and spaced review decks.",
     },
@@ -74,8 +59,6 @@
       prefix: "VOX",
       suffix: "FX",
       color: "#84CC16",
-      inkLight: "#4D7C0F",
-      inkDark: "#BEF264",
       taglineEn: "Documentary motion & highlighter toolkit for Adobe",
       blurbEn: "Vox-style kinetic highlights, map zooms, paper boil, and camera rigs inside Premiere & AE.",
     },
@@ -83,8 +66,6 @@
       prefix: "Captions",
       suffix: "AI",
       color: "#EAB308",
-      inkLight: "#A16207",
-      inkDark: "#FDE047",
       taglineEn: "Offline Whisper Arabic/English word-level captions",
       blurbEn: "Generate word-by-word animated captions directly on your Premiere Pro timeline.",
     },
@@ -92,8 +73,6 @@
       prefix: "Footage",
       suffix: "AI",
       color: "#06B6D4",
-      inkLight: "#0E7490",
-      inkDark: "#67E8F9",
       taglineEn: "Instant B-Roll & stock media search inside Premiere",
       blurbEn: "Search, preview, and import HD/4K stock footage directly into active bins.",
     },
@@ -101,33 +80,27 @@
       prefix: "MOGRT",
       suffix: "Hub",
       color: "#E11D48",
-      inkLight: "#BE123C",
-      inkDark: "#FDA4AF",
       taglineEn: "Visual Motion Graphics Template browser & previewer",
-      blurbEn: "Browse, hover-preview, favorite, and drop `.mogrt` templates onto your sequence.",
+      blurbEn: "Browse, hover-preview, favorite, and drop .mogrt templates onto your sequence.",
     },
     "qassimz-mogrt-maker": {
       prefix: "MOGRT",
       suffix: "Maker",
       color: "#F97316",
-      inkLight: "#C2410C",
-      inkDark: "#FDBA74",
       taglineEn: "Essential Graphics rig builder & exporter for AE",
-      blurbEn: "Bind responsive properties, build clean controls, and export `.mogrt` packages fast.",
+      blurbEn: "Bind responsive properties, build clean controls, and export .mogrt packages fast.",
     },
     "qassimz-export": {
       prefix: "Smart",
       suffix: "Export",
       color: "#28DB5B",
-      inkLight: "#15803D",
-      inkDark: "#86EFAC",
       taglineEn: "Social presets, loudness normalization & batch render",
       blurbEn: "One-click YouTube, Reels, TikTok, and ProRes mastering from Premiere & After Effects.",
     },
   };
 
   const UI = {
-    view: "all", // all | desktop | adobe | hidden
+    view: "all", // all | installed | updates | desktop | adobe | hidden
     layout: localStorage.getItem("qhub_layout") || "grid", // grid | table
     sort: localStorage.getItem("qhub_sort") || "default",
     lang: localStorage.getItem("qhub_lang") || "en",
@@ -136,9 +109,11 @@
     selectedId: null,
     settingsOpen: false,
     bellOpen: false,
-    menuAppId: null,
+    sidebarExpanded: false,
+    isMaximized: false,
     theaterTaskId: null,
     theaterMinimized: false,
+    theaterTerminalTask: null, // Holds last completed/errored task shown in theater
     bannerDismissed: false,
     pinned: JSON.parse(localStorage.getItem("qhub_pinned") || "[]"),
     hiddenApps: new Set(JSON.parse(localStorage.getItem("qhub_hidden") || "[]")),
@@ -149,74 +124,302 @@
 
   const I18N = {
     en: {
-      suite: "QASSIMZ APP SUITE",
-      apps: "APPS",
-      desktop: "DESKTOP",
-      adobe: "ADOBE CEP",
-      hiddenBtn: (n) => `HIDDEN APPS ${n}`,
-      updateAll: (n) => (n === 1 ? "UPDATE 1 APP" : `UPDATE ALL (${n})`),
-      sort: "SORT",
-      search: "Search apps",
-      pinnedSec: "PINNED",
-      notInstalledSec: "NOT INSTALLED",
-      updAvail: "UPDATE AVAILABLE",
-      installed: "INSTALLED",
-      dlSize: (s) => `Download size: ${s}`,
-      lastUpdated: (d) => `Last updated: ${d}`,
-      openVer: (v) => `OPEN ${v}`,
-      open: "OPEN",
-      update: "UPDATE",
-      install: "INSTALL",
-      reinstall: "REINSTALL",
-      cancel: "CANCEL",
-      by: "BY QASSIMZ",
-      checked: "CHECKED JUST NOW · USING QASSIMZ HUB AND GITHUB",
-      checking: "CHECKING FOR UPDATES…",
-      colApp: "APP",
-      colStatus: "STATUS",
-      colVersion: "VERSION",
-      colReleased: "RELEASED",
-      colAuthor: "AUTHOR",
-      done: "DONE",
-      quit: "QUIT QASSIMZ HUB",
+      hubSubtitle: "QASSIMZ Hub",
+      bootInit: "Initializing QASSIMZ Suite…",
+      bootChecking: "Checking installed apps…",
+      bootReady: "Ready",
+      searchPlaceholder: "Search QASSIMZ apps…",
+      navAll: "All Apps",
+      navInstalled: "Installed",
+      navUpdates: "Updates",
+      navHidden: "Hidden",
+      sbCategories: "CATEGORIES",
+      navDesktop: "Desktop Apps",
+      navAdobe: "Adobe CEP",
+      sbResources: "RESOURCES",
+      checkUpdates: "Check for Updates",
+      githubReleases: "GitHub Releases",
+      cepReady: "Adobe CEP Ready",
+      cepEnable: "Enable Adobe CEP",
+      installedSummary: (i, t) => `${i} / ${t} installed`,
+      quitShort: "Quit",
+      sort: "Sort",
+      sortDefault: "Suite Order",
+      sortNameAsc: "Name (A–Z)",
+      sortNameDesc: "Name (Z–A)",
+      sortStatus: "Status",
+      sortSize: "Download Size",
+      updateAll: (n) => (n === 1 ? "Update 1 App" : `Update All (${n})`),
+      updatePill: "UPDATE",
+      hubUpdateAvail: (v) => `QASSIMZ Hub ${v} is available.`,
+      whatsNewLink: "What's New ↗",
+      updateAndRestart: "Update & Restart",
+      showInstaller: "Show Installer",
+      secPinned: "Pinned",
+      secInstalled: "Installed",
+      secAvailable: "Available in Suite",
+      catDesktop: "Desktop",
+      catAdobe: "CEP",
+      updAvail: "Update",
+      installedTag: "Installed",
+      installedVer: (v) => `Installed · v${v}`,
+      open: "Open",
+      update: "Update",
+      install: "Install",
+      reinstall: "Reinstall",
+      cancel: "Cancel",
+      retry: "Retry",
+      done: "Done",
+      close: "Close",
+      launch: "Launch",
+      downloading: "Downloading",
+      installing: "Installing…",
+      emptyApps: "No matching applications found.",
+      emptyInstalled: "No QASSIMZ apps are installed yet.",
+      emptyUpdates: "All installed apps are up to date.",
+      clearFilters: "Clear Filters",
+      // Details
+      overview: "Overview",
+      whatsNew: (v) => `What's New in v${v}`,
+      keyFeatures: "Key Features",
+      releaseFacts: "Release Facts",
+      latestVersion: "Latest Version",
+      installedLabel: "Installed",
+      notInstalled: "Not installed",
+      downloadSize: "Download Size",
+      releasedLabel: "Released",
+      interactiveInstaller: "Interactive Installer",
+      openFolder: "Open Folder",
+      uninstall: "Uninstall",
+      github: "GitHub ↗",
+      releases: "Releases ↗",
+      portableZip: "Portable ZIP ↗",
+      // Settings
       settings: "Settings",
-      announcements: "ANNOUNCEMENTS & TRANSFERS",
+      appearanceLang: "Appearance & Language",
+      themeTitle: "Appearance Theme",
+      themeSub: "Choose Spectrum 2 Dark, Light, or System",
+      themeLight: "Light",
+      themeDark: "Dark",
+      themeSystem: "System",
+      langTitle: "Interface Language",
+      langSub: "Switch instantly between English and Arabic",
+      autoUpdates: "Automatic Updates",
+      autoCheckTitle: "Check for Updates Automatically",
+      autoCheckSub: "Sync releases on startup and every 4 hours",
+      autoAppsTitle: "Auto-Update Installed Apps",
+      autoAppsSub: "Download and install app updates automatically",
+      autoHubTitle: "Auto-Update QASSIMZ Hub",
+      autoHubSub: "Keep the launcher itself updated automatically",
+      installWin: "Installation & Windows",
+      silentTitle: "One-Click Silent Install",
+      silentSub: "Install apps directly with QASSIMZ Installer",
+      trayTitle: "Keep Running in System Tray",
+      traySub: "Minimize to tray when closing the window",
+      startupTitle: "Launch at Windows Sign-In",
+      startupSub: "Start QASSIMZ Hub in background at login",
+      maintenance: "Maintenance & Adobe CEP",
+      cacheInfo: (sz, pr, ae) =>
+        `Cached downloads: ${sz} · Premiere: ${pr ? "Detected" : "—"} · After Effects: ${ae ? "Detected" : "—"}`,
+      checkHubUpdate: "Check Hub Update",
+      cacheFolder: "Cache Folder",
+      clearCache: "Clear Cache",
+      quitHub: "Quit QASSIMZ Hub",
+      // Bell
+      announcements: "Notifications & Transfers",
       noAnnouncements: "All QASSIMZ apps and services are ready.",
+      updateAvailSize: (sz) => `Update available (${sz})`,
+      // Context menu
+      menuDetails: "App Details & Notes",
+      menuPin: "Pin to Top",
+      menuUnpin: "Unpin",
+      menuOpen: (n) => `Open ${n}`,
+      menuWizard: "Install with Wizard",
+      menuReinstall: "Reinstall / Wizard",
+      menuFolder: "Open Install Folder",
+      menuGithub: "GitHub Repository",
+      menuReleases: "Release Page",
+      menuPortable: "Download Portable ZIP",
+      menuHide: "Hide App",
+      menuUnhide: "Unhide App",
+      menuUninstall: "Uninstall",
+      // Install theater
+      installerTitle: "QASSIMZ Installer",
+      stepDl: "01 Download",
+      stepVerify: "02 Verify SHA-256",
+      stepInst: "03 Install",
+      continueBg: "Continue in Background",
+      completeTitle: "Installation Complete",
+      completeSub: "Ready to launch from QASSIMZ Hub.",
+      errorTitle: "Installation Failed",
+      connecting: "Connecting to official GitHub release server…",
+      preparing: "Preparing package…",
+      // Toasts
+      toastSettingsSaved: "Settings saved",
+      toastCatalogSynced: "Checked GitHub releases — catalog is up to date.",
+      toastCepEnabled: "Enabled Adobe CEP PlayerDebugMode (CSXS 9–16)",
+      toastCacheCleared: "Cleared installer cache",
+      toastLaunching: "Launching application…",
+      toastHubUpToDate: "QASSIMZ Hub is already up to date.",
+      toastQueuedUpdates: (n) => `Queued ${n} update(s)`,
+      toastUninstallStarted: (n) => `Started uninstaller for ${n}`,
+      // Window tooltips
+      winMin: "Minimize",
+      winMax: "Maximize",
+      winRestore: "Restore",
+      winClose: "Close",
+      moreActions: "More actions",
+      prev: "Previous",
+      next: "Next",
     },
     ar: {
-      suite: "منظومة تطبيقات قَاسِمز",
-      apps: "التطبيقات",
-      desktop: "سطح المكتب",
-      adobe: "إضافات ADOBE",
-      hiddenBtn: (n) => `المخفية ${n}`,
-      updateAll: (n) => `تحديث الكل (${n})`,
+      hubSubtitle: "مركز تطبيقات قَاسِمز",
+      bootInit: "جارٍ تهيئة منظومة قَاسِمز…",
+      bootChecking: "جارٍ فحص التطبيقات المثبّتة…",
+      bootReady: "جاهز للعمل",
+      searchPlaceholder: "ابحث في تطبيقات قَاسِمز…",
+      navAll: "كل التطبيقات",
+      navInstalled: "المثبّتة",
+      navUpdates: "التحديثات",
+      navHidden: "المخفية",
+      sbCategories: "التصنيفات",
+      navDesktop: "تطبيقات سطح المكتب",
+      navAdobe: "إضافات Adobe CEP",
+      sbResources: "المصادر",
+      checkUpdates: "فحص التحديثات",
+      githubReleases: "إصدارات GitHub",
+      cepReady: "Adobe CEP جاهز",
+      cepEnable: "تفعيل Adobe CEP",
+      installedSummary: (i, t) => `${i} من ${t} مثبّت`,
+      quitShort: "إنهاء",
       sort: "ترتيب",
-      search: "ابحث عن برنامج أو إضافة…",
-      pinnedSec: "المثبّتة في الأعلى",
-      notInstalledSec: "غير مثبّتة بعد",
+      sortDefault: "ترتيب المنظومة",
+      sortNameAsc: "الاسم (أ–ي)",
+      sortNameDesc: "الاسم (ي–أ)",
+      sortStatus: "الحالة",
+      sortSize: "حجم التنزيل",
+      updateAll: (n) => (n === 1 ? "تحديث تطبيق واحد" : `تحديث الكل (${n})`),
+      updatePill: "تحديث",
+      hubUpdateAvail: (v) => `يتوفّر الإصدار الجديد QASSIMZ Hub ${v}.`,
+      whatsNewLink: "ما الجديد ↗",
+      updateAndRestart: "تحديث وإعادة التشغيل",
+      showInstaller: "عرض نافذة التثبيت",
+      secPinned: "المثبّتة في الأعلى",
+      secInstalled: "التطبيقات المثبّتة",
+      secAvailable: "متاح في المنظومة",
+      catDesktop: "سطح المكتب",
+      catAdobe: "CEP",
       updAvail: "تحديث متاح",
-      installed: "مثبّت",
-      dlSize: (s) => `حجم التنزيل: ${s}`,
-      lastUpdated: (d) => `آخر تحديث: ${d}`,
-      openVer: (v) => `تشغيل ${v}`,
+      installedTag: "مثبّت",
+      installedVer: (v) => `مثبّت · v${v}`,
       open: "تشغيل",
       update: "تحديث",
       install: "تثبيت",
       reinstall: "إعادة تثبيت",
       cancel: "إلغاء",
-      by: "BY QASSIMZ",
-      checked: "تم الفحص الآن · متصل بمستودع QASSIMZ الرسمي على GITHUB",
-      checking: "جارٍ فحص التحديثات…",
-      colApp: "البرنامج",
-      colStatus: "الحالة",
-      colVersion: "الإصدار",
-      colReleased: "تاريخ النشر",
-      colAuthor: "المطوّر",
+      retry: "إعادة المحاولة",
       done: "تم",
-      quit: "إغلاق QASSIMZ HUB",
+      close: "إغلاق",
+      launch: "تشغيل التطبيق",
+      downloading: "جارٍ التنزيل",
+      installing: "جارٍ التثبيت…",
+      emptyApps: "لا توجد تطبيقات مطابقة للبحث.",
+      emptyInstalled: "لا توجد تطبيقات مثبّتة من قَاسِمز بعد.",
+      emptyUpdates: "جميع التطبيقات المثبّتة محدّثة بالكامل.",
+      clearFilters: "مسح الفلاتر",
+      // Details
+      overview: "نظرة عامة",
+      whatsNew: (v) => `ما الجديد في الإصدار v${v}`,
+      keyFeatures: "الميزات الرئيسية",
+      releaseFacts: "تفاصيل الإصدار",
+      latestVersion: "أحدث إصدار",
+      installedLabel: "المثبّت حالياً",
+      notInstalled: "غير مثبّت",
+      downloadSize: "حجم التنزيل",
+      releasedLabel: "تاريخ النشر",
+      interactiveInstaller: "معالج التثبيت التفاعلي",
+      openFolder: "فتح المجلد",
+      uninstall: "إلغاء التثبيت",
+      github: "GitHub ↗",
+      releases: "الإصدارات ↗",
+      portableZip: "النسخة المحمولة ↗",
+      // Settings
       settings: "الإعدادات",
+      appearanceLang: "المظهر واللغة",
+      themeTitle: "سمة المظهر",
+      themeSub: "اختر الوضع الداكن أو الفاتح أو حسب النظام",
+      themeLight: "فاتح",
+      themeDark: "داكن",
+      themeSystem: "النظام",
+      langTitle: "لغة الواجهة",
+      langSub: "التبديل الفوري بين العربية والإنجليزية",
+      autoUpdates: "التحديث التلقائي",
+      autoCheckTitle: "فحص التحديثات تلقائياً",
+      autoCheckSub: "مزامنة الإصدارات عند التشغيل وكل 4 ساعات",
+      autoAppsTitle: "تحديث التطبيقات المثبّتة تلقائياً",
+      autoAppsSub: "تنزيل وتثبيت تحديثات التطبيقات تلقائياً",
+      autoHubTitle: "تحديث QASSIMZ Hub تلقائياً",
+      autoHubSub: "إبقاء المشغّل محدّثاً تلقائياً بأحدث إصدار",
+      installWin: "التثبيت ونظام ويندوز",
+      silentTitle: "التثبيت الصامت بنقرة واحدة",
+      silentSub: "تثبيت التطبيقات مباشرة عبر نافذة تثبيت قَاسِمز",
+      trayTitle: "الإبقاء في شريط النظام",
+      traySub: "تصغير النافذة إلى شريط المهام عند الإغلاق",
+      startupTitle: "التشغيل عند بدء ويندوز",
+      startupSub: "تشغيل QASSIMZ Hub في الخلفية عند تسجيل الدخول",
+      maintenance: "الصيانة و Adobe CEP",
+      cacheInfo: (sz, pr, ae) =>
+        `التنزيلات المؤقتة: ${sz} · Premiere: ${pr ? "مكتشف" : "—"} · After Effects: ${ae ? "مكتشف" : "—"}`,
+      checkHubUpdate: "فحص تحديث المشغّل",
+      cacheFolder: "مجلد التنزيلات",
+      clearCache: "مسح الكاش",
+      quitHub: "إنهاء QASSIMZ Hub",
+      // Bell
       announcements: "الإشعارات والتنزيلات",
       noAnnouncements: "جميع خدمات وتطبيقات قَاسِمز جاهزة للعمل.",
+      updateAvailSize: (sz) => `يتوفّر تحديث (${sz})`,
+      // Context menu
+      menuDetails: "التفاصيل والملاحظات",
+      menuPin: "تثبيت في الأعلى",
+      menuUnpin: "إلغاء التثبيت في الأعلى",
+      menuOpen: (n) => `تشغيل ${n}`,
+      menuWizard: "التثبيت عبر المعالج",
+      menuReinstall: "إعادة التثبيت / المعالج",
+      menuFolder: "فتح مجلد التثبيت",
+      menuGithub: "مستودع GitHub",
+      menuReleases: "صفحة الإصدارات",
+      menuPortable: "تنزيل النسخة المحمولة ZIP",
+      menuHide: "إخفاء التطبيق",
+      menuUnhide: "إظهار التطبيق",
+      menuUninstall: "إلغاء التثبيت",
+      // Install theater
+      installerTitle: "مثبّت QASSIMZ",
+      stepDl: "01 التنزيل",
+      stepVerify: "02 التحقق SHA-256",
+      stepInst: "03 التثبيت",
+      continueBg: "المتابعة في الخلفية",
+      completeTitle: "اكتمل التثبيت بنجاح",
+      completeSub: "التطبيق جاهز الآن للتشغيل من QASSIMZ Hub.",
+      errorTitle: "فشل التثبيت",
+      connecting: "جارٍ الاتصال بخادم إصدارات GitHub الرسمي…",
+      preparing: "جارٍ تجهيز الحزمة…",
+      // Toasts
+      toastSettingsSaved: "تم حفظ الإعدادات",
+      toastCatalogSynced: "تم فحص إصدارات GitHub — الكتالوج محدّث.",
+      toastCepEnabled: "تم تفعيل وضع Adobe CEP PlayerDebugMode (CSXS 9–16)",
+      toastCacheCleared: "تم مسح ذاكرة التنزيلات المؤقتة",
+      toastLaunching: "جارٍ تشغيل التطبيق…",
+      toastHubUpToDate: "QASSIMZ Hub محدّث بالفعل إلى آخر إصدار.",
+      toastQueuedUpdates: (n) => `تمت إضافة ${n} تحديث(ات) إلى قائمة الانتظار`,
+      toastUninstallStarted: (n) => `تم تشغيل معالج إلغاء التثبيت لـ ${n}`,
+      // Window tooltips
+      winMin: "تصغير",
+      winMax: "تكبير",
+      winRestore: "استعادة",
+      winClose: "إغلاق",
+      moreActions: "خيارات إضافية",
+      prev: "السابق",
+      next: "التالي",
     },
   };
 
@@ -230,62 +433,139 @@
     return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
   }
 
+  function syncWindowMaxIcon() {
+    const maxIco = $("#ico-win-maximize");
+    const resIco = $("#ico-win-restore");
+    const maxBtn = $("#btn-win-max");
+    document.documentElement.classList.toggle("is-maximized", UI.isMaximized);
+    if (maxIco && resIco) {
+      maxIco.toggleAttribute("hidden", UI.isMaximized);
+      resIco.toggleAttribute("hidden", !UI.isMaximized);
+    }
+    if (maxBtn) {
+      const lbl = UI.isMaximized ? tr().winRestore : tr().winMax;
+      maxBtn.title = lbl;
+      maxBtn.setAttribute("aria-label", lbl);
+    }
+  }
+
   function applyThemeAndLang() {
     const dark = isDarkActive();
+    const t = tr();
     document.documentElement.dataset.theme = dark ? "dark" : "light";
     document.documentElement.lang = UI.lang;
     document.documentElement.dir = UI.lang === "ar" ? "rtl" : "ltr";
 
+    const moon = $("#ico-theme-moon");
+    const sun = $("#ico-theme-sun");
+    if (moon && sun) {
+      moon.toggleAttribute("hidden", !dark);
+      sun.toggleAttribute("hidden", dark);
+    }
+
     $("#btn-lang").textContent = UI.lang === "ar" ? "EN" : "AR";
-    $("#suite-label").textContent = tr().suite;
-    $("#lbl-sort").textContent = tr().sort;
-    $("#q-search").placeholder = tr().search;
-    $("#foot-status").textContent = tr().checked;
+    $("#q-search").placeholder = t.searchPlaceholder;
+    $("#intro-subtitle").textContent = t.hubSubtitle;
+
+    // Sidebar labels
+    $("#lbl-nav-all").textContent = t.navAll;
+    $("#lbl-nav-installed").textContent = t.navInstalled;
+    $("#lbl-nav-updates").textContent = t.navUpdates;
+    $("#lbl-nav-hidden").textContent = t.navHidden;
+    $("#lbl-sb-categories").textContent = t.sbCategories;
+    $("#lbl-nav-desktop").textContent = t.navDesktop;
+    $("#lbl-nav-adobe").textContent = t.navAdobe;
+    $("#lbl-sb-resources").textContent = t.sbResources;
+    $("#lbl-check-updates").textContent = t.checkUpdates;
+    $("#lbl-github-releases").textContent = t.githubReleases;
+    $("#lbl-sidebar-quit").textContent = t.quitShort;
+
+    // Toolbar sort labels
+    $("#lbl-sort").textContent = t.sort;
+    const sortSel = $("#q-sort");
+    if (sortSel && sortSel.options.length >= 5) {
+      sortSel.options[0].textContent = t.sortDefault;
+      sortSel.options[1].textContent = t.sortNameAsc;
+      sortSel.options[2].textContent = t.sortNameDesc;
+      sortSel.options[3].textContent = t.sortStatus;
+      sortSel.options[4].textContent = t.sortSize;
+    }
+
+    // Banner & strip labels
+    $("#lbl-ub-pill").textContent = t.updatePill;
+    $("#btn-ub-notes").textContent = t.whatsNewLink;
+    $("#btn-hub-self-update").textContent = t.updateAndRestart;
+    $("#btn-open-theater").textContent = t.showInstaller;
+
+    // Theater static localized labels
+    $("#th-step-dl .step-txt").textContent = t.stepDl;
+    $("#th-step-verify .step-txt").textContent = t.stepVerify;
+    $("#th-step-inst .step-txt").textContent = t.stepInst;
+    $("#btn-th-bg").textContent = t.continueBg;
+    $("#btn-th-cancel").textContent = t.cancel;
+    $("#btn-th-launch").textContent = t.launch;
+    $("#btn-th-done").textContent = t.done;
+    $("#btn-th-retry").textContent = t.retry;
+    $("#th-complete-title").textContent = t.completeTitle;
+    $("#th-complete-sub").textContent = t.completeSub;
+    $("#th-error-title").textContent = t.errorTitle;
+
+    // Window caption tooltips
+    $("#btn-win-min").title = t.winMin;
+    $("#btn-win-close").title = t.winClose;
+    syncWindowMaxIcon();
   }
 
-  // Signature FLIP Spatial Transition: Center Stage -> Header Brand Slot!
-  function runBrandIntro(replay = false) {
+  // Launch / Splash / Welcome Screen synchronized with reloadState()
+  function startSplashSequence(readyPromise, replay = false) {
     const intro = $("#brand-intro");
+    const fill = $("#intro-progress-fill");
+    const status = $("#intro-status");
     const wrap = $("#intro-logo-wrap");
-    const target = $("#btn-replay-logo .hdr-logo-svg");
-    if (!intro || !wrap) return;
+    if (!intro) return;
 
-    if (replay) {
-      intro.hidden = false;
-      intro.classList.remove("docking");
-      wrap.style.transform = "";
-      wrap.style.color = "#FFFFFF";
-      // Restart SVG path animations cleanly
+    const t = tr();
+    intro.hidden = false;
+    intro.classList.remove("fading");
+
+    if (replay && wrap) {
       const clone = wrap.innerHTML;
       wrap.innerHTML = clone;
     }
 
-    let finished = false;
-    const dockToHeader = () => {
-      if (finished) return;
-      finished = true;
+    if (status) status.textContent = t.bootInit;
+    if (fill) fill.style.width = "24%";
 
-      if (target) {
-        const srcRect = wrap.getBoundingClientRect();
-        const dstRect = target.getBoundingClientRect();
-        if (srcRect.width > 0 && dstRect.width > 0) {
-          const dx = dstRect.left + dstRect.width / 2 - (srcRect.left + srcRect.width / 2);
-          const dy = dstRect.top + dstRect.height / 2 - (srcRect.top + srcRect.height / 2);
-          const scale = dstRect.width / srcRect.width;
-          wrap.style.transform = `translate(${dx}px, ${dy}px) scale(${scale})`;
-          wrap.style.color = isDarkActive() ? "#FFFFFF" : "#101014";
-        }
-      }
-      intro.classList.add("docking");
+    const stepTimer = setTimeout(() => {
+      if (status) status.textContent = tr().bootChecking;
+      if (fill) fill.style.width = "68%";
+    }, 420);
+
+    let dismissed = false;
+    const dismiss = () => {
+      if (dismissed) return;
+      dismissed = true;
+      clearTimeout(stepTimer);
+      clearTimeout(maxTimer);
+      if (status) status.textContent = tr().bootReady;
+      if (fill) fill.style.width = "100%";
       setTimeout(() => {
-        intro.hidden = true;
-        wrap.style.transform = "";
-        triggerHeaderLogoWave();
-      }, 540);
+        intro.classList.add("fading");
+        setTimeout(() => {
+          intro.hidden = true;
+          intro.classList.remove("fading");
+          triggerHeaderLogoWave();
+        }, 280);
+      }, 120);
     };
 
-    intro.onclick = dockToHeader;
-    setTimeout(dockToHeader, 1450);
+    intro.onclick = dismiss;
+
+    const minDelay = new Promise((r) => setTimeout(r, replay ? 950 : 1050));
+    const safeReady = Promise.resolve(readyPromise).catch(() => {});
+    const maxTimer = setTimeout(dismiss, 2500);
+
+    Promise.all([minDelay, safeReady]).then(dismiss);
   }
 
   function triggerHeaderLogoWave() {
@@ -294,7 +574,7 @@
     btn.classList.remove("wave");
     void btn.offsetWidth;
     btn.classList.add("wave");
-    setTimeout(() => btn.classList.remove("wave"), 650);
+    setTimeout(() => btn.classList.remove("wave"), 700);
   }
 
   async function api(method, payload = {}) {
@@ -308,19 +588,19 @@
     return json.data;
   }
 
-  // Exact ArtCraft Bottom-Right Dark Toast (`/home/antigravity/image.png`)
   function toast(msg, kind = "info") {
     const box = $("#toasts");
+    if (!box) return;
     const el = document.createElement("div");
-    el.className = `craft-toast ${kind === "error" ? "error" : ""}`;
+    el.className = `cc-toast ${kind === "error" ? "error" : ""}`;
     el.innerHTML = `
-      <div class="ct-top">
-        <span class="ct-brand"><span class="ct-dot"></span>QASSIMZ Hub</span>
-        <button style="color:rgba(242,241,238,0.65);font-size:12px;" aria-label="Dismiss">✕</button>
+      <div class="toast-top">
+        <span class="toast-brand"><span class="toast-dot"></span>QASSIMZ Hub</span>
+        <button class="cc-icon-btn sm" aria-label="Dismiss">✕</button>
       </div>
-      <div class="ct-body"></div>
+      <div class="toast-body"></div>
     `;
-    $(".ct-body", el).textContent = msg;
+    $(".toast-body", el).textContent = msg;
     $("button", el).onclick = () => el.remove();
     box.appendChild(el);
     setTimeout(() => el.remove(), 4400);
@@ -334,10 +614,9 @@
       .replace(/"/g, "&quot;");
   }
 
-  // `widgets.rs::human_bytes`
   function humanBytes(bytes) {
     const n = Number(bytes) || 0;
-    if (n <= 0) return "GitHub Direct";
+    if (n <= 0) return UI.lang === "ar" ? "تنزيل مباشر" : "Direct";
     const mb = 1024 * 1024;
     if (n >= 1024 * mb) return `${(n / (1024 * mb)).toFixed(1)} GB`;
     if (n >= mb) return `${Math.round(n / mb)} MB`;
@@ -345,7 +624,7 @@
   }
 
   function fmtDate(iso) {
-    if (!iso) return "Nov 26, 2026";
+    if (!iso) return "—";
     try {
       const d = new Date(iso);
       return d.toLocaleDateString(UI.lang === "ar" ? "ar-EG" : "en-US", {
@@ -354,7 +633,7 @@
         year: "numeric",
       });
     } catch (_) {
-      return "Nov 26, 2026";
+      return "—";
     }
   }
 
@@ -375,9 +654,9 @@
   function toggleHide(id) {
     if (UI.hiddenApps.has(id)) {
       UI.hiddenApps.delete(id);
+      if (UI.hiddenApps.size === 0 && UI.view === "hidden") UI.view = "all";
     } else {
       UI.hiddenApps.add(id);
-      if (UI.hiddenApps.size === 0 && UI.view === "hidden") UI.view = "all";
     }
     localStorage.setItem("qhub_hidden", JSON.stringify(Array.from(UI.hiddenApps)));
     render();
@@ -396,17 +675,15 @@
   }
 
   function appMeta(it) {
-    const m = APP_META[it.id] || {
-      prefix: it.name,
-      suffix: "",
-      color: it.accent || "#2D81FF",
-      inkLight: it.accent || "#1659C4",
-      inkDark: it.accent || "#74AAFF",
-      taglineEn: (it.hosts || []).join(" · "),
-      blurbEn: it.tagline_ar || "",
-    };
-    const appInk = isDarkActive() ? m.inkDark : m.inkLight;
-    return { ...m, appInk };
+    return (
+      APP_META[it.id] || {
+        prefix: it.name,
+        suffix: "",
+        color: it.accent || "#3B63FB",
+        taglineEn: (it.hosts || []).join(" · "),
+        blurbEn: it.tagline_ar || "",
+      }
+    );
   }
 
   function visibleItems() {
@@ -416,6 +693,8 @@
     const filtered = items.filter((it) => {
       if (UI.view === "hidden") return UI.hiddenApps.has(it.id);
       if (UI.hiddenApps.has(it.id)) return false;
+      if (UI.view === "installed" && !it.state?.installed) return false;
+      if (UI.view === "updates" && !it.state?.has_update) return false;
       if (UI.view === "desktop" && it.category !== "desktop") return false;
       if (UI.view === "adobe" && it.category !== "adobe") return false;
       if (q) {
@@ -445,45 +724,69 @@
     });
   }
 
-  // `widgets.rs::Glyph::Pin` / `PinFilled` (Bookmark ribbon with V-notch)
-  function pinSvg(pinned) {
-    if (pinned) {
-      return `<svg viewBox="0 0 16 16" fill="currentColor"><path d="M3.8 1.5h8.4v9.5L8 14.5 3.8 11z"/></svg>`;
-    }
-    return `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="miter"><path d="M3.8 1.5h8.4v9.5L8 14.5 3.8 11z"/></svg>`;
+  function currentViewTitle() {
+    const t = tr();
+    if (UI.view === "installed") return t.navInstalled;
+    if (UI.view === "updates") return t.navUpdates;
+    if (UI.view === "desktop") return t.navDesktop;
+    if (UI.view === "adobe") return t.navAdobe;
+    if (UI.view === "hidden") return t.navHidden;
+    return t.navAll;
   }
 
-  function updateChrome() {
+  function updateChrome(listCount = 0) {
     const st = UI.state;
     if (!st) return;
 
     applyThemeAndLang();
+    const t = tr();
 
-    $("#nav-all").innerHTML = `${esc(tr().apps)} <span class="cell-cnt">${st.counts.total}</span>`;
-    $("#nav-desktop").innerHTML = `${esc(tr().desktop)} <span class="cell-cnt">${st.counts.desktop}</span>`;
-    $("#nav-adobe").innerHTML = `${esc(tr().adobe)} <span class="cell-cnt">${st.counts.adobe}</span>`;
+    // Sidebar counts & active state
+    $("#cnt-all").textContent = String(st.counts.total);
+    $("#cnt-installed").textContent = String(st.counts.installed);
+    const updCntEl = $("#cnt-updates");
+    updCntEl.textContent = String(st.counts.updates);
+    updCntEl.classList.toggle("has-updates", st.counts.updates > 0);
+    $("#cnt-desktop").textContent = String(st.counts.desktop);
+    $("#cnt-adobe").textContent = String(st.counts.adobe);
 
-    $$("#main-nav .craft-cell").forEach((b) => {
-      b.classList.toggle("active", b.dataset.view === UI.view);
-    });
-
-    const hidBtn = $("#btn-hidden-toggle");
+    const navHidden = $("#nav-hidden");
     if (UI.hiddenApps.size > 0) {
-      hidBtn.hidden = false;
-      hidBtn.textContent = tr().hiddenBtn(UI.hiddenApps.size);
-      hidBtn.className = `craft-btn ${UI.view === "hidden" ? "primary" : "secondary"}`;
+      navHidden.hidden = false;
+      $("#cnt-hidden").textContent = String(UI.hiddenApps.size);
     } else {
-      hidBtn.hidden = true;
+      navHidden.hidden = true;
     }
 
-    $$(".view-cell").forEach((b) => {
+    $$(".cc-sidebar .sb-item[data-view]").forEach((b) => {
+      const isAct = b.dataset.view === UI.view;
+      b.classList.toggle("active", isAct);
+      b.setAttribute("aria-selected", isAct ? "true" : "false");
+    });
+
+    // View heading & count
+    $("#view-title").textContent = currentViewTitle();
+    $("#view-count").textContent = String(listCount);
+
+    // Search clear button
+    $("#btn-search-clear").hidden = !UI.query;
+
+    // Layout segmented toggle
+    $$(".cc-segmented .seg-btn").forEach((b) => {
       b.classList.toggle("active", b.dataset.layout === UI.layout);
     });
-    $("#sort-wrap").hidden = UI.layout === "table";
     $("#q-sort").value = UI.sort;
 
-    // Bell badge (`bell.rs::count_badge`)
+    // Activity/Downloads button & Bell badge
     const live = activeTasks();
+    const actBtn = $("#btn-activity");
+    if (live.length > 0) {
+      actBtn.hidden = false;
+      $("#activity-badge").textContent = String(live.length);
+    } else {
+      actBtn.hidden = true;
+    }
+
     const attention = st.counts.updates + live.length + (st.hub_has_update ? 1 : 0);
     const bellBadge = $("#bell-badge");
     if (attention > 0) {
@@ -493,344 +796,359 @@
       bellBadge.hidden = true;
     }
 
-    // Launcher Self-Update Banner (`views.rs::launcher_update_banner`)
+    // Hub Self-Update Banner
     const banner = $("#hub-update-banner");
     if (st.hub_has_update && !UI.bannerDismissed) {
       banner.hidden = false;
-      $("#ub-text").textContent =
-        UI.lang === "ar"
-          ? `يتوفّر الإصدار الجديد QASSIMZ Hub ${st.hub_remote_version} للتحديث المباشر.`
-          : `QASSIMZ Hub ${st.hub_remote_version} is available.`;
+      $("#ub-text").textContent = t.hubUpdateAvail(st.hub_remote_version);
     } else {
       banner.hidden = true;
     }
 
-    // Update All button (`views.rs::update_all_button`)
+    // Update All pill
     const updAllBtn = $("#btn-update-all");
     if (st.counts.updates > 0) {
       updAllBtn.hidden = false;
-      $("#lbl-update-all").textContent = tr().updateAll(st.counts.updates);
+      $("#lbl-update-all").textContent = t.updateAll(st.counts.updates);
     } else {
       updAllBtn.hidden = true;
     }
 
-    // CEP readiness in footer
+    // Sidebar footer status & dynamic Hub version
     const ad = st.adobe || {};
     $("#cep-dot").classList.toggle("warn", !ad.cep_debug_ready);
-    $("#lbl-cep").textContent = ad.cep_debug_ready ? "ADOBE CEP READY" : "ENABLE ADOBE CEP";
+    $("#lbl-cep").textContent = ad.cep_debug_ready ? t.cepReady : t.cepEnable;
+    $("#sidebar-installed-summary").textContent = t.installedSummary(st.counts.installed, st.counts.total);
+    $("#sidebar-hub-version").textContent = `v${st.hub_version || "1.3.0"}`;
 
     updateInstallTheater(live);
     if (UI.bellOpen) renderBellPopup();
   }
 
-  // Dark Architectural قَاسِـمز Installation Stage (`#install-theater`)
+  // Adobe CC-Style In-App Installer Modal (#install-theater) + Minimized Strip
   function updateInstallTheater(live) {
     const theater = $("#install-theater");
     const strip = $("#transfer-strip");
+    const t = tr();
 
-    if (!live.length) {
+    // If a task just reached completed/error while theater was open, display result state
+    const terminal = !live.length ? UI.theaterTerminalTask : null;
+
+    if (!live.length && !terminal) {
       theater.hidden = true;
       strip.hidden = true;
       UI.theaterMinimized = false;
       return;
     }
 
-    const cur = live.find((x) => x.id === UI.theaterTaskId) || live[0];
+    const cur = live.length
+      ? live.find((x) => x.id === UI.theaterTaskId) || live[0]
+      : terminal;
     UI.theaterTaskId = cur.id;
 
     const speedTxt = cur.speed_bps > 0 ? `${humanBytes(cur.speed_bps)}/s` : "";
-    const sizeTxt = cur.total > 0 ? `${humanBytes(cur.downloaded)} of ${humanBytes(cur.total)}` : "";
-    const tele = [sizeTxt, speedTxt].filter(Boolean).join(" · ") || cur.message_ar;
-    const solidAccent = cur.accent || "#2D81FF";
+    const sizeTxt = cur.total > 0 ? `${humanBytes(cur.downloaded)} / ${humanBytes(cur.total)}` : "";
+    const tele = [sizeTxt, speedTxt].filter(Boolean).join(" · ") || cur.message_ar || t.preparing;
 
-    if (UI.theaterMinimized) {
+    if (live.length && UI.theaterMinimized) {
       theater.hidden = true;
       strip.hidden = false;
       $("#strip-title").textContent = `${cur.name} · ${cur.progress}%`;
       $("#strip-fill").style.width = `${cur.progress}%`;
       $("#strip-meta").textContent = tele;
-    } else {
-      strip.hidden = true;
-      theater.hidden = false;
-      $("#th-glow").style.setProperty("--th-accent", `${solidAccent}48`);
-      $("#th-top-rule").style.setProperty("--th-solid", solidAccent);
-      $("#th-app-icon").src = cur.id === "qassimz-hub" ? "./logo.svg" : `./icons/${cur.id}.svg`;
-      $("#th-app-name").textContent = cur.name;
-      $("#th-app-ver").textContent = `v${cur.version}`;
-      $("#th-status-msg").textContent = cur.message_ar;
+      return;
+    }
+
+    strip.hidden = true;
+    theater.hidden = false;
+
+    $("#th-phase-badge").textContent = t.installerTitle;
+    $("#th-app-icon").src = cur.id === "qassimz-hub" ? "./logo.svg" : `./icons/${cur.id}.svg`;
+    $("#th-app-name").textContent = cur.name;
+    $("#th-app-ver").textContent = `v${cur.version}`;
+    $("#th-status-msg").textContent = cur.message_ar || t.connecting;
+
+    const isDone = cur.status === "completed";
+    const isErr = cur.status === "error";
+    const isInst = cur.status === "installing";
+    const isVerify = !isInst && !isDone && !isErr && cur.progress >= 98;
+
+    $("#th-step-dl").classList.toggle("active", !isInst && !isVerify && !isDone && !isErr);
+    $("#th-step-dl").classList.toggle("done", isVerify || isInst || isDone);
+
+    $("#th-step-verify").classList.toggle("active", isVerify);
+    $("#th-step-verify").classList.toggle("done", isInst || isDone);
+
+    $("#th-step-inst").classList.toggle("active", isInst);
+    $("#th-step-inst").classList.toggle("done", isDone);
+
+    $("#th-progress-block").hidden = isDone || isErr;
+    $("#th-complete-box").hidden = !isDone;
+    $("#th-error-box").hidden = !isErr;
+
+    if (!isDone && !isErr) {
       $("#th-pct").textContent = `${cur.progress}%`;
       $("#th-fill").style.width = `${cur.progress}%`;
       $("#th-telemetry").textContent = tele;
-
-      const isInst = cur.status === "installing";
-      const isVerify = !isInst && cur.progress >= 98;
-      $("#th-step-dl").classList.toggle("active", !isInst && !isVerify);
-      $("#th-step-verify").classList.toggle("active", isVerify);
-      $("#th-step-inst").classList.toggle("active", isInst);
-
-      $("#th-phase-badge").textContent = isInst
-        ? "INSTALLING VIA QASSIMZ HUB · جارٍ التثبيت"
-        : "DOWNLOADING VIA QASSIMZ HUB · جارٍ التنزيل";
-
-      $("#btn-th-cancel").hidden = !["queued", "downloading"].includes(cur.status);
-      $("#btn-th-cancel").onclick = async () => {
-        await api("cancel_task", { id: cur.id });
-        await reloadState();
-      };
+    } else if (isErr) {
+      $("#th-error-sub").textContent = cur.message_ar || "";
     }
+
+    // Footer buttons by state
+    const canCancel = ["queued", "downloading"].includes(cur.status);
+    $("#btn-th-bg").hidden = isDone || isErr;
+    $("#btn-th-cancel").hidden = !canCancel;
+    $("#btn-th-launch").hidden = !isDone || cur.id === "qassimz-hub";
+    $("#btn-th-done").hidden = !isDone && !isErr;
+    $("#btn-th-retry").hidden = !isErr;
+
+    $("#btn-th-cancel").onclick = async () => {
+      await api("cancel_task", { id: cur.id });
+      UI.theaterTerminalTask = null;
+      await reloadState();
+    };
+    $("#btn-th-launch").onclick = () => {
+      UI.theaterTerminalTask = null;
+      theater.hidden = true;
+      triggerLaunch(cur.id);
+    };
+    $("#btn-th-done").onclick = () => {
+      UI.theaterTerminalTask = null;
+      theater.hidden = true;
+    };
+    $("#btn-th-retry").onclick = () => {
+      UI.theaterTerminalTask = null;
+      triggerInstall(cur.id, true);
+    };
   }
 
-  // `views.rs::card` & `card_parts.rs`
-  function cardHTML(it, tmap, updatedStr) {
+  // Disciplined Spectrum 2 App Card (Grid View)
+  function cardHTML(it, tmap) {
     const st = it.state || {};
     const m = appMeta(it);
+    const t = tr();
     const task = tmap.get(it.id);
     const isBusy = task && ["queued", "downloading", "installing"].includes(task.status);
-    const pinned = isPinned(it.id);
     const installed = Boolean(st.installed);
+    const catLabel = it.category === "adobe" ? t.catAdobe : t.catDesktop;
+    const desc = UI.lang === "ar" ? it.tagline_ar || it.description_ar || m.blurbEn : m.blurbEn;
 
-    // `card_parts.rs::strip_version`: "0.5.0 → 0.6.0" with only new version lit in `--app-ink`
-    const verHTML = st.has_update
-      ? `<span class="strip-ver">${esc(st.installed_version)} → <span class="ver-lit">${esc(it.version)}</span></span>`
-      : `<span class="strip-ver"><span class="ver-lit">v${esc(st.installed_version || it.version)}</span></span>`;
-
-    // `views.rs` line 668: Installed & up-to-date needs no cluttering badge; UpdateAvailable gets Warn badge
-    let badgeRow = "";
-    if (isBusy) {
-      const lbl = task.status === "installing" ? "INSTALLING…" : `DOWNLOADING ${task.progress}%`;
-      badgeRow = `<div class="card-badge-row"><span class="craft-badge tone-info">${esc(lbl)}</span></div>`;
-    } else if (st.has_update) {
-      badgeRow = `<div class="card-badge-row"><span class="craft-badge tone-warn">${esc(tr().updAvail)}</span></div>`;
+    let statusTag = "";
+    if (st.has_update) {
+      statusTag = `<span class="card-status-tag notice">${esc(t.updAvail)}</span>`;
+    } else if (installed) {
+      statusTag = `<span class="card-status-tag positive">${esc(t.installedTag)}</span>`;
     }
 
-    const tagline = UI.lang === "ar" ? it.name_ar : m.taglineEn;
-    const blurb = UI.lang === "ar" ? it.tagline_ar : m.blurbEn;
-    const repoUrl = `https://github.com/${it.repo || "ahmedqassimtv-commits/qassimz-hub"}`;
-
-    let actionsHTML = "";
+    let footHTML = "";
     if (isBusy) {
-      const speed = task.speed_bps > 0 ? ` · ${humanBytes(task.speed_bps)}/s` : "";
-      const cap =
-        task.status === "installing"
-          ? UI.lang === "ar" ? "جارٍ التثبيت…" : "Installing…"
-          : `${UI.lang === "ar" ? "جارٍ التنزيل" : "Downloading"} ${task.progress}%${speed}`;
+      const cap = task.status === "installing" ? t.installing : t.downloading;
       const canCancel = ["queued", "downloading"].includes(task.status);
-      actionsHTML = `
-        <div class="craft-progress-row" data-prog-card="${esc(it.id)}">
-          <div class="craft-progress">
-            <span class="cp-caption">${esc(cap)}</span>
+      footHTML = `
+        <div class="card-progress-row" data-prog-card="${esc(it.id)}">
+          <div class="card-progress-body">
+            <div class="card-progress-head">
+              <span class="cp-caption">${esc(cap)}</span>
+              <span class="cp-pct">${task.progress}%</span>
+            </div>
             <div class="cp-track"><div class="cp-fill" style="width:${task.progress}%"></div></div>
           </div>
           ${
             canCancel
-              ? `<button class="glyph-btn" data-act="cancel" data-id="${esc(it.id)}" title="${esc(tr().cancel)}">
-                   <svg viewBox="0 0 14 14" stroke="currentColor" stroke-width="1.5"><line x1="2.5" y1="2.5" x2="11.5" y2="11.5"/><line x1="11.5" y1="2.5" x2="2.5" y2="11.5"/></svg>
+              ? `<button class="cc-icon-btn sm" data-act="cancel" data-id="${esc(it.id)}" title="${esc(t.cancel)}" aria-label="${esc(t.cancel)}">
+                   <svg viewBox="0 0 12 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5"/></svg>
                  </button>`
               : ""
           }
         </div>
       `;
     } else {
-      let mainControl = "";
-      if (st.has_update) {
-        // `widgets.rs::split_button`: Secondary `OPEN X.Y.Z` + 1px seam + Primary `UPDATE`
-        mainControl = `
-          <div class="split-btn">
-            <button class="craft-btn secondary" data-act="launch" data-id="${esc(it.id)}">${esc(tr().openVer(st.installed_version || it.version))}</button>
-            <button class="craft-btn primary" data-act="install" data-id="${esc(it.id)}">${esc(tr().update)}</button>
-          </div>
-        `;
-      } else if (installed) {
-        // `views.rs::primary_button`: `Primary::Open` uses `Kind::Secondary`
-        mainControl = `<button class="craft-btn secondary main-full" data-act="launch" data-id="${esc(it.id)}">${esc(tr().openVer(st.installed_version || it.version))}</button>`;
-      } else {
-        mainControl = `<button class="craft-btn primary main-full" data-act="install" data-id="${esc(it.id)}">${esc(tr().install)}</button>`;
-      }
+      const metaText = installed && !st.has_update
+        ? t.installedVer(st.installed_version || it.version)
+        : humanBytes(it.setup_size);
+      const ctaBtn = st.has_update
+        ? `<button class="cc-btn accent" data-act="install" data-id="${esc(it.id)}">${esc(t.update)}</button>`
+        : installed
+        ? `<button class="cc-btn secondary" data-act="launch" data-id="${esc(it.id)}">${esc(t.open)}</button>`
+        : `<button class="cc-btn accent" data-act="install" data-id="${esc(it.id)}">${esc(t.install)}</button>`;
 
-      actionsHTML = `
-        ${mainControl}
-        <button class="glyph-btn ${pinned ? "pinned" : ""}" data-act="pin" data-id="${esc(it.id)}" title="${pinned ? "Unpin" : "Pin to top"}">
-          ${pinSvg(pinned)}
-        </button>
-        <button class="glyph-btn" data-act="menu" data-id="${esc(it.id)}" title="More actions">⋯</button>
+      footHTML = `
+        <span class="card-foot-meta ${installed && !st.has_update ? "installed-meta" : ""}">${esc(metaText)}</span>
+        <div class="card-foot-cta">${ctaBtn}</div>
       `;
     }
 
     return `
       <article class="craft-card ${installed ? "installed" : "uninstalled"}"
-               style="--app-color:${esc(m.color)};--app-ink:${esc(m.appInk)};"
                tabindex="0"
                data-card-id="${esc(it.id)}">
-        <div class="card-strip">
-          ${verHTML}
-          <button class="hud-link" data-act="github" data-url="${esc(repoUrl)}">GITHUB ↗</button>
-        </div>
-        <div class="card-inner">
-          <div class="card-hero-row">
-            <img class="card-icon" src="./icons/${esc(it.id)}.svg" alt="${esc(it.name)} icon" decoding="async" />
-            <div class="card-titles">
-              <div class="card-wordmark-row">
-                <span class="craft-wordmark">${esc(m.prefix)}<span class="wm-accent">${esc(m.suffix)}</span></span>
-                <span class="craft-badge tone-info">${esc(tr().by)}</span>
+        <div>
+          <div class="card-row-top">
+            <img class="card-icon" src="./icons/${esc(it.id)}.svg" alt="${esc(it.name)}" decoding="async" />
+            <div class="card-title-col">
+              <div class="card-title-line">
+                <span class="card-name">${esc(it.name)}</span>
               </div>
-              <div class="card-tagline">${esc(tagline)}</div>
+              <div class="card-meta-pills">
+                <span class="card-ver-pill">v${esc(st.installed_version || it.version)}</span>
+                <span class="card-cat-tag">${esc(catLabel)}</span>
+                ${statusTag}
+              </div>
             </div>
+            <button class="cc-icon-btn" data-act="menu" data-id="${esc(it.id)}" title="${esc(t.moreActions)}" aria-label="${esc(t.moreActions)}">
+              <svg viewBox="0 0 16 16" fill="currentColor">
+                <circle cx="3.2" cy="8" r="1.35"/>
+                <circle cx="8" cy="8" r="1.35"/>
+                <circle cx="12.8" cy="8" r="1.35"/>
+              </svg>
+            </button>
           </div>
-
-          ${badgeRow}
-
-          <div class="card-facts">
-            ${!installed || st.has_update ? `<div class="card-size">${esc(tr().dlSize(humanBytes(it.setup_size)))}</div>` : ""}
-            <p class="card-blurb">${esc(blurb)}</p>
-            <div class="card-updated">${esc(tr().lastUpdated(updatedStr))}</div>
-          </div>
-
-          <div class="card-actions">${actionsHTML}</div>
+          <p class="card-desc">${esc(desc)}</p>
         </div>
+
+        <div class="card-row-foot">${footHTML}</div>
       </article>
     `;
   }
 
-  // `views.rs::grid`
-  function renderGridView(list, tmap, updatedStr) {
+  function renderEmptyState() {
+    const t = tr();
+    let msg = t.emptyApps;
+    if (!UI.query && UI.view === "installed") msg = t.emptyInstalled;
+    else if (!UI.query && UI.view === "updates") msg = t.emptyUpdates;
+
+    const showReset = Boolean(UI.query || UI.view !== "all");
+    return `
+      <div class="empty-box">
+        <p>${esc(msg)}</p>
+        ${showReset ? `<button class="cc-btn secondary sm" id="btn-clear-filters">${esc(t.clearFilters)}</button>` : ""}
+      </div>
+    `;
+  }
+
+  function renderGridView(list, tmap) {
     const ws = $("#workspace");
     if (!list.length) {
-      ws.innerHTML = `<div class="empty-box">${UI.lang === "ar" ? "لا توجد تطبيقات مطابقة للبحث." : "No matching applications found."}</div>`;
+      ws.innerHTML = renderEmptyState();
+      const clr = $("#btn-clear-filters", ws);
+      if (clr) {
+        clr.onclick = () => {
+          UI.query = "";
+          UI.view = "all";
+          $("#q-search").value = "";
+          render();
+        };
+      }
       return;
     }
 
-    // Group exactly like `views.rs::grid`: Pinned -> Installed -> "NOT INSTALLED"
-    if (UI.view !== "hidden" && !UI.query.trim() && UI.sort === "default") {
+    const t = tr();
+    if (UI.view === "all" && !UI.query.trim() && UI.sort === "default") {
       const pinnedList = list.filter((x) => isPinned(x.id));
       const rest = list.filter((x) => !isPinned(x.id));
       const installedList = rest.filter((x) => x.state?.installed);
-      const uninstalledList = rest.filter((x) => !x.state?.installed);
+      const availableList = rest.filter((x) => !x.state?.installed);
 
       let html = "";
       if (pinnedList.length) {
         html += `
-          <section class="craft-section">
-            <div class="hud-label faint section-heading">${esc(tr().pinnedSec)}</div>
-            <div class="craft-grid">${pinnedList.map((it) => cardHTML(it, tmap, updatedStr)).join("")}</div>
+          <section class="cc-section">
+            <h2 class="cc-section-head">${esc(t.secPinned)}</h2>
+            <div class="cc-grid">${pinnedList.map((it) => cardHTML(it, tmap)).join("")}</div>
           </section>
         `;
       }
       if (installedList.length) {
         html += `
-          <section class="craft-section">
-            <div class="craft-grid">${installedList.map((it) => cardHTML(it, tmap, updatedStr)).join("")}</div>
+          <section class="cc-section">
+            <h2 class="cc-section-head">${esc(t.secInstalled)}</h2>
+            <div class="cc-grid">${installedList.map((it) => cardHTML(it, tmap)).join("")}</div>
           </section>
         `;
       }
-      if (uninstalledList.length) {
+      if (availableList.length) {
         html += `
-          <section class="craft-section">
-            ${installedList.length || pinnedList.length ? `<div class="hud-label faint section-heading">${esc(tr().notInstalledSec)}</div>` : ""}
-            <div class="craft-grid">${uninstalledList.map((it) => cardHTML(it, tmap, updatedStr)).join("")}</div>
+          <section class="cc-section">
+            ${installedList.length || pinnedList.length ? `<h2 class="cc-section-head">${esc(t.secAvailable)}</h2>` : ""}
+            <div class="cc-grid">${availableList.map((it) => cardHTML(it, tmap)).join("")}</div>
           </section>
         `;
       }
       ws.innerHTML = html;
     } else {
       ws.innerHTML = `
-        <section class="craft-section">
-          <div class="craft-grid">${list.map((it) => cardHTML(it, tmap, updatedStr)).join("")}</div>
+        <section class="cc-section">
+          <div class="cc-grid">${list.map((it) => cardHTML(it, tmap)).join("")}</div>
         </section>
       `;
     }
   }
 
-  // `views.rs::table` (6-Column Sortable Hairline Table)
-  function renderTableView(list, tmap, updatedStr) {
+  // Clean Horizontal 64px List View
+  function renderListView(list, tmap) {
     const ws = $("#workspace");
     if (!list.length) {
-      ws.innerHTML = `<div class="empty-box">${UI.lang === "ar" ? "لا توجد تطبيقات مطابقة للبحث." : "No matching applications found."}</div>`;
+      ws.innerHTML = renderEmptyState();
+      const clr = $("#btn-clear-filters", ws);
+      if (clr) {
+        clr.onclick = () => {
+          UI.query = "";
+          UI.view = "all";
+          $("#q-search").value = "";
+          render();
+        };
+      }
       return;
     }
 
-    const nameArrow = UI.sort === "name-asc" ? " ▲" : UI.sort === "name-desc" ? " ▼" : "";
-    const statusArrow = UI.sort === "status" ? " ▼" : "";
-
-    const rowsHTML = list
+    const t = tr();
+    const rows = list
       .map((it) => {
         const st = it.state || {};
         const m = appMeta(it);
         const task = tmap.get(it.id);
         const isBusy = task && ["queued", "downloading", "installing"].includes(task.status);
-        const pinned = isPinned(it.id);
+        const installed = Boolean(st.installed);
+        const desc = UI.lang === "ar" ? it.tagline_ar || m.blurbEn : m.blurbEn;
 
-        let statusBadge = `<span class="craft-badge tone-neutral">${UI.lang === "ar" ? "متاح" : "AVAILABLE"}</span>`;
-        if (isBusy) statusBadge = `<span class="craft-badge tone-info">${task.progress}%</span>`;
-        else if (st.has_update) statusBadge = `<span class="craft-badge tone-warn">${esc(tr().updAvail)}</span>`;
-        else if (st.installed) statusBadge = `<span class="craft-badge tone-good">${esc(tr().installed)}</span>`;
-
-        const verCell = st.has_update
-          ? `<span class="tbl-ver">${esc(st.installed_version)} → <span style="color:${esc(m.appInk)}">${esc(it.version)}</span></span>`
-          : `<span class="tbl-ver" style="color:${st.installed ? "var(--ink)" : "var(--faint)"}">v${esc(st.installed_version || it.version)}</span>`;
-
-        const mainBtn = st.has_update
-          ? `<button class="craft-btn primary" data-act="install" data-id="${esc(it.id)}">${esc(tr().update)}</button>`
-          : st.installed
-          ? `<button class="craft-btn secondary" data-act="launch" data-id="${esc(it.id)}">${esc(tr().open)}</button>`
-          : `<button class="craft-btn primary" data-act="install" data-id="${esc(it.id)}">${esc(tr().install)}</button>`;
+        const ctaBtn = isBusy
+          ? `<span class="cp-pct">${task.progress}%</span>`
+          : st.has_update
+          ? `<button class="cc-btn accent sm" data-act="install" data-id="${esc(it.id)}">${esc(t.update)}</button>`
+          : installed
+          ? `<button class="cc-btn secondary sm" data-act="launch" data-id="${esc(it.id)}">${esc(t.open)}</button>`
+          : `<button class="cc-btn accent sm" data-act="install" data-id="${esc(it.id)}">${esc(t.install)}</button>`;
 
         return `
-          <tr data-card-id="${esc(it.id)}" style="--app-ink:${esc(m.appInk)};">
-            <td>
-              <div class="tbl-app-cell">
-                <img class="tbl-icon" src="./icons/${esc(it.id)}.svg" alt="" style="${st.installed ? "" : "filter:grayscale(0.85) opacity(0.85);"}" />
-                <div>
-                  <div class="craft-wordmark" style="font-size:16.5px;">${esc(m.prefix)}<span class="wm-accent" style="color:${st.installed ? esc(m.appInk) : "var(--muted)"}">${esc(m.suffix)}</span></div>
-                  <div style="font-size:12px;color:var(--muted);">${esc(UI.lang === "ar" ? it.name_ar : m.taglineEn)}</div>
-                </div>
+          <div class="app-list-row" data-card-id="${esc(it.id)}" tabindex="0">
+            <div class="list-app-cell">
+              <img class="list-icon" src="./icons/${esc(it.id)}.svg" alt="${esc(it.name)}" />
+              <div class="list-app-text">
+                <div class="list-app-name">${esc(it.name)}</div>
+                <div class="list-app-desc">${esc(desc)}</div>
               </div>
-            </td>
-            <td>${statusBadge}</td>
-            <td>${verCell}</td>
-            <td style="font-size:12.5px;color:var(--muted);">${esc(updatedStr)}</td>
-            <td style="font-size:12.5px;color:var(--muted);">QASSIMZ</td>
-            <td style="width:230px;">
-              <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;">
-                ${mainBtn}
-                <button class="glyph-btn ${pinned ? "pinned" : ""}" data-act="pin" data-id="${esc(it.id)}">${pinSvg(pinned)}</button>
-                <button class="glyph-btn" data-act="menu" data-id="${esc(it.id)}">⋯</button>
-              </div>
-            </td>
-          </tr>
+            </div>
+            <div class="list-meta-cell">v${esc(st.installed_version || it.version)}</div>
+            <div class="list-meta-cell">${esc(humanBytes(it.setup_size))}</div>
+            <div class="list-actions-cell">
+              ${ctaBtn}
+              <button class="cc-icon-btn" data-act="menu" data-id="${esc(it.id)}" title="${esc(t.moreActions)}" aria-label="${esc(t.moreActions)}">
+                <svg viewBox="0 0 16 16" fill="currentColor">
+                  <circle cx="3.2" cy="8" r="1.35"/>
+                  <circle cx="8" cy="8" r="1.35"/>
+                  <circle cx="12.8" cy="8" r="1.35"/>
+                </svg>
+              </button>
+            </div>
+          </div>
         `;
       })
       .join("");
 
-    ws.innerHTML = `
-      <div class="craft-table-frame">
-        <table class="craft-table">
-          <thead>
-            <tr>
-              <th class="sortable ${UI.sort.startsWith("name") ? "active-sort" : ""}" data-tbl-sort="name">${esc(tr().colApp)}${nameArrow}</th>
-              <th class="sortable ${UI.sort === "status" ? "active-sort" : ""}" data-tbl-sort="status">${esc(tr().colStatus)}${statusArrow}</th>
-              <th>${esc(tr().colVersion)}</th>
-              <th>${esc(tr().colReleased)}</th>
-              <th>${esc(tr().colAuthor)}</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>${rowsHTML}</tbody>
-        </table>
-      </div>
-    `;
-
-    $$("[data-tbl-sort]", ws).forEach((th) => {
-      th.onclick = () => {
-        const k = th.dataset.tblSort;
-        if (k === "name") UI.sort = UI.sort === "name-asc" ? "name-desc" : "name-asc";
-        else UI.sort = "status";
-        localStorage.setItem("qhub_sort", UI.sort);
-        render();
-      };
-    });
+    ws.innerHTML = `<div class="cc-list">${rows}</div>`;
   }
 
-  // Centered App Details Sheet (`details.rs::details_drawer` + `sheet.rs`)
+  // App Details Dialog (100% Localized EN & AR)
   function renderDetailsSheet() {
     const backdrop = $("#detail-backdrop");
     const sheet = $("#detail-drawer");
@@ -849,6 +1167,7 @@
     backdrop.hidden = false;
     const st = it.state || {};
     const m = appMeta(it);
+    const t = tr();
     const navPool = items.length ? items : allItems;
     const idx = navPool.findIndex((x) => x.id === it.id);
     const prevId = navPool.length > 1 ? navPool[(idx - 1 + navPool.length) % navPool.length].id : null;
@@ -859,89 +1178,79 @@
     const updatedStr = fmtDate(UI.state.updated_at);
 
     const primaryBtn = st.has_update
-      ? `<button class="craft-btn primary" id="dt-install">UPDATE TO v${esc(it.version)}</button>
-         <button class="craft-btn secondary" id="dt-launch">${esc(tr().openVer(st.installed_version || it.version))}</button>`
+      ? `<button class="cc-btn accent" id="dt-install">${esc(t.update)} v${esc(it.version)}</button>
+         <button class="cc-btn secondary" id="dt-launch">${esc(t.open)}</button>`
       : st.installed
-      ? `<button class="craft-btn primary" id="dt-launch">${esc(tr().openVer(st.installed_version || it.version))}</button>
-         <button class="craft-btn secondary" id="dt-reinstall">${esc(tr().reinstall)}</button>`
-      : `<button class="craft-btn primary" id="dt-install">${esc(tr().install)} v${esc(it.version)}</button>
-         <button class="craft-btn secondary" id="dt-wizard">INTERACTIVE INSTALLER</button>`;
+      ? `<button class="cc-btn accent" id="dt-launch">${esc(t.open)}</button>
+         <button class="cc-btn secondary" id="dt-reinstall">${esc(t.reinstall)}</button>`
+      : `<button class="cc-btn accent" id="dt-install">${esc(t.install)} v${esc(it.version)}</button>
+         <button class="cc-btn secondary" id="dt-wizard">${esc(t.interactiveInstaller)}</button>`;
 
-    sheet.style.setProperty("--sheet-accent", m.color);
+    const overviewText = UI.lang === "ar" ? it.description_ar || it.tagline_ar : m.blurbEn;
+
     sheet.innerHTML = `
-      <div class="sheet-hero">
-        <div class="sh-left">
-          <img class="sh-app-icon" src="./icons/${esc(it.id)}.svg" alt="${esc(it.name)}" />
+      <div class="dialog-head">
+        <div class="dialog-head-left">
+          <img class="dialog-app-icon" src="./icons/${esc(it.id)}.svg" alt="${esc(it.name)}" />
           <div>
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-              <h2 class="sh-title" id="drawer-title">${esc(m.prefix)}<span style="color:${esc(m.appInk)}">${esc(m.suffix)}</span></h2>
-              <span class="craft-badge tone-info">${esc(tr().by)}</span>
-            </div>
-            <p class="sh-sub">${esc(it.name)} · ${esc(it.name_ar)}</p>
-            <div style="display:flex;align-items:center;gap:14px;margin-top:8px;">
-              <button class="hud-link" data-ext-url="${esc(repoUrl)}">GITHUB ↗</button>
-              <button class="hud-link" data-ext-url="${esc(releasesUrl)}">RELEASES ↗</button>
-              ${it.portable_url ? `<button class="hud-link" data-ext-url="${esc(it.portable_url)}">PORTABLE ZIP ↗</button>` : ""}
+            <h2 class="dialog-title" id="drawer-title">${esc(it.name)}</h2>
+            <p class="dialog-sub">${esc(UI.lang === "ar" ? it.name_ar : m.taglineEn)}</p>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+              <button class="cc-link-btn" data-ext-url="${esc(repoUrl)}">${esc(t.github)}</button>
+              <button class="cc-link-btn" data-ext-url="${esc(releasesUrl)}">${esc(t.releases)}</button>
+              ${it.portable_url ? `<button class="cc-link-btn" data-ext-url="${esc(it.portable_url)}">${esc(t.portableZip)}</button>` : ""}
             </div>
           </div>
         </div>
-        <div class="sh-right">
-          ${prevId ? `<button class="glyph-btn" id="dt-prev" title="Previous app (←)">←</button>` : ""}
-          ${nextId ? `<button class="glyph-btn" id="dt-next" title="Next app (→)">→</button>` : ""}
-          <button class="glyph-btn" id="dt-close" title="Close (Esc)">✕</button>
+        <div class="dialog-head-actions">
+          ${prevId ? `<button class="cc-icon-btn" id="dt-prev" title="${esc(t.prev)}">‹</button>` : ""}
+          ${nextId ? `<button class="cc-icon-btn" id="dt-next" title="${esc(t.next)}">›</button>` : ""}
+          <button class="cc-icon-btn" id="dt-close" title="${esc(t.close)}">✕</button>
         </div>
       </div>
 
-      <div class="sheet-body">
-        <div class="sheet-cols">
+      <div class="dialog-body">
+        <div class="dialog-cols">
           <div>
-            <div class="eyebrow"><span>01 /</span> OVERVIEW</div>
-            <p style="font-size:14.5px;line-height:1.65;color:var(--ink);margin-bottom:12px;">${esc(m.blurbEn)}</p>
-            <p style="font-size:14px;line-height:1.7;color:var(--muted);" dir="rtl">${esc(it.description_ar || it.tagline_ar)}</p>
-
+            <h3 class="dialog-section-label">${esc(t.overview)}</h3>
+            <div class="dialog-panel">
+              <p style="margin:0;font-size:13.5px;line-height:1.65;color:var(--text-primary);">${esc(overviewText)}</p>
+            </div>
             ${
               it.release_notes_ar
-                ? `<div style="margin-top:20px;">
-                     <div class="eyebrow"><span>02 /</span> WHAT'S NEW IN v${esc(it.version)}</div>
-                     <div class="hairline-box" dir="rtl"><p style="color:var(--ink);">${esc(it.release_notes_ar)}</p></div>
+                ? `<h3 class="dialog-section-label" style="margin-top:16px;">${esc(t.whatsNew(it.version))}</h3>
+                   <div class="dialog-panel" dir="rtl">
+                     <p style="margin:0;font-size:13px;line-height:1.65;color:var(--text-secondary);">${esc(it.release_notes_ar)}</p>
                    </div>`
                 : ""
             }
           </div>
 
           <div>
-            <div class="eyebrow"><span>03 /</span> KEY FEATURES</div>
-            ${(it.features_ar || [])
-              .map(
-                (f) => `
-              <div class="hairline-box" dir="rtl">
-                <h4>✓ ${esc(f)}</h4>
-              </div>
-            `
-              )
-              .join("")}
+            <h3 class="dialog-section-label">${esc(t.keyFeatures)}</h3>
+            <div class="dialog-panel" dir="rtl">
+              ${(it.features_ar || []).map((f) => `<div class="feature-item">✓ ${esc(f)}</div>`).join("")}
+            </div>
           </div>
         </div>
 
-        <div style="margin-top:22px;">
-          <div class="eyebrow"><span>04 /</span> RELEASE FACTS</div>
-          <div class="facts-row-4">
-            <div class="fact-cell"><span>LATEST VERSION</span><strong>v${esc(it.version)}</strong></div>
-            <div class="fact-cell"><span>INSTALLED</span><strong>${st.installed ? `v${esc(st.installed_version || it.version)}` : "Not installed"}</strong></div>
-            <div class="fact-cell"><span>DOWNLOAD SIZE</span><strong>${esc(humanBytes(it.setup_size))}</strong></div>
-            <div class="fact-cell"><span>RELEASED</span><strong>${esc(updatedStr)}</strong></div>
-          </div>
+        <h3 class="dialog-section-label" style="margin-top:18px;">${esc(t.releaseFacts)}</h3>
+        <div class="facts-grid">
+          <div class="fact-box"><span>${esc(t.latestVersion)}</span><strong>v${esc(it.version)}</strong></div>
+          <div class="fact-box"><span>${esc(t.installedLabel)}</span><strong>${st.installed ? `v${esc(st.installed_version || it.version)}` : esc(t.notInstalled)}</strong></div>
+          <div class="fact-box"><span>${esc(t.downloadSize)}</span><strong>${esc(humanBytes(it.setup_size))}</strong></div>
+          <div class="fact-box"><span>${esc(t.releasedLabel)}</span><strong>${esc(updatedStr)}</strong></div>
         </div>
       </div>
 
-      <div class="sheet-foot">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <div class="dialog-foot">
+        <div class="dialog-foot-group">
           ${primaryBtn}
-          ${st.install_dir ? `<button class="craft-btn secondary" id="dt-folder">OPEN FOLDER</button>` : ""}
+          ${st.install_dir ? `<button class="cc-btn secondary" id="dt-folder">${esc(t.openFolder)}</button>` : ""}
         </div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          ${st.installed && st.uninstall_cmd ? `<button class="craft-btn danger" id="dt-uninstall">UNINSTALL</button>` : ""}
-          <button class="craft-btn secondary" id="dt-done">${esc(tr().done)}</button>
+        <div class="dialog-foot-group">
+          ${st.installed && st.uninstall_cmd ? `<button class="cc-btn danger" id="dt-uninstall">${esc(t.uninstall)}</button>` : ""}
+          <button class="cc-btn secondary" id="dt-done">${esc(t.done)}</button>
         </div>
       </div>
     `;
@@ -962,7 +1271,7 @@
     on("#dt-uninstall", async () => {
       try {
         await api("uninstall", { id: it.id });
-        toast(`Started uninstaller for ${it.name}`);
+        toast(tr().toastUninstallStarted(it.name));
         UI.selectedId = null;
         renderDetailsSheet();
       } catch (e) {
@@ -974,7 +1283,7 @@
     });
   }
 
-  // Centered 2-Column Settings Sheet (`settings_dialog.rs` + `sheet.rs`)
+  // Settings Dialog (100% Localized EN & AR, Real win_quit)
   function renderSettingsSheet() {
     const backdrop = $("#settings-backdrop");
     const sheet = $("#settings-sheet");
@@ -985,119 +1294,121 @@
     backdrop.hidden = false;
     const st = UI.state;
     const cfg = st.settings || {};
+    const t = tr();
     const cacheSize = st.cache_size_bytes > 0 ? humanBytes(st.cache_size_bytes) : "0 KB";
+    const hubVer = st.hub_version || "1.3.0";
 
     sheet.innerHTML = `
-      <div class="sheet-hero" style="--sheet-accent:var(--accent);">
-        <div class="sh-left">
-          <img class="sh-settings-icon" src="./logo.svg" alt="QASSIMZ Hub" />
+      <div class="dialog-head">
+        <div class="dialog-head-left">
+          <img class="dialog-app-icon" src="./logo.svg" alt="QASSIMZ Hub" />
           <div>
-            <h2 class="sh-title" id="settings-title">${esc(tr().settings)}</h2>
-            <div class="hud-label faint" style="margin-top:4px;">QASSIMZ HUB v${esc(st.hub_version || "1.2.0")}</div>
+            <h2 class="dialog-title" id="settings-title">${esc(t.settings)}</h2>
+            <p class="dialog-sub">QASSIMZ Hub v${esc(hubVer)}</p>
           </div>
         </div>
-        <button class="glyph-btn" id="st-close" title="Close (Esc)">✕</button>
+        <button class="cc-icon-btn" id="st-close" title="${esc(t.close)}">✕</button>
       </div>
 
-      <div class="sheet-body">
-        <div class="settings-cols">
+      <div class="dialog-body">
+        <div class="dialog-cols">
           <div>
-            <div class="hairline-box">
-              <div class="hud-label faint" style="margin-bottom:10px;">APPEARANCE &amp; LANGUAGE</div>
+            <h3 class="dialog-section-label">${esc(t.appearanceLang)}</h3>
+            <div class="dialog-panel">
               <div class="set-row">
                 <div class="set-row-info">
-                  <strong>Appearance Theme</strong>
-                  <span>ArtCraft Paper Light or Studio Dark</span>
+                  <strong>${esc(t.themeTitle)}</strong>
+                  <span>${esc(t.themeSub)}</span>
                 </div>
-                <div class="craft-cells">
-                  <button class="craft-cell ${UI.themePref === "light" ? "active" : ""}" data-theme-pick="light">LIGHT</button>
-                  <button class="craft-cell ${UI.themePref === "dark" ? "active" : ""}" data-theme-pick="dark">DARK</button>
-                  <button class="craft-cell ${UI.themePref === "system" ? "active" : ""}" data-theme-pick="system">SYSTEM</button>
+                <div class="set-seg">
+                  <button class="set-seg-btn ${UI.themePref === "light" ? "active" : ""}" data-theme-pick="light">${esc(t.themeLight)}</button>
+                  <button class="set-seg-btn ${UI.themePref === "dark" ? "active" : ""}" data-theme-pick="dark">${esc(t.themeDark)}</button>
+                  <button class="set-seg-btn ${UI.themePref === "system" ? "active" : ""}" data-theme-pick="system">${esc(t.themeSystem)}</button>
                 </div>
               </div>
               <div class="set-row">
                 <div class="set-row-info">
-                  <strong>Interface Language · لغة الواجهة</strong>
-                  <span>Switch instantly between English and Arabic</span>
+                  <strong>${esc(t.langTitle)}</strong>
+                  <span>${esc(t.langSub)}</span>
                 </div>
-                <div class="craft-cells">
-                  <button class="craft-cell ${UI.lang === "en" ? "active" : ""}" data-lang-pick="en">ENGLISH</button>
-                  <button class="craft-cell ${UI.lang === "ar" ? "active" : ""}" data-lang-pick="ar">العربية</button>
+                <div class="set-seg">
+                  <button class="set-seg-btn ${UI.lang === "en" ? "active" : ""}" data-lang-pick="en">English</button>
+                  <button class="set-seg-btn ${UI.lang === "ar" ? "active" : ""}" data-lang-pick="ar">العربية</button>
                 </div>
               </div>
             </div>
 
-            <div class="hairline-box">
-              <div class="hud-label faint" style="margin-bottom:10px;">AUTOMATIC UPDATES · التحديث التلقائي</div>
+            <h3 class="dialog-section-label">${esc(t.autoUpdates)}</h3>
+            <div class="dialog-panel">
               <label class="set-row">
                 <div class="set-row-info">
-                  <strong>Check for Updates Automatically</strong>
-                  <span>Sync releases on startup and every 4 hours</span>
+                  <strong>${esc(t.autoCheckTitle)}</strong>
+                  <span>${esc(t.autoCheckSub)}</span>
                 </div>
-                <input type="checkbox" class="craft-check" data-setting="auto_check_updates" ${cfg.auto_check_updates ? "checked" : ""} />
+                <input type="checkbox" class="cc-switch" data-setting="auto_check_updates" ${cfg.auto_check_updates ? "checked" : ""} />
               </label>
               <label class="set-row">
                 <div class="set-row-info">
-                  <strong>Auto-Update Installed Apps</strong>
-                  <span>Download and install app updates automatically</span>
+                  <strong>${esc(t.autoAppsTitle)}</strong>
+                  <span>${esc(t.autoAppsSub)}</span>
                 </div>
-                <input type="checkbox" class="craft-check" data-setting="auto_update_apps" ${cfg.auto_update_apps !== false ? "checked" : ""} />
+                <input type="checkbox" class="cc-switch" data-setting="auto_update_apps" ${cfg.auto_update_apps !== false ? "checked" : ""} />
               </label>
               <label class="set-row">
                 <div class="set-row-info">
-                  <strong>Auto-Update QASSIMZ Hub</strong>
-                  <span>Keep the launcher itself updated automatically</span>
+                  <strong>${esc(t.autoHubTitle)}</strong>
+                  <span>${esc(t.autoHubSub)}</span>
                 </div>
-                <input type="checkbox" class="craft-check" data-setting="auto_update_hub" ${cfg.auto_update_hub ? "checked" : ""} />
+                <input type="checkbox" class="cc-switch" data-setting="auto_update_hub" ${cfg.auto_update_hub ? "checked" : ""} />
               </label>
             </div>
           </div>
 
           <div>
-            <div class="hairline-box">
-              <div class="hud-label faint" style="margin-bottom:10px;">INSTALLATION &amp; WINDOWS</div>
+            <h3 class="dialog-section-label">${esc(t.installWin)}</h3>
+            <div class="dialog-panel">
               <label class="set-row">
                 <div class="set-row-info">
-                  <strong>One-Click Silent Install</strong>
-                  <span>Install apps directly with animated QASSIMZ stage</span>
+                  <strong>${esc(t.silentTitle)}</strong>
+                  <span>${esc(t.silentSub)}</span>
                 </div>
-                <input type="checkbox" class="craft-check" data-setting="silent_install" ${cfg.silent_install ? "checked" : ""} />
+                <input type="checkbox" class="cc-switch" data-setting="silent_install" ${cfg.silent_install ? "checked" : ""} />
               </label>
               <label class="set-row">
                 <div class="set-row-info">
-                  <strong>Keep Running in System Tray</strong>
-                  <span>Minimize to tray when closing the window</span>
+                  <strong>${esc(t.trayTitle)}</strong>
+                  <span>${esc(t.traySub)}</span>
                 </div>
-                <input type="checkbox" class="craft-check" data-setting="minimize_to_tray" ${cfg.minimize_to_tray ? "checked" : ""} />
+                <input type="checkbox" class="cc-switch" data-setting="minimize_to_tray" ${cfg.minimize_to_tray ? "checked" : ""} />
               </label>
               <label class="set-row">
                 <div class="set-row-info">
-                  <strong>Launch at Windows Sign-In</strong>
-                  <span>Start QASSIMZ Hub in background at login</span>
+                  <strong>${esc(t.startupTitle)}</strong>
+                  <span>${esc(t.startupSub)}</span>
                 </div>
-                <input type="checkbox" class="craft-check" data-setting="start_with_windows" ${cfg.start_with_windows ? "checked" : ""} />
+                <input type="checkbox" class="cc-switch" data-setting="start_with_windows" ${cfg.start_with_windows ? "checked" : ""} />
               </label>
             </div>
 
-            <div class="hairline-box">
-              <div class="hud-label faint" style="margin-bottom:10px;">MAINTENANCE &amp; ADOBE CEP</div>
-              <p style="font-size:12.5px;color:var(--muted);margin-bottom:12px;">
-                Cached downloads: <strong>${esc(cacheSize)}</strong> · Premiere: <strong>${st.adobe?.premiere_installed ? "Detected" : "—"}</strong> · After Effects: <strong>${st.adobe?.aftereffects_installed ? "Detected" : "—"}</strong>
+            <h3 class="dialog-section-label">${esc(t.maintenance)}</h3>
+            <div class="dialog-panel">
+              <p style="font-size:12.5px;color:var(--text-secondary);margin:0 0 12px;">
+                ${esc(t.cacheInfo(cacheSize, st.adobe?.premiere_installed, st.adobe?.aftereffects_installed))}
               </p>
               <div style="display:flex;flex-wrap:wrap;gap:8px;">
-                <button class="craft-btn primary" id="st-self-update">CHECK HUB UPDATE</button>
-                <button class="craft-btn secondary" id="st-fix-cep">ENABLE ADOBE CEP</button>
-                <button class="craft-btn secondary" id="st-open-cache">CACHE FOLDER</button>
-                <button class="craft-btn danger" id="st-clear-cache">CLEAR CACHE</button>
+                <button class="cc-btn accent sm" id="st-self-update">${esc(t.checkHubUpdate)}</button>
+                <button class="cc-btn secondary sm" id="st-fix-cep">${esc(t.cepEnable)}</button>
+                <button class="cc-btn secondary sm" id="st-open-cache">${esc(t.cacheFolder)}</button>
+                <button class="cc-btn danger sm" id="st-clear-cache">${esc(t.clearCache)}</button>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="sheet-foot">
-        <button class="craft-btn secondary" id="st-quit">${esc(tr().quit)}</button>
-        <button class="craft-btn primary" id="st-done">${esc(tr().done)}</button>
+      <div class="dialog-foot">
+        <button class="cc-btn danger" id="st-quit">${esc(t.quitHub)}</button>
+        <button class="cc-btn accent" id="st-done">${esc(t.done)}</button>
       </div>
     `;
 
@@ -1107,7 +1418,7 @@
     };
     $("#st-close", sheet).onclick = close;
     $("#st-done", sheet).onclick = close;
-    $("#st-quit", sheet).onclick = () => api("win_close");
+    $("#st-quit", sheet).onclick = () => api("win_quit").catch(() => {});
 
     $$("[data-theme-pick]", sheet).forEach((b) => {
       b.onclick = () => {
@@ -1130,32 +1441,35 @@
     $$("input[data-setting]", sheet).forEach((chk) => {
       chk.onchange = async () => {
         try {
-          const updated = await api("save_settings", { [chk.dataset.setting]: chk.checked });
+          const updated = await api("save_settings", { values: { [chk.dataset.setting]: chk.checked } });
           UI.state.settings = updated;
-          toast("Settings saved · تم حفظ الإعدادات");
+          toast(tr().toastSettingsSaved);
         } catch (e) {
           toast(e.message, "error");
         }
       };
     });
 
-    $("#st-self-update", sheet).onclick = () => { close(); triggerHubSelfUpdate(); };
+    $("#st-self-update", sheet).onclick = () => {
+      close();
+      triggerHubSelfUpdate();
+    };
     $("#st-open-cache", sheet).onclick = () => api("open_cache_dir");
     $("#st-clear-cache", sheet).onclick = async () => {
       UI.state = await api("clear_cache");
       render();
       renderSettingsSheet();
-      toast("Cleared installer cache");
+      toast(tr().toastCacheCleared);
     };
     $("#st-fix-cep", sheet).onclick = async () => {
       await api("fix_cep");
       await reloadState();
       renderSettingsSheet();
-      toast("Enabled Adobe CEP PlayerDebugMode (CSXS 9–16)");
+      toast(tr().toastCepEnabled);
     };
   }
 
-  // Bell Popup (`bell.rs`)
+  // Notifications Bell Popup (100% Localized)
   function renderBellPopup() {
     const pop = $("#bell-popup");
     if (!UI.bellOpen || !UI.state) {
@@ -1163,36 +1477,37 @@
       return;
     }
     pop.hidden = false;
+    const t = tr();
     const tasks = UI.state.tasks || [];
     const updates = (UI.state.items || []).filter((x) => x.state?.has_update);
 
     let rows = "";
     for (const tk of tasks) {
       rows += `
-        <div style="padding:10px 0;border-bottom:1px solid var(--line);">
-          <div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:600;color:var(--ink-strong);">
+        <div class="bell-row">
+          <div class="bell-row-top">
             <span>${esc(tk.name)} v${esc(tk.version)}</span>
-            <span style="font-family:var(--font-mono);">${tk.progress}%</span>
+            <span style="font-family:var(--font-code);">${tk.progress}%</span>
           </div>
-          <div style="font-size:12px;color:var(--muted);margin-top:2px;">${esc(tk.message_ar)}</div>
+          <div class="bell-row-sub">${esc(tk.message_ar)}</div>
         </div>
       `;
     }
     for (const up of updates) {
       rows += `
-        <div style="padding:10px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <div class="bell-row" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
           <div>
-            <strong style="font-size:13px;color:var(--ink-strong);">${esc(up.name)} ${esc(up.version)}</strong>
-            <div style="font-size:11.5px;color:var(--muted);">Update available (${esc(humanBytes(up.setup_size))})</div>
+            <div class="bell-row-top">${esc(up.name)} v${esc(up.version)}</div>
+            <div class="bell-row-sub">${esc(t.updateAvailSize(humanBytes(up.setup_size)))}</div>
           </div>
-          <button class="craft-btn primary" style="height:28px;padding:0 10px;" data-bell-upd="${esc(up.id)}">UPDATE</button>
+          <button class="cc-btn accent sm" data-bell-upd="${esc(up.id)}">${esc(t.update)}</button>
         </div>
       `;
     }
 
     pop.innerHTML = `
-      <div class="hud-label" style="margin-bottom:8px;">${esc(tr().announcements)}</div>
-      ${rows || `<p style="font-size:13px;color:var(--muted);padding:8px 0;">${esc(tr().noAnnouncements)}</p>`}
+      <div class="bell-header">${esc(t.announcements)}</div>
+      ${rows || `<p class="bell-empty">${esc(t.noAnnouncements)}</p>`}
     `;
 
     $$("[data-bell-upd]", pop).forEach((b) => {
@@ -1204,32 +1519,35 @@
     });
   }
 
-  // Context `⋯` Menu (`widgets.rs::more_menu`)
+  // Context ••• Menu (100% Localized EN & AR)
   function openCardMenu(appId, anchorEl) {
     const menu = $("#card-more-menu");
     const it = (UI.state?.items || []).find((x) => x.id === appId);
     if (!it) return;
     const st = it.state || {};
+    const t = tr();
     const repoUrl = `https://github.com/${it.repo || "ahmedqassimtv-commits/qassimz-hub"}`;
     const hidden = UI.hiddenApps.has(it.id);
+    const pinned = isPinned(it.id);
 
     menu.innerHTML = `
-      <button class="menu-item" data-m="details"><span>App Details &amp; Notes</span><span>↵</span></button>
-      ${st.installed ? `<button class="menu-item" data-m="launch"><span>Open ${esc(it.name)}</span></button>` : ""}
-      <button class="menu-item" data-m="wizard"><span>${st.installed ? "Reinstall / Wizard" : "Install with Wizard"}</span></button>
-      ${st.install_dir ? `<button class="menu-item" data-m="folder"><span>Open Install Folder</span></button>` : ""}
+      <button class="menu-item" data-m="details"><span>${esc(t.menuDetails)}</span><span>↵</span></button>
+      <button class="menu-item" data-m="pin"><span>${esc(pinned ? t.menuUnpin : t.menuPin)}</span></button>
+      ${st.installed ? `<button class="menu-item" data-m="launch"><span>${esc(t.menuOpen(it.name))}</span></button>` : ""}
+      <button class="menu-item" data-m="wizard"><span>${esc(st.installed ? t.menuReinstall : t.menuWizard)}</span></button>
+      ${st.install_dir ? `<button class="menu-item" data-m="folder"><span>${esc(t.menuFolder)}</span></button>` : ""}
       <div class="menu-sep"></div>
-      <button class="menu-item" data-m="github"><span>GitHub Repository</span><span>↗</span></button>
-      <button class="menu-item" data-m="releases"><span>Release Page</span><span>↗</span></button>
-      ${it.portable_url ? `<button class="menu-item" data-m="portable"><span>Download Portable ZIP</span><span>↗</span></button>` : ""}
+      <button class="menu-item" data-m="github"><span>${esc(t.menuGithub)}</span><span>↗</span></button>
+      <button class="menu-item" data-m="releases"><span>${esc(t.menuReleases)}</span><span>↗</span></button>
+      ${it.portable_url ? `<button class="menu-item" data-m="portable"><span>${esc(t.menuPortable)}</span><span>↗</span></button>` : ""}
       <div class="menu-sep"></div>
-      <button class="menu-item" data-m="hide"><span>${hidden ? "Unhide App" : "Hide App"}</span></button>
-      ${st.installed && st.uninstall_cmd ? `<button class="menu-item danger" data-m="uninstall"><span>Uninstall</span></button>` : ""}
+      <button class="menu-item" data-m="hide"><span>${esc(hidden ? t.menuUnhide : t.menuHide)}</span></button>
+      ${st.installed && st.uninstall_cmd ? `<button class="menu-item danger" data-m="uninstall"><span>${esc(t.menuUninstall)}</span></button>` : ""}
     `;
 
     menu.hidden = false;
     const r = anchorEl.getBoundingClientRect();
-    const mw = 216;
+    const mw = menu.offsetWidth || 216;
     const mh = menu.offsetHeight || 240;
     const left = Math.min(window.innerWidth - mw - 12, Math.max(12, r.right - mw));
     const top = r.bottom + mh + 12 > window.innerHeight ? Math.max(12, r.top - mh - 4) : r.bottom + 4;
@@ -1242,6 +1560,7 @@
       menu.hidden = true;
       const act = btn.dataset.m;
       if (act === "details") { UI.selectedId = it.id; renderDetailsSheet(); }
+      else if (act === "pin") togglePin(it.id);
       else if (act === "launch") triggerLaunch(it.id);
       else if (act === "wizard") triggerInstall(it.id, false);
       else if (act === "folder") api("open_folder", { path: st.install_dir });
@@ -1250,20 +1569,23 @@
       else if (act === "portable") api("open_url", { url: it.portable_url });
       else if (act === "hide") toggleHide(it.id);
       else if (act === "uninstall") {
-        try { await api("uninstall", { id: it.id }); toast(`Started uninstaller for ${it.name}`); }
-        catch (e) { toast(e.message, "error"); }
+        try {
+          await api("uninstall", { id: it.id });
+          toast(tr().toastUninstallStarted(it.name));
+        } catch (e) {
+          toast(e.message, "error");
+        }
       }
     };
   }
 
   function render() {
     if (!UI.state) return;
-    updateChrome();
     const list = visibleItems();
     const tmap = taskMap();
-    const updatedStr = fmtDate(UI.state.updated_at);
-    if (UI.layout === "table") renderTableView(list, tmap, updatedStr);
-    else renderGridView(list, tmap, updatedStr);
+    updateChrome(list.length);
+    if (UI.layout === "table") renderListView(list, tmap);
+    else renderGridView(list, tmap);
     renderDetailsSheet();
     manageTaskPolling();
   }
@@ -1272,18 +1594,15 @@
     const live = activeTasks();
     updateInstallTheater(live);
     const ws = $("#workspace");
+    const t = tr();
     for (const tk of UI.state?.tasks || []) {
       const box = $(`[data-prog-card="${tk.id}"]`, ws);
       if (box) {
         const cap = $(".cp-caption", box);
+        const pct = $(".cp-pct", box);
         const fill = $(".cp-fill", box);
-        const speed = tk.speed_bps > 0 ? ` · ${humanBytes(tk.speed_bps)}/s` : "";
-        if (cap) {
-          cap.textContent =
-            tk.status === "installing"
-              ? UI.lang === "ar" ? "جارٍ التثبيت…" : "Installing…"
-              : `${UI.lang === "ar" ? "جارٍ التنزيل" : "Downloading"} ${tk.progress}%${speed}`;
-        }
+        if (cap) cap.textContent = tk.status === "installing" ? t.installing : t.downloading;
+        if (pct) pct.textContent = `${tk.progress}%`;
         if (fill) fill.style.width = `${tk.progress}%`;
       }
     }
@@ -1314,8 +1633,17 @@
           for (const tk of tasks) {
             const old = prevTasks.find((x) => x.id === tk.id);
             if (old && old.status !== tk.status) {
-              if (tk.status === "completed") toast(`${tk.name} ${tk.version} — ${tk.message_ar}`);
-              else if (tk.status === "error") toast(`${tk.name}: ${tk.message_ar}`, "error");
+              if (tk.status === "completed") {
+                toast(`${tk.name} v${tk.version} — ${tk.message_ar}`);
+                if (!UI.theaterMinimized && UI.theaterTaskId === tk.id) {
+                  UI.theaterTerminalTask = tk;
+                }
+              } else if (tk.status === "error") {
+                toast(`${tk.name}: ${tk.message_ar}`, "error");
+                if (!UI.theaterMinimized && UI.theaterTaskId === tk.id) {
+                  UI.theaterTerminalTask = tk;
+                }
+              }
             }
           }
 
@@ -1324,7 +1652,7 @@
             UI.state = await api("state");
             render();
           } else {
-            updateChrome();
+            updateChrome(visibleItems().length);
             patchProgressInPlace();
           }
         } catch (_) {
@@ -1341,6 +1669,7 @@
   async function triggerInstall(id, silentOverride = null) {
     try {
       UI.theaterMinimized = false;
+      UI.theaterTerminalTask = null;
       UI.theaterTaskId = id;
       const payload = { id };
       if (silentOverride !== null) payload.silent = silentOverride;
@@ -1356,8 +1685,8 @@
     try {
       const payload = { id };
       if (subIdx !== null) payload.sub_idx = subIdx;
-      const msg = await api("launch", payload);
-      toast(msg || "Launching application…");
+      const res = await api("launch", payload);
+      toast(typeof res === "string" && res ? res : tr().toastLaunching);
     } catch (e) {
       toast(e.message, "error");
     }
@@ -1366,55 +1695,83 @@
   async function triggerHubSelfUpdate() {
     try {
       UI.theaterMinimized = false;
+      UI.theaterTerminalTask = null;
       UI.theaterTaskId = "qassimz-hub";
-      const msg = await api("self_update");
-      toast(msg);
-      await reloadState();
+      const res = await api("install_hub_update");
+      if (res && res.up_to_date) {
+        toast(tr().toastHubUpToDate);
+      } else {
+        await reloadState();
+      }
     } catch (e) {
       toast(e.message, "error");
     }
   }
 
-  function bindEvents() {
-    // Replay official قَاسِـمز intro on click
-    $("#btn-replay-logo").onclick = () => runBrandIntro(true);
+  async function toggleMaximizeWindow() {
+    try {
+      const res = await api("win_toggle_maximize");
+      if (res && typeof res.maximized === "boolean") {
+        UI.isMaximized = res.maximized;
+      } else {
+        UI.isMaximized = !UI.isMaximized;
+      }
+      syncWindowMaxIcon();
+    } catch (_) {}
+  }
 
+  function bindEvents() {
+    // Replay official QASSIMZ logo splash on click
+    $("#btn-replay-logo").onclick = () => startSplashSequence(Promise.resolve(), true);
+
+    // Responsive sidebar drawer toggle
+    $("#btn-sidebar-toggle").onclick = (e) => {
+      e.stopPropagation();
+      UI.sidebarExpanded = !UI.sidebarExpanded;
+      $("#app-sidebar").classList.toggle("expanded", UI.sidebarExpanded);
+    };
+
+    // Language & Theme toggles
     $("#btn-lang").onclick = () => {
       UI.lang = UI.lang === "ar" ? "en" : "ar";
       localStorage.setItem("qhub_lang", UI.lang);
       render();
     };
-    const btnTheme = $("#btn-theme-toggle");
-    if (btnTheme) {
-      btnTheme.onclick = () => {
-        UI.themePref = isDarkActive() ? "light" : "dark";
-        localStorage.setItem("qhub_theme", UI.themePref);
-        render();
-      };
-    }
-
-    // Frameless window buttons
-    $("#btn-win-min").onclick = () => api("win_minimize").catch(() => {});
-    $("#btn-win-max").onclick = () => api("win_toggle_maximize").catch(() => {});
-    $("#btn-win-close").onclick = () => api("win_close").catch(() => {});
-    $("#app-titlebar").ondblclick = (e) => {
-      if (!e.target.closest(".no-drag")) api("win_toggle_maximize").catch(() => {});
+    $("#btn-theme-toggle").onclick = () => {
+      UI.themePref = isDarkActive() ? "light" : "dark";
+      localStorage.setItem("qhub_theme", UI.themePref);
+      render();
     };
 
-    // Toolbar cells
-    $$("#main-nav .craft-cell").forEach((b) => {
+    // Activity button opens Install Theater
+    $("#btn-activity").onclick = () => {
+      UI.theaterMinimized = false;
+      updateInstallTheater(activeTasks());
+    };
+
+    // Frameless Windows 11 Caption Controls
+    $("#btn-win-min").onclick = () => api("win_minimize").catch(() => {});
+    $("#btn-win-max").onclick = () => toggleMaximizeWindow();
+    $("#btn-win-close").onclick = () => api("win_close").catch(() => {});
+    $("#app-titlebar").ondblclick = (e) => {
+      if (!e.target.closest(".no-drag")) toggleMaximizeWindow();
+    };
+
+    // Sidebar Exit/Quit button (genuine termination)
+    $("#btn-sidebar-quit").onclick = () => api("win_quit").catch(() => {});
+
+    // Sidebar Navigation items
+    $$(".cc-sidebar .sb-item[data-view]").forEach((b) => {
       b.onclick = () => {
         UI.view = b.dataset.view;
+        UI.sidebarExpanded = false;
+        $("#app-sidebar").classList.remove("expanded");
         render();
       };
     });
 
-    $("#btn-hidden-toggle").onclick = () => {
-      UI.view = UI.view === "hidden" ? "all" : "hidden";
-      render();
-    };
-
-    $$(".view-cell").forEach((b) => {
+    // Layout Segmented Toggle
+    $$(".cc-segmented .seg-btn").forEach((b) => {
       b.onclick = () => {
         UI.layout = b.dataset.layout;
         localStorage.setItem("qhub_layout", UI.layout);
@@ -1433,30 +1790,36 @@
       UI.searchTimer = setTimeout(() => {
         UI.query = e.target.value;
         render();
-      }, 80);
+      }, 60);
+    };
+
+    $("#btn-search-clear").onclick = () => {
+      UI.query = "";
+      $("#q-search").value = "";
+      $("#q-search").focus();
+      render();
     };
 
     $("#btn-refresh").onclick = async () => {
       const btn = $("#btn-refresh");
       btn.classList.add("spinning");
-      $("#foot-status").textContent = tr().checking;
       try {
         UI.state = await api("refresh_catalog");
         render();
-        toast(UI.lang === "ar" ? "تم تحديث الكتالوج من GitHub" : "Checked GitHub releases — catalog is up to date.");
+        toast(tr().toastCatalogSynced);
       } catch (e) {
         toast(e.message, "error");
       } finally {
         btn.classList.remove("spinning");
-        $("#foot-status").textContent = tr().checked;
       }
     };
 
     $("#btn-update-all").onclick = async () => {
       try {
         UI.theaterMinimized = false;
+        UI.theaterTerminalTask = null;
         const started = await api("update_all");
-        toast(`Queued ${started.length} updates`);
+        toast(tr().toastQueuedUpdates(started.length));
         await reloadState();
       } catch (e) {
         toast(e.message, "error");
@@ -1475,26 +1838,44 @@
       renderSettingsSheet();
     };
 
-    // Banner
+    // Hub Update Banner
     $("#btn-hub-self-update").onclick = () => triggerHubSelfUpdate();
-    $("#btn-ub-dismiss").onclick = () => { UI.bannerDismissed = true; updateChrome(); };
-    $("#btn-ub-notes").onclick = () => api("open_url", { url: "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases" });
+    $("#btn-ub-dismiss").onclick = () => {
+      UI.bannerDismissed = true;
+      updateChrome(visibleItems().length);
+    };
+    $("#btn-ub-notes").onclick = () =>
+      api("open_url", { url: "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases" });
 
-    // Theater minimize/restore
-    $("#btn-min-theater").onclick = () => { UI.theaterMinimized = true; updateInstallTheater(activeTasks()); };
-    $("#btn-open-theater").onclick = () => { UI.theaterMinimized = false; updateInstallTheater(activeTasks()); };
+    // Theater chrome controls
+    const minimizeTheater = () => {
+      if (activeTasks().length > 0) {
+        UI.theaterMinimized = true;
+        updateInstallTheater(activeTasks());
+      } else {
+        UI.theaterTerminalTask = null;
+        $("#install-theater").hidden = true;
+      }
+    };
+    $("#btn-min-theater").onclick = minimizeTheater;
+    $("#btn-th-bg").onclick = minimizeTheater;
+    $("#btn-th-close").onclick = minimizeTheater;
+    $("#btn-open-theater").onclick = () => {
+      UI.theaterMinimized = false;
+      updateInstallTheater(activeTasks());
+    };
 
-    // Footer links & CEP
+    // Sidebar Footer CEP & External Links
     $("#btn-fix-cep").onclick = async () => {
       await api("fix_cep");
       await reloadState();
-      toast("Enabled Adobe CEP PlayerDebugMode (CSXS 9–16)");
+      toast(tr().toastCepEnabled);
     };
     $$("[data-open-url]").forEach((b) => {
       b.onclick = () => api("open_url", { url: b.dataset.openUrl });
     });
 
-    // Delegated card/table clicks
+    // Delegated Card & List Row clicks
     $("#workspace").onclick = async (ev) => {
       const actBtn = ev.target.closest("[data-act]");
       if (actBtn) {
@@ -1503,9 +1884,7 @@
         const id = actBtn.dataset.id;
         if (act === "install") triggerInstall(id, true);
         else if (act === "launch") triggerLaunch(id);
-        else if (act === "pin") togglePin(id);
         else if (act === "menu") openCardMenu(id, actBtn);
-        else if (act === "github") api("open_url", { url: actBtn.dataset.url });
         else if (act === "cancel") {
           await api("cancel_task", { id });
           await reloadState();
@@ -1522,10 +1901,16 @@
 
     // Scrim click-outside close
     $("#detail-backdrop").onclick = (e) => {
-      if (e.target.id === "detail-backdrop") { UI.selectedId = null; renderDetailsSheet(); }
+      if (e.target.id === "detail-backdrop") {
+        UI.selectedId = null;
+        renderDetailsSheet();
+      }
     };
     $("#settings-backdrop").onclick = (e) => {
-      if (e.target.id === "settings-backdrop") { UI.settingsOpen = false; renderSettingsSheet(); }
+      if (e.target.id === "settings-backdrop") {
+        UI.settingsOpen = false;
+        renderSettingsSheet();
+      }
     };
 
     document.addEventListener("click", (e) => {
@@ -1536,16 +1921,20 @@
         UI.bellOpen = false;
         $("#bell-popup").hidden = true;
       }
+      if (UI.sidebarExpanded && !e.target.closest("#app-sidebar") && !e.target.closest("#btn-sidebar-toggle")) {
+        UI.sidebarExpanded = false;
+        $("#app-sidebar").classList.remove("expanded");
+      }
     });
 
-    // Universal keyboard shortcuts (`e.code`, works identically in Arabic & English layouts)
+    // Keyboard shortcuts
     window.addEventListener("keydown", (e) => {
       if (e.code === "Escape") {
         $("#card-more-menu").hidden = true;
         if (UI.bellOpen) { UI.bellOpen = false; $("#bell-popup").hidden = true; return; }
         if (UI.settingsOpen) { UI.settingsOpen = false; renderSettingsSheet(); return; }
         if (UI.selectedId) { UI.selectedId = null; renderDetailsSheet(); return; }
-        if (!$("#install-theater").hidden) { UI.theaterMinimized = true; updateInstallTheater(activeTasks()); return; }
+        if (!$("#install-theater").hidden) { minimizeTheater(); return; }
       }
       if (UI.selectedId && !UI.settingsOpen) {
         if (e.code === "ArrowLeft") { const p = $("#dt-prev"); if (p) p.click(); }
@@ -1570,12 +1959,10 @@
   async function boot() {
     applyThemeAndLang();
     bindEvents();
-    runBrandIntro(false);
-    try {
-      await reloadState();
-    } catch (e) {
+    const statePromise = reloadState().catch((e) => {
       toast(e.message, "error");
-    }
+    });
+    startSplashSequence(statePromise, false);
   }
 
   boot();
