@@ -1,7 +1,7 @@
 import React from "react";
 import { AnimatePresence, m } from "motion/react";
 import { X } from "lucide-react";
-import { HubSettingsData } from "../lib/api";
+import { HubSettingsData, MechanicalBgMode } from "../lib/api";
 import { I18N, Lang } from "../lib/i18n";
 import { SPRINGS } from "../lib/motion";
 import { ThemePref } from "../lib/theme";
@@ -14,6 +14,7 @@ interface Props {
   onClose: () => void;
   onThemePick: (pref: ThemePref, el: HTMLElement | null) => void;
   onLangPick: (l: Lang) => void;
+  onMechModePick: (m: MechanicalBgMode) => void;
   onToggleSetting: (key: keyof HubSettingsData, val: boolean) => void;
   onQuit: () => void;
 }
@@ -26,10 +27,12 @@ export const SettingsModal: React.FC<Props> = ({
   onClose,
   onThemePick,
   onLangPick,
+  onMechModePick,
   onToggleSetting,
   onQuit,
 }) => {
   const t = I18N[lang];
+  const mechMode: MechanicalBgMode = settings.mechanical_bg_mode || "balanced";
 
   const toggleRows: Array<{ key: keyof HubSettingsData; label: string }> = [
     { key: "auto_check_updates", label: t.autoCheck },
@@ -62,7 +65,7 @@ export const SettingsModal: React.FC<Props> = ({
             transition={SPRINGS.smooth}
             onClick={(e) => e.stopPropagation()}
             style={{ boxShadow: "var(--shadow-elevated)" }}
-            className="w-full max-w-[680px] max-h-[86vh] rounded-2xl overflow-hidden flex flex-col bg-[var(--color-surface-elevated)] border border-[var(--color-border-strong)]"
+            className="w-full max-w-[520px] max-h-[86vh] rounded-2xl overflow-hidden flex flex-col bg-[var(--color-surface-elevated)] border border-[var(--color-border-strong)]"
           >
             <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border-subtle)]">
               <h2 className="m-0 text-[16px] font-bold">{t.settings}</h2>
@@ -122,6 +125,29 @@ export const SettingsModal: React.FC<Props> = ({
                           }`}
                         >
                           {l === "en" ? "English" : "العربية"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                      <div className="text-[13px] font-semibold">{t.mechTitle}</div>
+                      <div className="text-[11.5px] text-[var(--color-text-muted)]">{t.mechSub}</div>
+                    </div>
+                    <div className="flex items-center gap-1 p-1 rounded-lg bg-black/20 border border-[var(--color-border-subtle)]">
+                      {(["off", "balanced", "overdrive"] as MechanicalBgMode[]).map((mMode) => (
+                        <button
+                          key={mMode}
+                          data-mech-mode={mMode}
+                          onClick={() => onMechModePick(mMode)}
+                          className={`h-7 px-2.5 rounded-md text-[11.5px] font-semibold cursor-pointer transition-colors ${
+                            mechMode === mMode
+                              ? "bg-[var(--color-action-bg)] text-white"
+                              : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+                          }`}
+                        >
+                          {mMode === "off" ? t.mechOff : mMode === "balanced" ? t.mechBalanced : t.mechOverdrive}
                         </button>
                       ))}
                     </div>

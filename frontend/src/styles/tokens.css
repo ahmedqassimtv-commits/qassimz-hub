@@ -243,7 +243,7 @@ body {
   background: #c50f1f;
 }
 
-/* Responsive Sidebar (228px desktop -> 64px compact rail at <= 960px) */
+/* Responsive Sidebar (228px desktop -> 64px compact rail at <= 960px) — Frosted Glass */
 .cc-sidebar {
   width: var(--sidebar-w);
   min-width: var(--sidebar-w);
@@ -251,10 +251,15 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  background: var(--color-surface-sidebar);
+  background: rgba(15, 18, 25, 0.62);
+  backdrop-filter: blur(20px) saturate(135%);
+  -webkit-backdrop-filter: blur(20px) saturate(135%);
   border-inline-end: 1px solid var(--color-border-subtle);
   overflow: hidden;
   z-index: 20;
+}
+[data-theme="light"] .cc-sidebar {
+  background: rgba(255, 255, 255, 0.64);
 }
 @media (max-width: 960px) {
   .cc-sidebar {
@@ -309,14 +314,21 @@ body {
 .hdr-brand-btn.wave .qz-p4 { animation: qzHeaderWave 460ms cubic-bezier(0.16, 1, 0.3, 1) 152ms; }
 .hdr-brand-btn.wave .qz-p5 { animation: qzHeaderWave 460ms cubic-bezier(0.16, 1, 0.3, 1) 190ms; }
 
-/* Apple Specular Glass Glint & Cursor Spotlight Cards */
+/* Frosted Glass Cards + Cursor-Tracking 1px Spotlight Border */
 .craft-card {
   position: relative;
   overflow: hidden;
-  background: var(--color-surface-card);
-  border: 1px solid var(--color-border-subtle);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055);
+  background: rgba(20, 24, 33, 0.64);
+  backdrop-filter: blur(18px) saturate(135%);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
   transition: border-color 220ms ease, background-color 200ms ease, box-shadow 240ms ease;
+}
+[data-theme="light"] .craft-card {
+  background: rgba(255, 255, 255, 0.68);
+  border: 1px solid rgba(15, 23, 42, 0.09);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 .craft-card::before {
   content: "";
@@ -325,42 +337,46 @@ body {
   pointer-events: none;
   opacity: 0;
   background: radial-gradient(
-    260px circle at var(--mx, 50%) var(--my, 30%),
-    color-mix(in srgb, var(--app-color, #3b63fb) 13%, transparent),
+    280px circle at var(--mx, 50%) var(--my, 30%),
+    color-mix(in srgb, var(--app-color, #3b63fb) 16%, transparent),
     transparent 68%
   );
-  transition: opacity 260ms ease;
+  transition: opacity 240ms ease;
   z-index: 0;
 }
+/* Dynamic Spotlight Border illuminating the 1px card edge near the cursor */
 .craft-card::after {
   content: "";
   position: absolute;
-  top: 0;
-  inset-inline: 14px;
-  height: 1px;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
   pointer-events: none;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    color-mix(in srgb, var(--app-color, #3b63fb) 52%, rgba(255, 255, 255, 0.45)),
-    transparent
-  );
   opacity: 0;
-  transform: scaleX(0.45);
-  transition: opacity 240ms ease, transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
+  background: radial-gradient(
+    220px circle at var(--mx, 50%) var(--my, 30%),
+    color-mix(in srgb, var(--app-color, #3b63fb) 88%, #ffffff),
+    transparent 70%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  transition: opacity 220ms ease;
   z-index: 2;
 }
 .craft-card:hover {
-  background: var(--color-surface-card-hover);
-  border-color: color-mix(in srgb, var(--app-color, #3b63fb) 34%, var(--color-border-strong));
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.11);
+  background: rgba(26, 31, 43, 0.72);
+  border-color: color-mix(in srgb, var(--app-color, #3b63fb) 36%, rgba(255, 255, 255, 0.14));
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
-.craft-card:hover::before {
-  opacity: 1;
+[data-theme="light"] .craft-card:hover {
+  background: rgba(255, 255, 255, 0.80);
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.10), inset 0 1px 0 #ffffff;
 }
+.craft-card:hover::before,
 .craft-card:hover::after {
   opacity: 1;
-  transform: scaleX(1);
 }
 
 .card-icon-stage {

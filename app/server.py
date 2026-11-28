@@ -34,7 +34,7 @@ from window_state import (
     validate_window_rect,
 )
 
-VERSION = "2.0.1"
+VERSION = "2.0.2"
 HUB_REPO = "ahmedqassimtv-commits/qassimz-hub"
 REMOTE_CATALOG_URL = f"https://raw.githubusercontent.com/{HUB_REPO}/main/catalog.json"
 STATE_CACHE_TTL = 3.0
@@ -56,24 +56,36 @@ def data_dir() -> Path:
 
 
 class HubSettings:
-    DEFAULTS = {
+    DEFAULTS: dict[str, Any] = {
         "silent_install": True,
         "minimize_to_tray": True,
         "start_with_windows": False,
         "auto_check_updates": True,
         "auto_update_apps": False,
         "auto_update_hub": False,
+        "mechanical_bg_mode": "balanced",
+    }
+    ENUM_OPTIONS: dict[str, tuple[str, ...]] = {
+        "mechanical_bg_mode": ("off", "balanced", "overdrive"),
     }
 
     def __init__(self, root: Path):
         self.file = root / "settings.json"
         self._lock = threading.Lock()
-        self._data = dict(self.DEFAULTS)
+        self._data: dict[str, Any] = dict(self.DEFAULTS)
         if self.file.is_file():
             try:
                 loaded = json.loads(self.file.read_text(encoding="utf-8"))
                 if isinstance(loaded, dict):
-                    self._data.update({k: bool(loaded[k]) for k in self.DEFAULTS if k in loaded})
+                    for k in self.DEFAULTS:
+                        if k not in loaded:
+                            continue
+                        if k in self.ENUM_OPTIONS:
+                            val = str(loaded[k]).lower()
+                            if val in self.ENUM_OPTIONS[k]:
+                                self._data[k] = val
+                        else:
+                            self._data[k] = bool(loaded[k])
                     if loaded.get("_schema", 1) < 2:
                         self._data["auto_update_apps"] = False
                         self._data["auto_update_hub"] = False
@@ -90,14 +102,20 @@ class HubSettings:
     def update(self, values: dict[str, Any]) -> dict[str, Any]:
         with self._lock:
             for k, v in (values or {}).items():
-                if k in self.DEFAULTS:
+                if k not in self.DEFAULTS:
+                    continue
+                if k in self.ENUM_OPTIONS:
+                    val = str(v).lower()
+                    if val in self.ENUM_OPTIONS[k]:
+                        self._data[k] = val
+                else:
                     self._data[k] = bool(v)
             out = dict(self._data)
             out["_schema"] = 2
             atomic_write_json(self.file, out)
             snap = dict(self._data)
         if "start_with_windows" in (values or {}):
-            self._apply_startup(snap["start_with_windows"])
+            self._apply_startup(bool(snap["start_with_windows"]))
         return snap
 
     @staticmethod

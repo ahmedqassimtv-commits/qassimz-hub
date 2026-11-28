@@ -13,6 +13,7 @@ interface Props {
   onInstall: (id: string) => void;
   onLaunch: (id: string) => void;
   onContextMenu: (item: CatalogItem, x: number, y: number) => void;
+  onHoverColor?: (color: string | null) => void;
 }
 
 export const AppCard: React.FC<Props> = ({
@@ -23,6 +24,7 @@ export const AppCard: React.FC<Props> = ({
   onInstall,
   onLaunch,
   onContextMenu,
+  onHoverColor,
 }) => {
   const t = I18N[lang];
   const cardRef = useRef<HTMLElement>(null);
@@ -57,6 +59,8 @@ export const AppCard: React.FC<Props> = ({
       whileHover={{ y: -3 }}
       transition={SPRINGS.gentle}
       onPointerMove={handlePointerMove}
+      onMouseEnter={() => onHoverColor?.(meta.color)}
+      onMouseLeave={() => onHoverColor?.(null)}
       onClick={() => onSelect(item)}
       onContextMenu={(e) => {
         e.preventDefault();

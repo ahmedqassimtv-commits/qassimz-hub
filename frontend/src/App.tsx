@@ -7,11 +7,13 @@ import {
   HubSettingsData,
   HubStatePayload,
   HubTask,
+  MechanicalBgMode,
 } from "./lib/api";
 import { I18N, Lang } from "./lib/i18n";
 import { SPRINGS } from "./lib/motion";
 import { applyThemeInstant, resolveDark, switchThemeWithCircle, ThemePref } from "./lib/theme";
 import { launchGuidedTour } from "./lib/tour";
+import { MechanicalEngineBg } from "./components/MechanicalEngineBg";
 import { SplashScreen } from "./components/SplashScreen";
 import { Titlebar } from "./components/Titlebar";
 import { Sidebar, ViewKey } from "./components/Sidebar";
@@ -41,6 +43,7 @@ const DEFAULT_SETTINGS: HubSettingsData = {
   auto_check_updates: true,
   auto_update_apps: false,
   auto_update_hub: false,
+  mechanical_bg_mode: "balanced",
 };
 
 export const App: React.FC = () => {
@@ -82,6 +85,7 @@ export const App: React.FC = () => {
   const [theaterMinimized, setTheaterMinimized] = useState(false);
   const [terminalTask, setTerminalTask] = useState<HubTask | null>(null);
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
+  const [hoveredAccent, setHoveredAccent] = useState<string>("#3B63FB");
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
   const lastCheckRef = useRef<number>(0);
@@ -380,6 +384,15 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleSaveMechMode = async (mode: MechanicalBgMode) => {
+    try {
+      const updated = await HubBridge.saveSettings({ mechanical_bg_mode: mode });
+      setState((prev) => (prev ? { ...prev, settings: updated } : prev));
+    } catch {
+      showToast(t.friendlyErr, "error");
+    }
+  };
+
   const activeTheaterTask = liveTasks[0] || terminalTask;
   const hubTask = (state?.tasks || []).find((tk) => tk.id === "qassimz-hub");
   const viewTitle =
@@ -409,6 +422,13 @@ export const App: React.FC = () => {
           <span className="aurora-orb orb-a" />
           <span className="aurora-orb orb-b" />
         </div>
+
+        <MechanicalEngineBg
+          dark={dark}
+          accentColor={hoveredAccent}
+          mode={state?.settings?.mechanical_bg_mode || "balanced"}
+          overdriveActive={liveTasks.length > 0}
+        />
 
         <Titlebar
           lang={lang}
@@ -572,6 +592,7 @@ export const App: React.FC = () => {
                       onInstall={handleInstall}
                       onLaunch={handleLaunch}
                       onContextMenu={(it, x, y) => setContextMenu({ item: it, x, y })}
+                      onHoverColor={(c) => setHoveredAccent(c || "#3B63FB")}
                     />
                   );
 
@@ -709,6 +730,7 @@ export const App: React.FC = () => {
           })
         }
         onLangPick={setLang}
+        onMechModePick={handleSaveMechMode}
         onToggleSetting={handleSaveSetting}
         onQuit={() => HubBridge.winQuit().catch(() => {})}
       />

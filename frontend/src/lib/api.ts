@@ -47,6 +47,8 @@ export interface HubTask {
   error?: string;
 }
 
+export type MechanicalBgMode = "off" | "balanced" | "overdrive";
+
 export interface HubSettingsData {
   silent_install: boolean;
   minimize_to_tray: boolean;
@@ -54,6 +56,7 @@ export interface HubSettingsData {
   auto_check_updates: boolean;
   auto_update_apps: boolean;
   auto_update_hub: boolean;
+  mechanical_bg_mode?: MechanicalBgMode;
 }
 
 export interface CCUpdaterState {
