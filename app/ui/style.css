@@ -2449,6 +2449,108 @@ select:focus-visible,
 }
 
 /* ==========================================================================
+   Window Close / Maximize-Restore Morph & Tactile Capsule Toggle Motion
+   ========================================================================== */
+.cc-shell {
+  transform-origin: center center;
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1), opacity 170ms ease;
+  will-change: transform, opacity;
+}
+.cc-shell.is-closing {
+  opacity: 0;
+  transform: scale(0.962) translateY(8px);
+  pointer-events: none;
+}
+.cc-shell.is-opening {
+  animation: ccShellOpen 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.cc-shell.win-morph .cc-main {
+  animation: ccWinMorph 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes ccShellOpen {
+  from { opacity: 0; transform: scale(0.975) translateY(6px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes ccWinMorph {
+  0%   { opacity: 0.86; transform: translateY(4px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Crisp High-DPI Anti-Aliased Logo Rendering (no harsh jagged sharpening) */
+.card-icon,
+.list-icon,
+.sh-app-icon,
+.th-app-ico,
+.intro-app-logo,
+.hdr-app-icon,
+img[src$=".svg"] {
+  image-rendering: auto;
+  shape-rendering: geometricPrecision;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.qz-wordmark {
+  shape-rendering: geometricPrecision;
+}
+
+/* Tactile Spring Motion on Toggle Capsules & Segmented Pills */
+.cc-segmented .seg-btn {
+  transition:
+    background-color 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    color 180ms ease,
+    transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 220ms ease;
+}
+.cc-segmented .seg-btn:active {
+  transform: scale(0.93);
+}
+.cc-segmented .seg-btn.active {
+  animation: ccPillPop 240ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes ccPillPop {
+  0%   { transform: scale(0.92); }
+  65%  { transform: scale(1.03); }
+  100% { transform: scale(1); }
+}
+
+.cc-sidebar .sb-item {
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.cc-sidebar .sb-item:active {
+  transform: scale(0.97);
+}
+.cc-sidebar .sb-item.active {
+  animation: ccNavPulse 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes ccNavPulse {
+  0%   { transform: translateX(0) scale(0.98); }
+  100% { transform: translateX(0) scale(1); }
+}
+
+.cc-switch, .cc-switch::after, .cc-switch .switch-thumb {
+  transition:
+    background-color 220ms ease,
+    transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 220ms ease !important;
+}
+
+#btn-win-max svg {
+  transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+#btn-win-max:active svg {
+  transform: scale(0.84);
+}
+#btn-win-close {
+  transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+#btn-win-close:active {
+  transform: scale(0.92);
+}
+
+/* ==========================================================================
    Reduced Motion Preference
    ========================================================================== */
 @media (prefers-reduced-motion: reduce) {

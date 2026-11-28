@@ -70,6 +70,19 @@ def _setup_tray(api: HubApi, show_fn, quit_fn):
 
 
 def main() -> None:
+    # Enable Per-Monitor DPI Awareness V2 on Windows so WebView2 renders at native
+    # physical resolution (crisp logos & text with zero OS bitmap stretching/aliasing).
+    if os.name == "nt":
+        try:
+            import ctypes
+            ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
+        except Exception:
+            try:
+                import ctypes
+                ctypes.windll.shcore.SetProcessDpiAwareness(2)
+            except Exception:
+                pass
+
     minimized = "--minimized" in sys.argv
     api = HubApi(data_dir())
     quitting = {"flag": False}
@@ -84,13 +97,32 @@ def main() -> None:
             win.restore()
             win.on_top = True
             win.on_top = False
-            win.evaluate_js("window.focus(); document.body && document.body.focus();")
+            win.evaluate_js(
+                "window.focus(); document.body && document.body.focus();"
+                "var sh = document.querySelector('.cc-shell');"
+                "if (sh) { sh.classList.remove('is-closing'); sh.classList.add('is-opening');"
+                "setTimeout(function(){ sh.classList.remove('is-opening'); }, 260); }"
+            )
         except Exception:
             pass
 
     lock_sock = _acquire_single_instance(show_window)
     if lock_sock is None:
         sys.exit(0)
+
+    # Prevent WebView2 from claiming exclusive DirectComposition/hardware overlay swapchains
+    # that conflict with NVIDIA GeForce Experience / AMD Adrenalin / Windows Game Bar.
+    if os.name == "nt":
+        existing_args = os.environ.get("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "").strip()
+        gpu_safe_flags = (
+            "--disable-direct-composition-video-overlays "
+            "--disable-features=HardwareMediaKeyHandling,DirectCompositionUseNV12DecodeSwapChain "
+            "--use-angle=d3d11"
+        )
+        if "--disable-direct-composition-video-overlays" not in existing_args:
+            os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = (
+                f"{existing_args} {gpu_safe_flags}".strip()
+            )
 
     url = start_server(api)
     win = webview.create_window(

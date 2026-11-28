@@ -25,7 +25,7 @@ from detector import (
 )
 from installer_runner import UA, TaskQueue, run_uninstall_command, ssl_context
 
-VERSION = "1.5.0"
+VERSION = "1.5.1"
 HUB_REPO = "ahmedqassimtv-commits/qassimz-hub"
 REMOTE_CATALOG_URL = f"https://raw.githubusercontent.com/{HUB_REPO}/main/catalog.json"
 STATE_CACHE_TTL = 3.0
@@ -421,13 +421,70 @@ class HubApi:
                 pass
         return {"ok": True}
 
+    @staticmethod
+    def _get_windows_work_area(win_x: int, win_y: int) -> tuple[int, int, int, int] | None:
+        """Return (left, top, width, height) of the monitor work area (excluding Windows taskbar)."""
+        if os.name != "nt":
+            return None
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            class MONITORINFO(ctypes.Structure):
+                _fields_ = [
+                    ("cbSize", wintypes.DWORD),
+                    ("rcMonitor", wintypes.RECT),
+                    ("rcWork", wintypes.RECT),
+                    ("dwFlags", wintypes.DWORD),
+                ]
+
+            user32 = ctypes.windll.user32
+            pt = wintypes.POINT(int(win_x) + 100, int(win_y) + 100)
+            hmon = user32.MonitorFromPoint(pt, 2)  # MONITOR_DEFAULTTONEAREST
+            mi = MONITORINFO()
+            mi.cbSize = ctypes.sizeof(MONITORINFO)
+            if hmon and user32.GetMonitorInfoW(hmon, ctypes.byref(mi)):
+                rc = mi.rcWork
+                w = rc.right - rc.left
+                h = rc.bottom - rc.top
+                if w > 400 and h > 300:
+                    return (rc.left, rc.top, w, h)
+
+            rect = wintypes.RECT()
+            if user32.SystemParametersInfoW(0x0030, 0, ctypes.byref(rect), 0):  # SPI_GETWORKAREA
+                return (rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top)
+        except Exception:
+            pass
+        return None
+
     def win_toggle_maximize(self) -> dict[str, Any]:
         if self.window is not None:
             try:
                 if getattr(self, "_is_maximized", False):
-                    self.window.restore()
+                    bounds = getattr(self, "_restore_bounds", None)
+                    if os.name == "nt" and bounds and hasattr(self.window, "move") and hasattr(self.window, "resize"):
+                        rx, ry, rw, rh = bounds
+                        self.window.resize(rw, rh)
+                        self.window.move(rx, ry)
+                    else:
+                        self.window.restore()
                     self._is_maximized = False
                 else:
+                    if os.name == "nt" and hasattr(self.window, "move") and hasattr(self.window, "resize"):
+                        cx = int(getattr(self.window, "x", 100) or 100)
+                        cy = int(getattr(self.window, "y", 80) or 80)
+                        cw = int(getattr(self.window, "width", 1360) or 1360)
+                        ch = int(getattr(self.window, "height", 860) or 860)
+                        self._restore_bounds = (cx, cy, cw, ch)
+                        work = self._get_windows_work_area(cx, cy)
+                        if work is not None:
+                            wx, wy, ww, wh = work
+                            # Use work area (excludes taskbar) so NVIDIA/AMD/Game Bar never
+                            # treat the frameless WebView2 window as an exclusive fullscreen game.
+                            self.window.move(wx, wy)
+                            self.window.resize(ww, wh)
+                            self._is_maximized = True
+                            return {"ok": True, "maximized": True}
                     self.window.maximize()
                     self._is_maximized = True
                 return {"ok": True, "maximized": self._is_maximized}

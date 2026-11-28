@@ -1772,7 +1772,22 @@
     }
   }
 
+  function animateWindowClose(endpoint) {
+    const shell = $(".cc-shell");
+    if (shell) {
+      shell.classList.remove("is-opening", "win-morph");
+      shell.classList.add("is-closing");
+    }
+    setTimeout(() => {
+      api(endpoint).catch(() => {});
+      if (endpoint === "win_close" && shell) {
+        setTimeout(() => shell.classList.remove("is-closing"), 320);
+      }
+    }, 170);
+  }
+
   async function toggleMaximizeWindow() {
+    const shell = $(".cc-shell");
     try {
       const res = await api("win_toggle_maximize");
       if (res && typeof res.maximized === "boolean") {
@@ -1781,6 +1796,12 @@
         UI.isMaximized = !UI.isMaximized;
       }
       syncWindowMaxIcon();
+      if (shell) {
+        shell.classList.remove("win-morph");
+        void shell.offsetWidth;
+        shell.classList.add("win-morph");
+        setTimeout(() => shell.classList.remove("win-morph"), 260);
+      }
     } catch (_) {}
   }
 
@@ -1813,16 +1834,16 @@
       updateInstallTheater(activeTasks());
     };
 
-    // Frameless Windows 11 Caption Controls
+    // Frameless Windows 11 Caption Controls (with smooth close & maximize/restore morph)
     $("#btn-win-min").onclick = () => api("win_minimize").catch(() => {});
     $("#btn-win-max").onclick = () => toggleMaximizeWindow();
-    $("#btn-win-close").onclick = () => api("win_close").catch(() => {});
+    $("#btn-win-close").onclick = () => animateWindowClose("win_close");
     $("#app-titlebar").ondblclick = (e) => {
       if (!e.target.closest(".no-drag")) toggleMaximizeWindow();
     };
 
-    // Sidebar Exit/Quit button (genuine termination)
-    $("#btn-sidebar-quit").onclick = () => api("win_quit").catch(() => {});
+    // Sidebar Exit/Quit button (genuine termination with smooth close animation)
+    $("#btn-sidebar-quit").onclick = () => animateWindowClose("win_quit");
 
     // Sidebar Navigation items
     $$(".cc-sidebar .sb-item[data-view]").forEach((b) => {
