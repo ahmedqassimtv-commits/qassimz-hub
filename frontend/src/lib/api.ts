@@ -33,9 +33,19 @@ export interface HubTask {
   name_ar?: string;
   accent?: string;
   version: string;
-  status: "queued" | "downloading" | "installing" | "completed" | "error" | "cancelled";
+  status:
+    | "queued"
+    | "checking"
+    | "downloading"
+    | "paused"
+    | "verifying"
+    | "installing"
+    | "app_running"
+    | "completed"
+    | "error"
+    | "cancelled";
   stage?: string;
-  update_mode?: "delta" | "full";
+  update_mode?: "delta" | "full" | "fallback";
   progress: number;
   downloaded?: number;
   total?: number;
@@ -43,6 +53,8 @@ export interface HubTask {
   eta_sec?: number;
   delta_saved_bytes?: number;
   delta_saved_pct?: number;
+  auto_launch?: boolean;
+  running_exe?: string;
   message_ar?: string;
   error?: string;
 }
@@ -57,6 +69,19 @@ export interface HubSettingsData {
   auto_update_apps: boolean;
   auto_update_hub: boolean;
   mechanical_bg_mode?: MechanicalBgMode;
+  sound_enabled?: boolean;
+}
+
+export interface TelemetryData {
+  cpu_pct: number;
+  ram_pct: number;
+  ram_used_gb: number;
+  ram_total_gb: number;
+  disk_free_gb: number;
+  disk_total_gb: number;
+  disk_used_pct: number;
+  cache_bytes: number;
+  cache_mb: number;
 }
 
 export interface CCUpdaterState {
@@ -119,7 +144,17 @@ export const HubBridge = {
   fixCep: () => api<{ ok: boolean }>("fix_cep"),
   saveSettings: (values: Partial<HubSettingsData>) => api<HubSettingsData>("save_settings", { values }),
   cancelTask: (id: string) => api<{ ok: boolean }>("cancel_task", { id }),
-  clearCache: () => api<{ ok: boolean }>("clear_cache"),
+  pauseTask: (item_id: string) => api<{ ok: boolean }>("pause_task", { item_id }),
+  resumeTask: (item_id: string) => api<{ ok: boolean }>("resume_task", { item_id }),
+  setTaskAutoLaunch: (item_id: string, enabled: boolean) =>
+    api<{ ok: boolean; enabled: boolean }>("set_task_auto_launch", { item_id, enabled }),
+  forceCloseAndRetry: (item_id: string) => api<{ ok: boolean }>("force_close_and_retry", { item_id }),
+  telemetry: () => api<TelemetryData>("telemetry"),
+  clearCache: () => api<{ ok: boolean; freed_mb?: number; files_removed?: number }>("clear_cache"),
+  launchWorkspace: (mode_id: string) =>
+    api<{ ok: boolean; mode?: string; launched: string[]; skipped: string[] }>("launch_workspace", { mode_id }),
+  openWith: (item_id: string, file_path: string) =>
+    api<{ ok: boolean; item_id: string; file_path: string }>("open_with", { item_id, file_path }),
   clearFinishedTasks: () => api<{ ok: boolean }>("clear_finished_tasks"),
   installHubUpdate: (force = false) => api<HubTask>("install_hub_update", { force }),
   applyStagedUpdate: () => api<{ ok: boolean }>("apply_staged_update"),

@@ -14,31 +14,31 @@
   --p-slate-50: #f8f8f8;
   --p-slate-100: #f4f6fa;
   --p-slate-900: #0f172a;
-  --p-blue-500: #3b63fb;
-  --p-blue-400: #60a5fa;
+  --p-blue-500: #1473e6;
+  --p-blue-400: #378ef0;
   --p-sky-400: #38bdf8;
   --p-emerald-400: #34d399;
   --p-amber-400: #fbbf24;
   --p-red-500: #e81123;
-  --p-font-ui: "Google Sans", "Google Sans Arabic", "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --p-font-ui: "Segoe UI Variable", "Plus Jakarta Sans", "IBM Plex Sans Arabic", "Google Sans", "Google Sans Arabic", "Segoe UI", system-ui, -apple-system, sans-serif;
 
-  /* Tier 2: Semantic (Dark Default — WCAG 2.2 AA >= 4.5:1) */
+  /* Tier 2: Semantic (Dark Default — Adobe Spectrum Obsidian) */
   --color-body-bg: var(--p-obsidian-800);
-  --color-canvas-bg: var(--p-obsidian-900);
-  --color-surface-elevated: var(--p-obsidian-850);
-  --color-surface-card: rgba(26, 30, 39, 0.78);
-  --color-surface-card-hover: rgba(32, 37, 48, 0.88);
-  --color-surface-chrome: rgba(17, 19, 24, 0.74);
-  --color-surface-sidebar: rgba(255, 255, 255, 0.02);
+  --color-canvas-bg: #14161b;
+  --color-surface-elevated: #1c1e24;
+  --color-surface-card: rgba(28, 30, 36, 0.92);
+  --color-surface-card-hover: rgba(34, 37, 45, 0.96);
+  --color-surface-chrome: rgba(20, 22, 27, 0.92);
+  --color-surface-sidebar: rgba(20, 22, 27, 0.92);
   --color-surface-hover: rgba(255, 255, 255, 0.06);
-  --color-surface-active: rgba(255, 255, 255, 0.09);
-  --color-border-subtle: rgba(255, 255, 255, 0.075);
-  --color-border-strong: rgba(255, 255, 255, 0.14);
+  --color-surface-active: rgba(255, 255, 255, 0.095);
+  --color-border-subtle: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.16);
   --color-text-primary: #f5f7fa;
   --color-text-secondary: #a8b0bf;
-  --color-text-muted: #788296;
-  --color-action-bg: var(--p-blue-500);
-  --color-action-hover: #4e73ff;
+  --color-text-muted: #7b8496;
+  --color-action-bg: #1473e6;
+  --color-action-hover: #0d66d0;
   --color-action-fg: #ffffff;
   --color-success: var(--p-emerald-400);
   --color-warning: var(--p-amber-400);
@@ -314,21 +314,22 @@ body {
 .hdr-brand-btn.wave .qz-p4 { animation: qzHeaderWave 460ms cubic-bezier(0.16, 1, 0.3, 1) 152ms; }
 .hdr-brand-btn.wave .qz-p5 { animation: qzHeaderWave 460ms cubic-bezier(0.16, 1, 0.3, 1) 190ms; }
 
-/* Frosted Glass Cards + Cursor-Tracking 1px Spotlight Border */
+/* Adobe Spectrum Surfaces (bg-surface/92) + Subtle Cursor-Tracking Spotlight Border */
 .craft-card {
   position: relative;
   overflow: hidden;
-  background: rgba(20, 24, 33, 0.64);
-  backdrop-filter: blur(18px) saturate(135%);
-  -webkit-backdrop-filter: blur(18px) saturate(135%);
+  background: rgba(28, 30, 36, 0.92);
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
   border: 1px solid rgba(255, 255, 255, 0.085);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
-  transition: border-color 220ms ease, background-color 200ms ease, box-shadow 240ms ease;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055);
+  will-change: transform;
+  transition: border-color 200ms ease, background-color 200ms ease, box-shadow 220ms ease, opacity 200ms ease;
 }
 [data-theme="light"] .craft-card {
-  background: rgba(255, 255, 255, 0.68);
+  background: rgba(255, 255, 255, 0.94);
   border: 1px solid rgba(15, 23, 42, 0.09);
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 .craft-card::before {
   content: "";
@@ -337,11 +338,11 @@ body {
   pointer-events: none;
   opacity: 0;
   background: radial-gradient(
-    280px circle at var(--mx, 50%) var(--my, 30%),
-    color-mix(in srgb, var(--app-color, #3b63fb) 16%, transparent),
+    260px circle at var(--mx, 50%) var(--my, 30%),
+    color-mix(in srgb, var(--app-color, #1473e6) 11%, transparent),
     transparent 68%
   );
-  transition: opacity 240ms ease;
+  transition: opacity 220ms ease;
   z-index: 0;
 }
 /* Dynamic Spotlight Border illuminating the 1px card edge near the cursor */
@@ -350,33 +351,75 @@ body {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  padding: 1.5px;
+  padding: 1.25px;
   pointer-events: none;
   opacity: 0;
   background: radial-gradient(
-    220px circle at var(--mx, 50%) var(--my, 30%),
-    color-mix(in srgb, var(--app-color, #3b63fb) 88%, #ffffff),
+    210px circle at var(--mx, 50%) var(--my, 30%),
+    color-mix(in srgb, var(--app-color, #1473e6) 72%, #ffffff),
     transparent 70%
   );
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
-  transition: opacity 220ms ease;
+  transition: opacity 200ms ease;
   z-index: 2;
 }
 .craft-card:hover {
-  background: rgba(26, 31, 43, 0.72);
-  border-color: color-mix(in srgb, var(--app-color, #3b63fb) 36%, rgba(255, 255, 255, 0.14));
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  background: rgba(34, 37, 45, 0.96);
+  border-color: color-mix(in srgb, var(--app-color, #1473e6) 32%, rgba(255, 255, 255, 0.14));
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.10);
 }
 [data-theme="light"] .craft-card:hover {
-  background: rgba(255, 255, 255, 0.80);
-  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.10), inset 0 1px 0 #ffffff;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.09), inset 0 1px 0 #ffffff;
 }
 .craft-card:hover::before,
 .craft-card:hover::after {
   opacity: 1;
+}
+
+/* 1-Second Success Glow on Install Completion */
+@keyframes qzSuccessGlow {
+  0%   { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.65), 0 0 24px rgba(52, 211, 153, 0.35); border-color: rgba(52, 211, 153, 0.85); }
+  100% { box-shadow: 0 0 0 8px rgba(52, 211, 153, 0), 0 0 0 rgba(52, 211, 153, 0); }
+}
+.success-glow {
+  animation: qzSuccessGlow 1050ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Smart Drag & Drop Router States */
+.drop-dim {
+  opacity: 0.30 !important;
+  filter: grayscale(0.55);
+  pointer-events: none;
+}
+.drop-match {
+  border-color: color-mix(in srgb, var(--app-color, #1473e6) 85%, #ffffff) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--app-color, #1473e6) 45%, transparent), 0 14px 32px rgba(0, 0, 0, 0.32) !important;
+  transform: scale(1.015);
+}
+
+/* Adobe Creative Cloud Compact Installed Row */
+.cc-installed-row {
+  position: relative;
+  overflow: hidden;
+  background: rgba(28, 30, 36, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+}
+[data-theme="light"] .cc-installed-row {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(15, 23, 42, 0.085);
+}
+.cc-installed-row:hover {
+  background: rgba(36, 39, 48, 0.97);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+[data-theme="light"] .cc-installed-row:hover {
+  background: #ffffff;
+  border-color: rgba(15, 23, 42, 0.15);
 }
 
 .card-icon-stage {

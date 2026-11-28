@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, m } from "motion/react";
-import { LayoutGrid, List } from "lucide-react";
+import { BookOpen, Film, LayoutGrid, List, Mic, Palette } from "lucide-react";
 import {
   CatalogItem,
   HubBridge,
@@ -8,16 +8,18 @@ import {
   HubStatePayload,
   HubTask,
   MechanicalBgMode,
+  TelemetryData,
 } from "./lib/api";
-import { I18N, Lang } from "./lib/i18n";
+import { APP_BLURBS, I18N, Lang, shortAppName } from "./lib/i18n";
 import { SPRINGS } from "./lib/motion";
+import { soundEngine } from "./lib/sound";
 import { applyThemeInstant, resolveDark, switchThemeWithCircle, ThemePref } from "./lib/theme";
 import { launchGuidedTour } from "./lib/tour";
 import { MechanicalEngineBg } from "./components/MechanicalEngineBg";
 import { SplashScreen } from "./components/SplashScreen";
 import { Titlebar } from "./components/Titlebar";
 import { Sidebar, ViewKey } from "./components/Sidebar";
-import { AppCard } from "./components/AppCard";
+import { AppCard, DropTargetState, InstalledAppRow } from "./components/AppCard";
 import { VirtualAppList } from "./components/VirtualAppList";
 import { ContextMenu } from "./components/ContextMenu";
 import { CommandPalette } from "./components/CommandPalette";
@@ -44,7 +46,45 @@ const DEFAULT_SETTINGS: HubSettingsData = {
   auto_update_apps: false,
   auto_update_hub: false,
   mechanical_bg_mode: "balanced",
+  sound_enabled: true,
 };
+
+// Smart Drag & Drop Router: file extension -> compatible app IDs
+const EXT_COMPAT_MAP: Record<string, string[]> = {
+  ".mp4": ["qassimz-studio", "qassimz-captions", "qassimz-export", "qassimz-footage", "qassimz-organizer"],
+  ".mov": ["qassimz-studio", "qassimz-captions", "qassimz-export", "qassimz-footage", "qassimz-organizer"],
+  ".mkv": ["qassimz-studio", "qassimz-captions", "qassimz-organizer"],
+  ".wav": ["qassimz-music", "qassimz-vox-fx", "qassimz-studio", "qassimz-captions"],
+  ".mp3": ["qassimz-music", "qassimz-vox-fx", "qassimz-studio", "qassimz-captions"],
+  ".aac": ["qassimz-music", "qassimz-vox-fx"],
+  ".mogrt": ["qassimz-mogrt-hub", "qassimz-mogrt-maker", "qassimz-studio"],
+  ".aep": ["qassimz-mogrt-maker", "qassimz-studio"],
+  ".pdf": ["qassimz-study", "qassimz-producer", "qassimz-organizer"],
+  ".srt": ["qassimz-captions", "qassimz-studio", "qassimz-producer"],
+  ".psd": ["qassimz-thumbs", "qassimz-organizer"],
+  ".png": ["qassimz-thumbs", "qassimz-studio", "qassimz-organizer"],
+  ".jpg": ["qassimz-thumbs", "qassimz-studio", "qassimz-organizer"],
+  ".jpeg": ["qassimz-thumbs", "qassimz-studio", "qassimz-organizer"],
+  ".webp": ["qassimz-thumbs", "qassimz-organizer"],
+  ".txt": ["qassimz-producer", "qassimz-study", "qassimz-captions"],
+  ".md": ["qassimz-producer", "qassimz-study"],
+};
+
+function extractDragExt(dt: DataTransfer | null): string {
+  if (!dt) return "";
+  const file = dt.files?.[0];
+  if (file?.name && file.name.includes(".")) {
+    return "." + file.name.split(".").pop()!.toLowerCase();
+  }
+  const item = dt.items?.[0];
+  if (item?.type) {
+    if (item.type.startsWith("video/")) return ".mp4";
+    if (item.type.startsWith("audio/")) return ".wav";
+    if (item.type === "application/pdf") return ".pdf";
+    if (item.type.startsWith("image/")) return ".png";
+  }
+  return "";
+}
 
 export const App: React.FC = () => {
   const [lang, setLang] = useState<Lang>(() =>
@@ -57,6 +97,7 @@ export const App: React.FC = () => {
   const [dark, setDark] = useState<boolean>(() => resolveDark(themePref));
 
   const [state, setState] = useState<HubStatePayload | null>(null);
+  const [telemetry, setTelemetry] = useState<TelemetryData | null>(null);
   const [view, setView] = useState<ViewKey>("all");
   const [layout, setLayout] = useState<LayoutMode>(() =>
     localStorage.getItem("qhub_layout") === "list" ? "list" : "grid"
@@ -85,11 +126,14 @@ export const App: React.FC = () => {
   const [theaterMinimized, setTheaterMinimized] = useState(false);
   const [terminalTask, setTerminalTask] = useState<HubTask | null>(null);
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
-  const [hoveredAccent, setHoveredAccent] = useState<string>("#3B63FB");
+  const [hoveredAccent, setHoveredAccent] = useState<string>("#1473E6");
+  const [successGlowId, setSuccessGlowId] = useState<string | null>(null);
+  const [dragExt, setDragExt] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
   const lastCheckRef = useRef<number>(0);
   const t = I18N[lang];
+  const soundEnabled = state?.settings?.sound_enabled !== false;
 
   // Singleton deduplicated toast helper
   const showToast = useCallback((text: string, kind: "info" | "error" = "info") => {
@@ -234,9 +278,71 @@ export const App: React.FC = () => {
     };
   }, [checkUpdatesSilently]);
 
+  // Sync sound engine with persisted setting
+  useEffect(() => {
+    soundEngine.setEnabled(soundEnabled);
+  }, [soundEnabled]);
+
+  // Live hardware telemetry polling (every 2s while visible)
+  useEffect(() => {
+    let alive = true;
+    const fetchTel = () => {
+      if (document.visibilityState !== "visible") return;
+      HubBridge.telemetry()
+        .then((d) => {
+          if (alive) setTelemetry(d);
+        })
+        .catch(() => {});
+    };
+    fetchTel();
+    const timer = setInterval(fetchTel, 2000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, []);
+
+  // Smart Drag & Drop Router window listeners
+  useEffect(() => {
+    let dragDepth = 0;
+    const onDragEnter = (e: DragEvent) => {
+      if (!e.dataTransfer?.types?.includes("Files")) return;
+      e.preventDefault();
+      dragDepth += 1;
+      const ext = extractDragExt(e.dataTransfer);
+      if (ext) setDragExt(ext);
+    };
+    const onDragOver = (e: DragEvent) => {
+      if (!e.dataTransfer?.types?.includes("Files")) return;
+      e.preventDefault();
+    };
+    const onDragLeave = () => {
+      dragDepth = Math.max(0, dragDepth - 1);
+      if (dragDepth === 0) setDragExt(null);
+    };
+    const onDrop = (e: DragEvent) => {
+      e.preventDefault();
+      dragDepth = 0;
+      setDragExt(null);
+    };
+    window.addEventListener("dragenter", onDragEnter);
+    window.addEventListener("dragover", onDragOver);
+    window.addEventListener("dragleave", onDragLeave);
+    window.addEventListener("drop", onDrop);
+    return () => {
+      window.removeEventListener("dragenter", onDragEnter);
+      window.removeEventListener("dragover", onDragOver);
+      window.removeEventListener("dragleave", onDragLeave);
+      window.removeEventListener("drop", onDrop);
+    };
+  }, []);
+
   // Smart visibility-aware task polling (0% CPU when hidden in System Tray!)
   const liveTasks = useMemo(
-    () => (state?.tasks || []).filter((tk) => ["queued", "downloading", "installing"].includes(tk.status)),
+    () =>
+      (state?.tasks || []).filter((tk) =>
+        ["queued", "checking", "downloading", "paused", "verifying", "installing", "app_running"].includes(tk.status)
+      ),
     [state?.tasks]
   );
 
@@ -250,6 +356,13 @@ export const App: React.FC = () => {
           const finished = tasks.find((tk) => tk.status === "completed" || tk.status === "error");
           if (finished) {
             setTerminalTask(finished);
+            if (finished.status === "completed") {
+              soundEngine.playChime();
+              setSuccessGlowId(finished.id);
+              setTimeout(() => setSuccessGlowId((cur) => (cur === finished.id ? null : cur)), 1150);
+            } else {
+              soundEngine.playError();
+            }
             reloadState(true).catch(() => {});
           }
         })
@@ -258,22 +371,32 @@ export const App: React.FC = () => {
     return () => clearInterval(poll);
   }, [liveTasks.length, reloadState]);
 
-  // Global keyboard shortcuts (Ctrl+K / Ctrl+Shift+P / Ctrl+, / Escape)
+  // Global keyboard shortcuts (Ctrl+K / Ctrl+Shift+P / Ctrl+, / Ctrl+Q / Escape)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.code === "KeyK") {
         e.preventDefault();
-        setCmdOpen((o) => !o);
+        setCmdOpen((o) => {
+          if (!o) soundEngine.playWhoosh();
+          return !o;
+        });
         return;
       }
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === "KeyP") {
         e.preventDefault();
+        soundEngine.playWhoosh();
         setCmdOpen(true);
         return;
       }
       if ((e.ctrlKey || e.metaKey) && e.code === "Comma") {
         e.preventDefault();
+        soundEngine.playClick();
         setSettingsOpen((o) => !o);
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.code === "KeyQ") {
+        e.preventDefault();
+        HubBridge.winQuit().catch(() => {});
         return;
       }
       if (e.code === "Escape") {
@@ -385,6 +508,7 @@ export const App: React.FC = () => {
   };
 
   const handleSaveMechMode = async (mode: MechanicalBgMode) => {
+    soundEngine.playClick();
     try {
       const updated = await HubBridge.saveSettings({ mechanical_bg_mode: mode });
       setState((prev) => (prev ? { ...prev, settings: updated } : prev));
@@ -393,7 +517,91 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleToggleSound = async () => {
+    const next = !soundEnabled;
+    soundEngine.setEnabled(next);
+    if (next) soundEngine.playClick();
+    try {
+      const updated = await HubBridge.saveSettings({ sound_enabled: next });
+      setState((prev) => (prev ? { ...prev, settings: updated } : prev));
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleClearCache = async () => {
+    soundEngine.playClick();
+    try {
+      const res = await HubBridge.clearCache();
+      showToast(t.cacheCleaned(res?.freed_mb ?? 0), "info");
+      HubBridge.telemetry().then(setTelemetry).catch(() => {});
+    } catch {
+      showToast(t.friendlyErr, "error");
+    }
+  };
+
+  const handleLaunchWorkspace = async (modeId: string, label: string) => {
+    soundEngine.playClick();
+    try {
+      const res = await HubBridge.launchWorkspace(modeId);
+      if (res.launched.length > 0) {
+        soundEngine.playChime();
+        showToast(t.wsLaunched(res.launched.length, label), "info");
+      } else {
+        showToast(t.wsNoneInstalled(label), "info");
+      }
+    } catch {
+      showToast(t.friendlyErr, "error");
+    }
+  };
+
+  const handleDropFile = async (item: CatalogItem, filePath: string) => {
+    setDragExt(null);
+    soundEngine.playChime();
+    try {
+      await HubBridge.openWith(item.id, filePath);
+      showToast(t.dropOpened(shortAppName(item.name)), "info");
+    } catch {
+      showToast(t.friendlyErr, "error");
+    }
+  };
+
+  const handlePauseTask = async (id: string) => {
+    await HubBridge.pauseTask(id).catch(() => {});
+    await reloadState(false);
+  };
+
+  const handleResumeTask = async (id: string) => {
+    await HubBridge.resumeTask(id).catch(() => {});
+    await reloadState(false);
+  };
+
+  const handleCancelTask = async (id: string) => {
+    await HubBridge.cancelTask(id).catch(() => {});
+    await reloadState(false);
+  };
+
+  const handleToggleAutoLaunch = async (id: string, enabled: boolean) => {
+    await HubBridge.setTaskAutoLaunch(id, enabled).catch(() => {});
+    await reloadState(false);
+  };
+
+  const handleForceCloseRetry = async (id: string) => {
+    await HubBridge.forceCloseAndRetry(id).catch(() => {});
+    await reloadState(false);
+  };
+
+  const getDropState = (item: CatalogItem): DropTargetState => {
+    if (!dragExt) return "idle";
+    const compat = EXT_COMPAT_MAP[dragExt];
+    if (!compat) return "idle";
+    return compat.includes(item.id) ? "match" : "dim";
+  };
+
   const activeTheaterTask = liveTasks[0] || terminalTask;
+  const activeTaskAccent = liveTasks[0]
+    ? APP_BLURBS[liveTasks[0].id]?.color || liveTasks[0].accent || "#1473E6"
+    : hoveredAccent;
   const hubTask = (state?.tasks || []).find((tk) => tk.id === "qassimz-hub");
   const viewTitle =
     view === "installed"
@@ -407,6 +615,13 @@ export const App: React.FC = () => {
       : t.allApps;
 
   const attentionCount = (state?.counts?.updates || 0) + (state?.hub_has_update ? 1 : 0);
+
+  const workspaces = [
+    { id: "editing", label: t.wsEditing, icon: <Film size={13} /> },
+    { id: "podcast", label: t.wsPodcast, icon: <Mic size={13} /> },
+    { id: "study", label: t.wsStudy, icon: <BookOpen size={13} /> },
+    { id: "design", label: t.wsDesign, icon: <Palette size={13} /> },
+  ];
 
   return (
     <>
@@ -425,7 +640,7 @@ export const App: React.FC = () => {
 
         <MechanicalEngineBg
           dark={dark}
-          accentColor={hoveredAccent}
+          accentColor={activeTaskAccent}
           mode={state?.settings?.mechanical_bg_mode || "balanced"}
           overdriveActive={liveTasks.length > 0}
         />
@@ -433,6 +648,7 @@ export const App: React.FC = () => {
         <Titlebar
           lang={lang}
           dark={dark}
+          soundEnabled={soundEnabled}
           query={query}
           isMaximized={isMaximized}
           liveTasks={liveTasks}
@@ -440,27 +656,40 @@ export const App: React.FC = () => {
           attentionCount={attentionCount}
           checking={checkingUpdates}
           onQueryChange={setQuery}
-          onOpenCommandPalette={() => setCmdOpen(true)}
+          onOpenCommandPalette={() => {
+            soundEngine.playWhoosh();
+            setCmdOpen(true);
+          }}
           onToggleSidebar={() => setSidebarExpanded((s) => !s)}
           onBrandHome={() => {
+            soundEngine.playClick();
             setView("all");
             setQuery("");
             setSelectedItem(null);
           }}
           onToggleTheme={(btn) => {
+            soundEngine.playClick();
             const next: ThemePref = dark ? "light" : "dark";
             switchThemeWithCircle(next, btn, (p) => {
               setThemePref(p);
               setDark(resolveDark(p));
             });
           }}
-          onToggleLang={() => setLang((l) => (l === "ar" ? "en" : "ar"))}
+          onToggleSound={handleToggleSound}
+          onToggleLang={() => {
+            soundEngine.playClick();
+            setLang((l) => (l === "ar" ? "en" : "ar"));
+          }}
           onOpenActivity={() => {
+            soundEngine.playClick();
             if (liveTasks.length > 0) setTheaterMinimized(false);
             else handleManualUpdateCheck();
           }}
           onOpenUpdateCenter={handleManualUpdateCheck}
-          onOpenSettings={() => setSettingsOpen(true)}
+          onOpenSettings={() => {
+            soundEngine.playClick();
+            setSettingsOpen(true);
+          }}
           onWinMin={() => HubBridge.winMinimize().catch(() => {})}
           onWinMax={handleWinMax}
           onWinClose={() => HubBridge.winClose().catch(() => {})}
@@ -472,11 +701,13 @@ export const App: React.FC = () => {
             view={view}
             expanded={sidebarExpanded}
             state={state}
+            telemetry={telemetry}
             hubTask={hubTask}
             ccUpdater={state?.cc_updater}
             checking={checkingUpdates}
             pillDismissed={pillDismissed}
             onSelectView={(v) => {
+              soundEngine.playClick();
               setView(v);
               setSidebarExpanded(false);
             }}
@@ -484,6 +715,7 @@ export const App: React.FC = () => {
             onOpenReleases={() => HubBridge.openUrl("https://github.com/ahmedqassimtv-commits/qassimz-hub/releases")}
             onStartTour={() => launchGuidedTour(lang).catch(() => {})}
             onFixCep={async () => {
+              soundEngine.playClick();
               try {
                 await HubBridge.fixCep();
                 await reloadState(true);
@@ -491,7 +723,7 @@ export const App: React.FC = () => {
                 showToast(t.friendlyErr, "error");
               }
             }}
-            onQuit={() => HubBridge.winQuit().catch(() => {})}
+            onClearCache={handleClearCache}
             onHubUpdateNow={() => handleInstall("qassimz-hub")}
             onApplyStaged={() => HubBridge.applyStagedUpdate().catch(() => {})}
             onDismissPill={() => setPillDismissed(true)}
@@ -499,10 +731,25 @@ export const App: React.FC = () => {
 
           <main id="page-scroll" className="flex-1 overflow-y-auto px-6 py-5 min-w-0">
             <div className="max-w-[1440px] mx-auto flex flex-col gap-5">
+              {/* Smart Drag & Drop Router Banner */}
+              <AnimatePresence>
+                {dragExt && (
+                  <m.div
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={SPRINGS.snappy}
+                    className="px-4 py-2.5 rounded-xl bg-[#1473E6]/15 border border-[#1473E6]/45 text-[12.5px] font-semibold text-[var(--color-text-primary)] flex items-center justify-center gap-2"
+                  >
+                    <span>{t.dropBanner(dragExt)}</span>
+                  </m.div>
+                )}
+              </AnimatePresence>
+
               {/* Section Toolbar */}
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex items-center gap-2.5">
-                  <h1 id="view-title" className="m-0 text-[21px] font-bold tracking-tight">
+                  <h1 id="view-title" className="m-0 text-[22px] font-bold tracking-tight">
                     {viewTitle}
                   </h1>
                   <span className="text-[12px] font-semibold px-2 py-0.5 rounded-full bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)] tabular-nums">
@@ -514,11 +761,12 @@ export const App: React.FC = () => {
                       whileTap={{ scale: 0.96 }}
                       transition={SPRINGS.snappy}
                       onClick={async () => {
+                        soundEngine.playClick();
                         setTheaterMinimized(false);
                         await HubBridge.updateAll().catch(() => showToast(t.friendlyErr, "error"));
                         await reloadState(false);
                       }}
-                      className="h-7 px-3 rounded-lg bg-[var(--color-action-bg)] text-white text-[12px] font-semibold cursor-pointer"
+                      className="h-7 px-3.5 rounded-full bg-[#1473E6] hover:bg-[#0D66D0] text-white text-[12px] font-semibold cursor-pointer"
                     >
                       {t.updateAll(state?.counts?.updates || 0)}
                     </m.button>
@@ -548,6 +796,7 @@ export const App: React.FC = () => {
                     <button
                       id="btn-view-grid"
                       onClick={() => {
+                        soundEngine.playClick();
                         setLayout("grid");
                         localStorage.setItem("qhub_layout", "grid");
                       }}
@@ -561,6 +810,7 @@ export const App: React.FC = () => {
                     <button
                       id="btn-view-list"
                       onClick={() => {
+                        soundEngine.playClick();
                         setLayout("list");
                         localStorage.setItem("qhub_layout", "list");
                       }}
@@ -575,45 +825,90 @@ export const App: React.FC = () => {
                 </div>
               </div>
 
-              {/* Apps Grid (Auto-Split Installed vs Available in Suite in All Apps) or TanStack Virtual List */}
+              {/* Creator OS: 1-Click Workspace Modes Bar */}
+              {view === "all" && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[11.5px] font-semibold text-[var(--color-text-muted)] me-1">
+                    {t.workspaceLabel}
+                  </span>
+                  {workspaces.map((ws) => (
+                    <m.button
+                      key={ws.id}
+                      data-workspace={ws.id}
+                      whileTap={{ scale: 0.96 }}
+                      transition={SPRINGS.snappy}
+                      onClick={() => handleLaunchWorkspace(ws.id, ws.label)}
+                      className="h-7 px-3 rounded-full bg-[var(--color-surface-hover)] hover:bg-[var(--color-surface-active)] border border-[var(--color-border-subtle)] text-[12px] font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                    >
+                      {ws.icon}
+                      <span>{ws.label}</span>
+                    </m.button>
+                  ))}
+                </div>
+              )}
+
+              {/* Adobe Creative Cloud Layout: Compact Horizontal Installed Rows + Clean Available Grid */}
               {layout === "grid" ? (
                 (() => {
                   const installedList = visibleItems.filter((it) => it.state?.installed);
                   const availableList = visibleItems.filter((it) => !it.state?.installed);
                   const shouldSplit = view === "all" && installedList.length > 0 && availableList.length > 0;
                   const gridCls = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4";
+
+                  const sharedCardHandlers = {
+                    lang,
+                    onSelect: setSelectedItem,
+                    onInstall: handleInstall,
+                    onLaunch: handleLaunch,
+                    onPauseTask: handlePauseTask,
+                    onResumeTask: handleResumeTask,
+                    onCancelTask: handleCancelTask,
+                    onForceCloseRetry: handleForceCloseRetry,
+                    onContextMenu: (it: CatalogItem, x: number, y: number) => setContextMenu({ item: it, x, y }),
+                    onHoverColor: (c: string | null) => setHoveredAccent(c || "#1473E6"),
+                    onDropFile: handleDropFile,
+                  };
+
                   const renderCard = (item: CatalogItem) => (
                     <AppCard
                       key={item.id}
                       item={item}
                       task={taskMap.get(item.id)}
-                      lang={lang}
-                      onSelect={setSelectedItem}
-                      onInstall={handleInstall}
-                      onLaunch={handleLaunch}
-                      onContextMenu={(it, x, y) => setContextMenu({ item: it, x, y })}
-                      onHoverColor={(c) => setHoveredAccent(c || "#3B63FB")}
+                      successGlow={successGlowId === item.id}
+                      dropState={getDropState(item)}
+                      {...sharedCardHandlers}
+                    />
+                  );
+
+                  const renderInstalledRow = (item: CatalogItem) => (
+                    <InstalledAppRow
+                      key={item.id}
+                      item={item}
+                      task={taskMap.get(item.id)}
+                      successGlow={successGlowId === item.id}
+                      dropState={getDropState(item)}
+                      {...sharedCardHandlers}
                     />
                   );
 
                   if (shouldSplit) {
                     return (
                       <div id="apps-grid" className="flex flex-col gap-6">
-                        <section className="flex flex-col gap-3">
+                        <section className="flex flex-col gap-2.5">
                           <div className="flex items-center gap-2">
-                            <h2 className="m-0 text-[13px] font-bold uppercase tracking-wider text-[var(--color-text-secondary)]">
+                            <h2 className="m-0 text-[13.5px] font-semibold tracking-tight text-[var(--color-text-primary)]">
                               {t.installed}
                             </h2>
-                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#10b981]/15 text-[#34d399] tabular-nums">
+                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)] tabular-nums">
                               {installedList.length}
                             </span>
                           </div>
-                          <div className={gridCls}>{installedList.map(renderCard)}</div>
+                          <div className="flex flex-col gap-2">{installedList.map(renderInstalledRow)}</div>
                         </section>
 
                         <section className="flex flex-col gap-3">
                           <div className="flex items-center gap-2">
-                            <h2 className="m-0 text-[13px] font-bold uppercase tracking-wider text-[var(--color-text-secondary)]">
+                            <h2 className="m-0 text-[13.5px] font-semibold tracking-tight text-[var(--color-text-primary)]">
                               {t.availableInSuite}
                             </h2>
                             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)] tabular-nums">
@@ -704,10 +999,11 @@ export const App: React.FC = () => {
         lang={lang}
         onMinimize={() => setTheaterMinimized(true)}
         onRestore={() => setTheaterMinimized(false)}
-        onCancel={async (id) => {
-          await HubBridge.cancelTask(id).catch(() => {});
-          await reloadState(false);
-        }}
+        onCancel={handleCancelTask}
+        onPause={handlePauseTask}
+        onResume={handleResumeTask}
+        onToggleAutoLaunch={handleToggleAutoLaunch}
+        onForceCloseRetry={handleForceCloseRetry}
         onRetry={(id) => {
           setTerminalTask(null);
           handleInstall(id);

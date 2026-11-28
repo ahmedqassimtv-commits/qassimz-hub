@@ -378,12 +378,17 @@ export const MechanicalEngineBg: React.FC<Props> = ({
 
       ctx.clearRect(0, 0, width, height);
 
+      // Subtle Studio Depth master alpha (3%–5% effective in Balanced, ~8% in Overdrive)
+      const masterOpacity = isOverdrive ? 0.42 : 0.20;
+      ctx.save();
+      ctx.globalAlpha = masterOpacity;
+
       // -----------------------------------------------------------------------
-      // LAYER 1: Engineering Precision Grid + Circuit/Timeline Data Pulses + Waveform
+      // LAYER 1: Subtle Engineering Grid + Corner Circuit Traces
       // -----------------------------------------------------------------------
-      const gridStep = 52;
-      const gOffX = -px * 8;
-      const gOffY = -py * 8;
+      const gridStep = 56;
+      const gOffX = -px * 6;
+      const gOffY = -py * 6;
       ctx.beginPath();
       for (let x = (gOffX % gridStep) - gridStep; x < width + gridStep; x += gridStep) {
         ctx.moveTo(x, 0);
@@ -394,24 +399,22 @@ export const MechanicalEngineBg: React.FC<Props> = ({
         ctx.lineTo(width, y);
       }
       ctx.lineWidth = 0.75;
-      ctx.strokeStyle = isDark ? "rgba(255, 255, 255, 0.032)" : "rgba(15, 23, 42, 0.042)";
+      ctx.strokeStyle = isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(15, 23, 42, 0.09)";
       ctx.stroke();
 
-      // Circuit / Timeline Traces & Moving Data Pulses
+      // Subtle Circuit Traces & Data Pulses
       const tSec = ts * 0.001;
       for (const trace of CIRCUIT_TRACES) {
-        const pts = trace.points.map(([nx, ny]) => [nx * width - px * 12, ny * height - py * 12] as [number, number]);
+        const pts = trace.points.map(([nx, ny]) => [nx * width - px * 10, ny * height - py * 10] as [number, number]);
         ctx.beginPath();
         pts.forEach(([x, y], idx) => (idx === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
         ctx.lineWidth = 1;
-        ctx.strokeStyle = isDark ? rgba(currentRgb, 0.14) : rgba(currentRgb, 0.16);
+        ctx.strokeStyle = isDark ? rgba(currentRgb, 0.16) : rgba(currentRgb, 0.18);
         ctx.stroke();
 
-        // Draw animated pulse dots along trace
-        const pulseCount = isOverdrive ? 3 : 1;
+        const pulseCount = isOverdrive ? 2 : 1;
         for (let p = 0; p < pulseCount; p++) {
-          const progress = (tSec * trace.speed * (isOverdrive ? 2.4 : 1) + trace.offset + p / pulseCount) % 1;
-          // Interpolate along polyline segments
+          const progress = (tSec * trace.speed * (isOverdrive ? 2.2 : 1) + trace.offset + p / pulseCount) % 1;
           let totalLen = 0;
           const segLens: number[] = [];
           for (let i = 1; i < pts.length; i++) {
@@ -431,70 +434,63 @@ export const MechanicalEngineBg: React.FC<Props> = ({
             }
             targetLen -= segLens[i];
           }
-          const glow = ctx.createRadialGradient(dotX, dotY, 0, dotX, dotY, isOverdrive ? 14 : 9);
-          glow.addColorStop(0, rgba(currentRgb, isDark ? 0.92 : 0.78));
+          const glow = ctx.createRadialGradient(dotX, dotY, 0, dotX, dotY, isOverdrive ? 12 : 8);
+          glow.addColorStop(0, rgba(currentRgb, isDark ? 0.75 : 0.65));
           glow.addColorStop(1, rgba(currentRgb, 0));
           ctx.fillStyle = glow;
           ctx.beginPath();
-          ctx.arc(dotX, dotY, isOverdrive ? 14 : 9, 0, Math.PI * 2);
+          ctx.arc(dotX, dotY, isOverdrive ? 12 : 8, 0, Math.PI * 2);
           ctx.fill();
         }
       }
 
-      // Live Studio Audio/Timeline Waveform along bottom edge
-      const waveY = height - 34;
-      const amp = (isOverdrive ? 14 : 7) + torqueBoost * 2.5;
+      // Live Studio Waveform along very bottom edge
+      const waveY = height - 22;
+      const amp = (isOverdrive ? 10 : 5) + torqueBoost * 1.6;
       ctx.beginPath();
-      for (let x = 0; x <= width; x += 12) {
+      for (let x = 0; x <= width; x += 14) {
         const y =
           waveY +
-          Math.sin(x * 0.012 + tSec * (isOverdrive ? 4.2 : 1.7)) * amp * 0.65 +
-          Math.cos(x * 0.029 - tSec * (isOverdrive ? 3.1 : 1.2)) * amp * 0.35;
+          Math.sin(x * 0.012 + tSec * (isOverdrive ? 4.0 : 1.5)) * amp * 0.65 +
+          Math.cos(x * 0.029 - tSec * (isOverdrive ? 2.8 : 1.1)) * amp * 0.35;
         if (x === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
       }
-      ctx.lineWidth = 1.25;
-      ctx.strokeStyle = rgba(currentRgb, isDark ? 0.24 : 0.22);
+      ctx.lineWidth = 1.1;
+      ctx.strokeStyle = rgba(currentRgb, isDark ? 0.25 : 0.22);
       ctx.stroke();
 
       // -----------------------------------------------------------------------
-      // LAYER 2: Interlocking Precision Gears + Studio Aperture Reticle Ring
+      // LAYER 2: Corner-Only Interlocking Gears (kept clear of center cards)
       // -----------------------------------------------------------------------
       for (const g of gears) {
-        const cx = g.ax * width + g.ox - px * 22 * g.depth;
-        const cy = g.ay * height + g.oy - py * 22 * g.depth;
+        const cx = g.ax * width + g.ox - px * 18 * g.depth;
+        const cy = g.ay * height + g.oy - py * 18 * g.depth;
         const dist = Math.hypot(smoothX - cx, smoothY - cy);
-        const proximity = Math.max(0, 1 - dist / 340);
+        const proximity = Math.max(0, 1 - dist / 320);
         const angle = masterAngle * g.ratio + g.phase;
         drawGear(ctx, cx, cy, g, angle, isDark, currentRgb, proximity);
       }
 
-      // Large Studio Timecode / Aperture Reticle Ring (center-right depth)
-      const retX = width * 0.56 - px * 16;
-      const retY = height * 0.48 - py * 16;
+      // Subtle corner calibration ring in bottom-right corner only
+      const retX = width * 0.94 - px * 12;
+      const retY = height * 0.90 - py * 12;
       const desiredAngle = Math.atan2(smoothY - retY, smoothX - retX);
       let diff = desiredAngle - reticlePointerAngle;
       while (diff > Math.PI) diff -= Math.PI * 2;
       while (diff < -Math.PI) diff += Math.PI * 2;
       reticlePointerAngle += diff * Math.min(1, dt * 6);
-      drawReticleRing(
-        ctx,
-        retX,
-        retY,
-        Math.min(width, height) * 0.31,
-        -masterAngle * 0.22,
-        reticlePointerAngle,
-        isDark,
-        currentRgb
-      );
+      drawReticleRing(ctx, retX, retY, 130, -masterAngle * 0.2, reticlePointerAngle, isDark, currentRgb);
+
+      ctx.restore();
 
       // -----------------------------------------------------------------------
-      // LAYER 3: Dynamic Mouse-Tracking Ambient Spotlight
+      // LAYER 3: Whisper-Soft Ambient Cursor Spotlight
       // -----------------------------------------------------------------------
-      const spotR = isOverdrive ? 360 : 280;
+      const spotR = isOverdrive ? 320 : 240;
       const spot = ctx.createRadialGradient(smoothX, smoothY, 0, smoothX, smoothY, spotR);
-      spot.addColorStop(0, rgba(currentRgb, isDark ? (isOverdrive ? 0.19 : 0.13) : 0.11));
-      spot.addColorStop(0.5, rgba(currentRgb, isDark ? 0.045 : 0.035));
+      spot.addColorStop(0, rgba(currentRgb, isDark ? (isOverdrive ? 0.11 : 0.055) : 0.045));
+      spot.addColorStop(0.55, rgba(currentRgb, isDark ? 0.02 : 0.015));
       spot.addColorStop(1, rgba(currentRgb, 0));
       ctx.fillStyle = spot;
       ctx.beginPath();

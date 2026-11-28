@@ -4,12 +4,13 @@ import {
   ArrowDownToLine,
   Bell,
   Check,
-  Command,
   Menu,
   Moon,
   Search,
   Settings,
   Sun,
+  Volume2,
+  VolumeX,
   X,
 } from "lucide-react";
 import { QassimzWordmark } from "./QassimzWordmark";
@@ -20,6 +21,7 @@ import { SPRINGS } from "../lib/motion";
 interface Props {
   lang: Lang;
   dark: boolean;
+  soundEnabled: boolean;
   query: string;
   isMaximized: boolean;
   liveTasks: HubTask[];
@@ -31,6 +33,7 @@ interface Props {
   onToggleSidebar: () => void;
   onBrandHome: () => void;
   onToggleTheme: (btn: HTMLElement | null) => void;
+  onToggleSound: () => void;
   onToggleLang: () => void;
   onOpenActivity: () => void;
   onOpenUpdateCenter: () => void;
@@ -43,6 +46,7 @@ interface Props {
 export const Titlebar: React.FC<Props> = ({
   lang,
   dark,
+  soundEnabled,
   query,
   isMaximized,
   liveTasks,
@@ -54,6 +58,7 @@ export const Titlebar: React.FC<Props> = ({
   onToggleSidebar,
   onBrandHome,
   onToggleTheme,
+  onToggleSound,
   onToggleLang,
   onOpenActivity,
   onOpenUpdateCenter,
@@ -199,6 +204,21 @@ export const Titlebar: React.FC<Props> = ({
                 {liveTasks.length}
               </span>
             )}
+          </m.button>
+
+          {/* Mechanical Sound Mute/Unmute Toggle */}
+          <m.button
+            id="btn-sound-toggle"
+            whileTap={{ scale: 0.94 }}
+            transition={SPRINGS.snappy}
+            onClick={onToggleSound}
+            title={soundEnabled ? t.soundOn : t.soundOff}
+            aria-label={soundEnabled ? t.soundOn : t.soundOff}
+            className={`w-8 h-8 rounded-lg inline-flex items-center justify-center hover:bg-[var(--color-surface-hover)] cursor-pointer transition-colors ${
+              soundEnabled ? "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]" : "text-[var(--color-text-muted)] opacity-60"
+            }`}
+          >
+            {soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
           </m.button>
 
           {/* Circular View Transition Theme Toggle */}

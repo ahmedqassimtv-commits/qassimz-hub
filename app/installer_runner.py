@@ -147,46 +147,138 @@ class TaskQueue:
         cache_dir: Path,
         on_finished: Callable[[str, dict[str, Any]], None] | None = None,
         on_self_update_ready: Callable[[Path], None] | None = None,
+        on_progress: Callable[[list[dict[str, Any]]], None] | None = None,
     ):
         self.cache_dir = cache_dir
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.on_finished = on_finished
         self.on_self_update_ready = on_self_update_ready
+        self.on_progress = on_progress
         self._lock = threading.Lock()
         self._install_lock = threading.Lock()
         self._tasks: dict[str, dict[str, Any]] = {}
+        self._items: dict[str, tuple[dict[str, Any], bool, bool]] = {}
         self._cancel_flags: set[str] = set()
+        self._pause_flags: set[str] = set()
+
+    def _emit_progress(self) -> None:
+        if callable(self.on_progress):
+            try:
+                self.on_progress(self.snapshot())
+            except Exception:
+                pass
 
     def snapshot(self) -> list[dict[str, Any]]:
         with self._lock:
             return [dict(v) for v in self._tasks.values()]
+
+    def active_filenames(self) -> set[str]:
+        with self._lock:
+            out: set[str] = set()
+            for t in self._tasks.values():
+                if t["status"] in ("queued", "checking", "downloading", "paused", "verifying", "installing"):
+                    fn = t.get("part_name") or ""
+                    if fn:
+                        out.add(fn)
+            return out
+
+    def pause(self, item_id: str) -> bool:
+        with self._lock:
+            t = self._tasks.get(item_id)
+            if not t or t["status"] not in ("queued", "checking", "downloading"):
+                return False
+            self._pause_flags.add(item_id)
+            t["status"] = "paused"
+            t["speed_bps"] = 0
+            t["eta_sec"] = 0
+            t["message_ar"] = "تم إيقاف التحميل مؤقتاً"
+        self._emit_progress()
+        return True
+
+    def resume(self, item_id: str) -> bool:
+        with self._lock:
+            t = self._tasks.get(item_id)
+            saved = self._items.get(item_id)
+            if not t or not saved or t["status"] not in ("paused", "app_running", "error"):
+                return False
+            self._pause_flags.discard(item_id)
+            self._cancel_flags.discard(item_id)
+            t["status"] = "queued"
+            t["stage"] = "checking"
+            t["error"] = ""
+            t["running_exe"] = ""
+            t["message_ar"] = "جارٍ استئناف التحميل..."
+            item, silent, self_update = saved
+        self._emit_progress()
+        threading.Thread(target=self._worker, args=(dict(item), silent, self_update), daemon=True).start()
+        return True
+
+    def set_auto_launch(self, item_id: str, enabled: bool) -> bool:
+        with self._lock:
+            t = self._tasks.get(item_id)
+            if not t:
+                return False
+            t["auto_launch"] = bool(enabled)
+        return True
+
+    def get_auto_launch(self, item_id: str) -> bool:
+        with self._lock:
+            t = self._tasks.get(item_id)
+            return bool(t and t.get("auto_launch"))
+
+    def force_close_and_retry(self, item_id: str) -> bool:
+        exe_name = ""
+        with self._lock:
+            t = self._tasks.get(item_id)
+            if not t:
+                return False
+            exe_name = str(t.get("running_exe") or "").strip()
+        if os.name == "nt" and exe_name:
+            try:
+                no_win = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+                subprocess.run(["taskkill", "/F", "/IM", exe_name], creationflags=no_win, timeout=8, check=False)
+                time.sleep(0.5)
+            except Exception:
+                pass
+        return self.resume(item_id)
 
     def cancel(self, item_id: str) -> bool:
         with self._lock:
             t = self._tasks.get(item_id)
             if not t:
                 return False
-            if t["status"] in ("queued", "downloading"):
+            if t["status"] in ("queued", "checking", "downloading", "paused", "app_running"):
                 self._cancel_flags.add(item_id)
+                self._pause_flags.discard(item_id)
                 t["status"] = "cancelled"
+                t["stage"] = "cancelled"
+                t["speed_bps"] = 0
+                t["eta_sec"] = 0
                 t["message_ar"] = "تم إلغاء التنزيل"
-                return True
-        return False
+                ok = True
+            else:
+                ok = False
+        if ok:
+            self._emit_progress()
+        return ok
 
     def clear_finished(self) -> bool:
         with self._lock:
             done_ids = [k for k, v in self._tasks.items() if v["status"] in ("completed", "error", "cancelled")]
             for k in done_ids:
                 self._tasks.pop(k, None)
+        self._emit_progress()
         return True
 
     def enqueue_install(self, item: dict[str, Any], silent: bool = True, self_update: bool = False) -> dict[str, Any]:
         item_id = item["id"]
         with self._lock:
             cur = self._tasks.get(item_id)
-            if cur and cur["status"] in ("queued", "downloading", "installing"):
+            if cur and cur["status"] in ("queued", "checking", "downloading", "verifying", "installing"):
                 return dict(cur)
             self._cancel_flags.discard(item_id)
+            self._pause_flags.discard(item_id)
+            self._items[item_id] = (dict(item), silent, self_update)
             task = {
                 "id": item_id,
                 "code": item.get("code", "Qh"),
@@ -195,7 +287,7 @@ class TaskQueue:
                 "accent": item.get("accent", "#38BDF8"),
                 "version": item.get("version", "1.0.0"),
                 "status": "queued",
-                "stage": "queued",
+                "stage": "checking",
                 "update_mode": "full",
                 "progress": 0,
                 "downloaded": 0,
@@ -210,12 +302,15 @@ class TaskQueue:
                 "delta_fallback_reason": "",
                 "silent": silent,
                 "self_update": self_update,
-                "message_ar": "في انتظار بدء التحميل...",
+                "auto_launch": False,
+                "running_exe": "",
+                "message_ar": "فحص المساحة والعمليات النشطة...",
                 "error": "",
                 "started_at": time.time(),
             }
             self._tasks[item_id] = task
 
+        self._emit_progress()
         threading.Thread(target=self._worker, args=(dict(item), silent, self_update), daemon=True).start()
         return dict(task)
 
@@ -223,6 +318,7 @@ class TaskQueue:
         with self._lock:
             if item_id in self._tasks:
                 self._tasks[item_id].update(fields)
+        self._emit_progress()
 
     def _candidate_urls(self, item: dict[str, Any]) -> list[str]:
         urls: list[str] = []
@@ -248,48 +344,63 @@ class TaskQueue:
         expected_size: int,
         expected_sha: str,
     ) -> bool:
-        """Download from candidate URLs with retry & fallback. Returns False if cancelled."""
+        """Download from candidate URLs with HTTP Range resume, pause & fallback. Returns False if cancelled/paused."""
         last_err: Exception | None = None
         for url in urls:
             for attempt in range(2):
                 if item_id in self._cancel_flags:
                     part.unlink(missing_ok=True)
-                    self._update(item_id, status="cancelled", message_ar="تم إلغاء التنزيل")
+                    self._update(item_id, status="cancelled", stage="cancelled", message_ar="تم إلغاء التنزيل")
+                    return False
+                if item_id in self._pause_flags:
                     return False
                 try:
+                    existing_bytes = part.stat().st_size if part.is_file() else 0
+                    headers = {"User-Agent": UA, "Accept": "*/*"}
+                    if existing_bytes > 0:
+                        headers["Range"] = f"bytes={existing_bytes}-"
                     self._update(
                         item_id,
                         status="downloading",
-                        progress=1,
-                        message_ar="جارٍ الاتصال بخادم التوزيع..." if attempt == 0 else "إعادة المحاولة للاتصال...",
+                        stage="downloading",
+                        part_name=part.name,
+                        progress=max(1, int(existing_bytes * 100 / expected_size)) if expected_size > 0 else 1,
+                        message_ar="جارٍ استئناف التحميل..." if existing_bytes > 0 else ("جارٍ الاتصال بخادم التوزيع..." if attempt == 0 else "إعادة المحاولة للاتصال..."),
                     )
-                    req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "*/*"})
+                    req = urllib.request.Request(url, headers=headers)
                     with urllib.request.urlopen(req, timeout=45, context=ssl_context()) as resp:
-                        total = int(resp.headers.get("Content-Length") or expected_size or 0)
-                        self._update(item_id, total=total, message_ar="جارٍ التحميل...")
-                        downloaded = 0
+                        status_code = getattr(resp, "status", 200)
+                        resumed = existing_bytes > 0 and status_code == 206
+                        clen = int(resp.headers.get("Content-Length") or 0)
+                        total = (existing_bytes + clen) if resumed and clen > 0 else (clen or expected_size or 0)
+                        downloaded = existing_bytes if resumed else 0
+                        mode = "ab" if resumed else "wb"
+                        self._update(item_id, total=total, downloaded=downloaded, message_ar="جارٍ التحميل...")
                         t0 = time.monotonic()
+                        session_bytes = 0
                         last_tick = t0
-                        hasher = hashlib.sha256()
 
-                        with open(part, "wb") as fh:
+                        with open(part, mode) as fh:
                             while True:
                                 if item_id in self._cancel_flags:
                                     part.unlink(missing_ok=True)
-                                    self._update(item_id, status="cancelled", message_ar="تم إلغاء التنزيل")
+                                    self._update(item_id, status="cancelled", stage="cancelled", message_ar="تم إلغاء التنزيل")
+                                    return False
+                                if item_id in self._pause_flags:
+                                    self._update(item_id, status="paused", speed_bps=0, eta_sec=0, message_ar="تم إيقاف التحميل مؤقتاً")
                                     return False
                                 chunk = resp.read(65536)
                                 if not chunk:
                                     break
                                 fh.write(chunk)
-                                hasher.update(chunk)
                                 downloaded += len(chunk)
+                                session_bytes += len(chunk)
 
                                 now = time.monotonic()
                                 if now - last_tick >= 0.16 or (total and downloaded >= total):
                                     elapsed = max(0.05, now - t0)
-                                    speed = int(downloaded / elapsed)
-                                    pct = min(98, int(downloaded * 100 / total)) if total > 0 else 50
+                                    speed = int(session_bytes / elapsed)
+                                    pct = min(96, int(downloaded * 100 / total)) if total > 0 else 50
                                     eta = int((total - downloaded) / speed) if (total > downloaded and speed > 0) else 0
                                     self._update(
                                         item_id,
@@ -303,19 +414,31 @@ class TaskQueue:
                         if downloaded <= 0:
                             part.unlink(missing_ok=True)
                             raise RuntimeError("تم تنزيل ملف فارغ من الخادم.")
-                        if expected_sha and hasher.hexdigest().lower() != expected_sha:
+
+                        # Stage 3: SHA-256 verification
+                        self._update(
+                            item_id,
+                            status="verifying",
+                            stage="verifying",
+                            progress=97,
+                            speed_bps=0,
+                            eta_sec=0,
+                            message_ar="جارٍ التحقق من سلامة الحزمة (SHA-256)...",
+                        )
+                        if expected_sha and self._sha256(part) != expected_sha:
                             part.unlink(missing_ok=True)
                             raise RuntimeError("فشل التحقق من سلامة الملف المحمّل (SHA-256 mismatch).")
                         return True
                 except urllib.error.HTTPError as e:
-                    part.unlink(missing_ok=True)
+                    if e.code == 416:
+                        part.unlink(missing_ok=True)
+                        continue
                     last_err = e
-                    # On 404/403 don't retry same URL, move to next fallback URL immediately
                     if e.code in (401, 403, 404):
+                        part.unlink(missing_ok=True)
                         break
                     time.sleep(0.8)
                 except Exception as e:
-                    part.unlink(missing_ok=True)
                     last_err = e
                     time.sleep(0.8)
 
@@ -465,10 +588,80 @@ class TaskQueue:
         )
         return False, reason
 
+    @staticmethod
+    def _detect_running_exe(item: dict[str, Any]) -> str:
+        """Return running exe filename on Windows if the target desktop app is open."""
+        if os.name != "nt" or item.get("category") == "adobe":
+            return ""
+        state = item.get("state") or {}
+        exe_path = str(state.get("exe_path") or "").strip()
+        exe_name = Path(exe_path).name if exe_path else ""
+        if not exe_name:
+            detect = item.get("detect") or {}
+            exe_names = detect.get("exe_names") or []
+            if exe_names:
+                exe_name = str(exe_names[0])
+        if not exe_name or exe_name.lower() == "qassimz hub.exe":
+            return ""
+        try:
+            no_win = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+            out = subprocess.check_output(
+                ["tasklist", "/FI", f"IMAGENAME eq {exe_name}", "/NH"],
+                creationflags=no_win,
+                text=True,
+                timeout=4,
+            )
+            if exe_name.lower() in out.lower():
+                return exe_name
+        except Exception:
+            pass
+        return ""
+
     def _worker(self, item: dict[str, Any], silent: bool, self_update: bool) -> None:
         item_id = item["id"]
+        expected_size = int(item.get("setup_size") or 0)
 
-        # 1. Try delta update first when eligible
+        # Stage 1: Checking disk space & running processes
+        self._update(
+            item_id,
+            status="checking",
+            stage="checking",
+            progress=2,
+            message_ar="فحص المساحة المتاحة والعمليات النشطة...",
+        )
+        try:
+            import shutil
+
+            free_bytes = shutil.disk_usage(self.cache_dir).free
+            needed = max(50 * 1024 * 1024, int(expected_size * 1.5))
+            if free_bytes < needed:
+                need_mb = round(needed / (1024 * 1024))
+                self._update(
+                    item_id,
+                    status="error",
+                    stage="error",
+                    error=f"المساحة المتاحة على القرص غير كافية (مطلوب {need_mb} MB على الأقل).",
+                    message_ar="مساحة القرص غير كافية",
+                )
+                return
+        except Exception:
+            pass
+
+        if not self_update:
+            running_exe = self._detect_running_exe(item)
+            if running_exe:
+                self._update(
+                    item_id,
+                    status="app_running",
+                    stage="checking",
+                    running_exe=running_exe,
+                    speed_bps=0,
+                    eta_sec=0,
+                    message_ar=f"البرنامج {running_exe} قيد التشغيل حالياً — أغلقه لمتابعة التحديث بأمان",
+                )
+                return
+
+        # 1b. Try delta update first when eligible
         handled, fallback_reason = self._try_delta_update(item, silent, self_update)
         if handled:
             return
@@ -483,7 +676,6 @@ class TaskQueue:
         dst = self.cache_dir / f"{item_id}-{version_tag}-{fname}"
         part = self.cache_dir / f"{dst.name}.part"
         expected_sha = (item.get("setup_sha256") or "").strip().lower()
-        expected_size = int(item.get("setup_size") or 0)
 
         try:
             if not fallback_reason:
@@ -492,6 +684,7 @@ class TaskQueue:
             if dst.is_file():
                 fsize = dst.stat().st_size
                 if fsize > 4096 and (not expected_size or fsize == expected_size):
+                    self._update(item_id, status="verifying", stage="verifying", progress=97, message_ar="جارٍ التحقق من الحزمة المخزنة...")
                     if not expected_sha or self._sha256(dst) == expected_sha:
                         need_download = False
                 else:
@@ -508,6 +701,7 @@ class TaskQueue:
                 self._update(
                     item_id,
                     status="installing",
+                    stage="installing",
                     progress=99,
                     speed_bps=0,
                     eta_sec=0,
@@ -515,13 +709,14 @@ class TaskQueue:
                 )
                 if self.on_self_update_ready:
                     self.on_self_update_ready(dst)
-                self._update(item_id, status="completed", progress=100, message_ar="جاهز لإعادة التشغيل بالتحديث الجديد")
+                self._update(item_id, status="completed", stage="completed", progress=100, message_ar="جاهز لإعادة التشغيل بالتحديث الجديد")
                 return
 
-            # Serialize Windows installer execution to prevent UAC / Inno Setup / NSIS collisions
+            # Stage 4: Serialize Windows installer execution to prevent UAC / Inno Setup / NSIS collisions
             self._update(
                 item_id,
                 status="installing",
+                stage="installing",
                 progress=98,
                 speed_bps=0,
                 eta_sec=0,
@@ -535,6 +730,7 @@ class TaskQueue:
                 self._update(
                     item_id,
                     status="installing",
+                    stage="installing",
                     progress=99,
                     message_ar="يرجى الموافقة على صلاحية المسؤول (UAC) لإتمام التثبيت..." if requires_admin else "جارٍ التثبيت الآن...",
                 )
@@ -543,11 +739,12 @@ class TaskQueue:
                     code = run_windows_installer(dst, args, requires_admin=requires_admin)
                     if code != 0:
                         raise RuntimeError(f"انتهى معالج التثبيت بكود خطأ ({code}).")
-                    self._update(item_id, status="completed", progress=100, message_ar="اكتمل التثبيت بنجاح ✓")
+                    self._update(item_id, status="completed", stage="completed", progress=100, message_ar="اكتمل التثبيت بنجاح ✓")
                 else:
                     self._update(
                         item_id,
                         status="completed",
+                        stage="completed",
                         progress=100,
                         message_ar=f"تم تنزيل الحزمة بنجاح إلى مجلد التخزين ({dst.name})",
                     )
@@ -556,7 +753,7 @@ class TaskQueue:
                 self.on_finished(item_id, item)
         except Exception as e:
             part.unlink(missing_ok=True)
-            self._update(item_id, status="error", error=str(e), message_ar=f"خطأ: {e}")
+            self._update(item_id, status="error", stage="error", error=str(e), message_ar=f"خطأ: {e}")
 
     @staticmethod
     def _sha256(p: Path) -> str:

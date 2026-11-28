@@ -28,13 +28,21 @@ from detector import (
 )
 from feature_flags import FeatureFlagStore
 from installer_runner import UA, TaskQueue, run_uninstall_command, ssl_context
+from taskbar_progress import (
+    TBPF_ERROR,
+    TBPF_INDETERMINATE,
+    TBPF_NORMAL,
+    TBPF_PAUSED,
+    TaskbarProgress,
+)
+from telemetry import TelemetryMonitor, clear_hub_cache
 from window_state import (
     WindowStateStore,
     enumerate_windows_monitors,
     validate_window_rect,
 )
 
-VERSION = "2.0.2"
+VERSION = "2.1.0"
 HUB_REPO = "ahmedqassimtv-commits/qassimz-hub"
 REMOTE_CATALOG_URL = f"https://raw.githubusercontent.com/{HUB_REPO}/main/catalog.json"
 STATE_CACHE_TTL = 3.0
@@ -64,6 +72,7 @@ class HubSettings:
         "auto_update_apps": False,
         "auto_update_hub": False,
         "mechanical_bg_mode": "balanced",
+        "sound_enabled": True,
     }
     ENUM_OPTIONS: dict[str, tuple[str, ...]] = {
         "mechanical_bg_mode": ("off", "balanced", "overdrive"),
@@ -157,10 +166,13 @@ class HubApi:
         self._catalog = self._load_initial_catalog()
         self._last_sync = 0.0
         self._sync_error = ""
+        self.taskbar = TaskbarProgress()
+        self.telemetry_monitor = TelemetryMonitor()
         self.queue = TaskQueue(
             self.cache_dir,
             on_finished=self._on_task_finished,
             on_self_update_ready=self._apply_hub_self_update,
+            on_progress=self._on_tasks_progress,
         )
         install_dir = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent.parent
         self.cc_updater = CreativeCloudUpdater(
@@ -170,6 +182,24 @@ class HubApi:
             on_hot_patched=self._on_hot_patched,
             on_before_exit=lambda: self._on_release_lock() if callable(self._on_release_lock) else None,
         )
+
+    def _on_tasks_progress(self, tasks: list[dict[str, Any]]) -> None:
+        active = [t for t in tasks if t["status"] in ("queued", "checking", "downloading", "verifying", "installing")]
+        paused = [t for t in tasks if t["status"] in ("paused", "app_running")]
+        errored = [t for t in tasks if t["status"] == "error"]
+        if active:
+            avg = int(sum(int(t.get("progress") or 0) for t in active) / len(active))
+            if any(t["status"] in ("checking", "verifying") for t in active) and avg < 5:
+                self.taskbar.set_progress(self.window, 0, 100, TBPF_INDETERMINATE)
+            else:
+                self.taskbar.set_progress(self.window, max(1, avg), 100, TBPF_NORMAL)
+        elif paused:
+            avg = int(sum(int(t.get("progress") or 0) for t in paused) / len(paused))
+            self.taskbar.set_progress(self.window, max(1, avg), 100, TBPF_PAUSED)
+        elif errored:
+            self.taskbar.set_progress(self.window, 100, 100, TBPF_ERROR)
+        else:
+            self.taskbar.clear(self.window)
 
     def _on_hot_patched(self, new_version: str) -> None:
         win = self.window
@@ -188,13 +218,19 @@ class HubApi:
             except Exception:
                 pass
 
-    def _on_task_finished(self, _item_id: str, item: dict[str, Any]) -> None:
+    def _on_task_finished(self, item_id: str, item: dict[str, Any]) -> None:
         if item.get("category") == "adobe":
             try:
                 enable_cep_player_debug_mode()
             except Exception:
                 pass
         self._invalidate_state_cache()
+        self.taskbar.flash_complete(self.window)
+        if self.queue.get_auto_launch(item_id) and item.get("category") != "adobe":
+            try:
+                self.launch(item_id)
+            except Exception:
+                pass
         self._notify_ui_sync()
 
     def _apply_hub_self_update(self, target_path: Path) -> None:
@@ -886,6 +922,72 @@ class HubApi:
                 pass
         self._notify_ui_sync()
         return {"queued_apps": queued_apps, "hub_queued": hub_queued}
+
+    # --- Creator OS: Telemetry, Cache Cleaner, Workspace Modes & Smart Drop Router ---
+
+    WORKSPACE_MODES: dict[str, tuple[str, ...]] = {
+        "editing": ("qassimz-studio", "qassimz-producer", "qassimz-organizer", "qassimz-music"),
+        "podcast": ("qassimz-producer", "qassimz-music", "qassimz-studio"),
+        "study": ("qassimz-study", "qassimz-music", "qdm"),
+        "design": ("qassimz-thumbs", "qassimz-organizer", "qassimz-producer"),
+    }
+
+    def telemetry(self) -> dict[str, Any]:
+        """Return live CPU %, RAM %, free disk GB & Hub cache size."""
+        return self.telemetry_monitor.snapshot(self.root)
+
+    def clear_cache(self) -> dict[str, Any]:
+        """Purge stale downloads & staging files while preserving active transfers."""
+        return clear_hub_cache(self.root, active_filenames=self.queue.active_filenames())
+
+    def launch_workspace(self, mode_id: str) -> dict[str, Any]:
+        """Launch all installed desktop apps associated with a Creator OS workspace mode."""
+        app_ids = self.WORKSPACE_MODES.get(str(mode_id).lower(), ())
+        if not app_ids:
+            return {"ok": False, "launched": [], "skipped": []}
+        st = self.state(force=False)
+        by_id = {it["id"]: it for it in (st.get("items") or [])}
+        launched: list[str] = []
+        skipped: list[str] = []
+        for aid in app_ids:
+            it = by_id.get(aid)
+            if it and it.get("state", {}).get("installed") and it.get("category") != "adobe":
+                try:
+                    self.launch(aid)
+                    launched.append(aid)
+                except Exception:
+                    skipped.append(aid)
+            else:
+                skipped.append(aid)
+        return {"ok": True, "mode": mode_id, "launched": launched, "skipped": skipped}
+
+    def open_with(self, item_id: str, file_path: str = "") -> dict[str, Any]:
+        """Open a dropped file with the selected installed desktop application."""
+        st = self.state(force=False)
+        item = next((it for it in (st.get("items") or []) if it["id"] == item_id), None)
+        if not item:
+            raise RuntimeError("البرنامج غير موجود.")
+        exe = (item.get("state") or {}).get("exe_path") or ""
+        if not exe:
+            # Fallback to normal launch if Adobe CEP or exe not resolved
+            return self.launch(item_id)
+        if os.name == "nt":
+            args = [exe, file_path] if file_path else [exe]
+            subprocess.Popen(args, cwd=str(Path(exe).parent))
+            return {"ok": True, "item_id": item_id, "file_path": file_path}
+        return {"ok": True, "item_id": item_id, "file_path": file_path, "simulated": True}
+
+    def pause_task(self, item_id: str) -> dict[str, Any]:
+        return {"ok": self.queue.pause(item_id)}
+
+    def resume_task(self, item_id: str) -> dict[str, Any]:
+        return {"ok": self.queue.resume(item_id)}
+
+    def set_task_auto_launch(self, item_id: str, enabled: bool = True) -> dict[str, Any]:
+        return {"ok": self.queue.set_auto_launch(item_id, bool(enabled)), "enabled": bool(enabled)}
+
+    def force_close_and_retry(self, item_id: str) -> dict[str, Any]:
+        return {"ok": self.queue.force_close_and_retry(item_id)}
 
 
 def make_handler(api: HubApi, token: str, ui_dir: Path):

@@ -67,8 +67,8 @@ export const SettingsModal: React.FC<Props> = ({
             style={{ boxShadow: "var(--shadow-elevated)" }}
             className="w-full max-w-[520px] max-h-[86vh] rounded-2xl overflow-hidden flex flex-col bg-[var(--color-surface-elevated)] border border-[var(--color-border-strong)]"
           >
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border-subtle)]">
-              <h2 className="m-0 text-[16px] font-bold">{t.settings}</h2>
+            <div className="shrink-0 flex items-center justify-between px-5 py-4 border-b border-[var(--color-border-subtle)]">
+              <h2 className="m-0 text-[16px] font-bold tracking-tight">{t.settings}</h2>
               <button
                 id="st-close"
                 onClick={onClose}
@@ -79,7 +79,7 @@ export const SettingsModal: React.FC<Props> = ({
               </button>
             </div>
 
-            <div className="p-5 overflow-y-auto flex flex-col gap-5">
+            <div className="p-5 overflow-y-auto max-h-[75vh] flex-1 flex flex-col gap-5">
               {/* Appearance & Language */}
               <div className="flex flex-col gap-2.5">
                 <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
@@ -181,7 +181,7 @@ export const SettingsModal: React.FC<Props> = ({
                             dir="ltr"
                             className={`pointer-events-none w-10 h-6 rounded-full p-0.5 flex items-center border transition-colors duration-200 ${
                               checked
-                                ? "bg-[#3b63fb] border-[#60a5fa]/60 justify-end"
+                                ? "bg-[#1473E6] border-[#378EF0]/60 justify-end"
                                 : "bg-black/25 dark:bg-white/10 border-[var(--color-border-strong)] justify-start"
                             }`}
                           >

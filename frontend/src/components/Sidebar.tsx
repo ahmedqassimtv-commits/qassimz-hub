@@ -3,14 +3,16 @@ import { m } from "motion/react";
 import {
   CheckCircle2,
   Compass,
+  Cpu,
   ExternalLink,
+  HardDrive,
   LayoutGrid,
-  LogOut,
   Monitor,
   Puzzle,
   RefreshCw,
+  Trash2,
 } from "lucide-react";
-import { CCUpdaterState, HubStatePayload, HubTask } from "../lib/api";
+import { CCUpdaterState, HubStatePayload, HubTask, TelemetryData } from "../lib/api";
 import { I18N, Lang } from "../lib/i18n";
 import { SPRINGS } from "../lib/motion";
 
@@ -21,6 +23,7 @@ interface Props {
   view: ViewKey;
   expanded: boolean;
   state: HubStatePayload | null;
+  telemetry: TelemetryData | null;
   hubTask?: HubTask;
   ccUpdater?: CCUpdaterState;
   checking: boolean;
@@ -30,7 +33,7 @@ interface Props {
   onOpenReleases: () => void;
   onStartTour: () => void;
   onFixCep: () => void;
-  onQuit: () => void;
+  onClearCache: () => void;
   onHubUpdateNow: () => void;
   onApplyStaged: () => void;
   onDismissPill: () => void;
@@ -41,6 +44,7 @@ export const Sidebar: React.FC<Props> = ({
   view,
   expanded,
   state,
+  telemetry,
   hubTask,
   ccUpdater,
   checking,
@@ -50,7 +54,7 @@ export const Sidebar: React.FC<Props> = ({
   onOpenReleases,
   onStartTour,
   onFixCep,
-  onQuit,
+  onClearCache,
   onHubUpdateNow,
   onApplyStaged,
   onDismissPill,
@@ -234,31 +238,76 @@ export const Sidebar: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Pinned Sidebar Footer */}
-      <div className="p-2.5 border-t border-[var(--color-border-subtle)] bg-black/10">
+      {/* Pinned Sidebar Footer: Mini Telemetry + QASSIMZ Identity Card (No Quit button) */}
+      <div className="p-2.5 border-t border-[var(--color-border-subtle)] flex flex-col gap-2">
         {renderUpdatePill()}
 
+        {/* Mini Hardware Telemetry Widget + Quick Cache Cleaner */}
+        {telemetry && (
+          <div className="sb-collapse-hide rounded-xl px-2.5 py-2 bg-[var(--color-surface-hover)]/70 border border-[var(--color-border-subtle)] flex flex-col gap-1.5">
+            <div className="flex items-center justify-between text-[10.5px] text-[var(--color-text-muted)] tabular-nums" dir="ltr">
+              <span className="inline-flex items-center gap-1">
+                <Cpu size={11} className="text-[#378EF0]" />
+                CPU {Math.round(telemetry.cpu_pct)}%
+              </span>
+              <span>RAM {Math.round(telemetry.ram_pct)}%</span>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              <div className="h-1 rounded-full bg-white/10 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-[#1473E6] transition-all duration-300"
+                  style={{ width: `${Math.min(100, Math.max(4, telemetry.cpu_pct))}%` }}
+                />
+              </div>
+              <div className="h-1 rounded-full bg-white/10 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-[#34d399] transition-all duration-300"
+                  style={{ width: `${Math.min(100, Math.max(4, telemetry.ram_pct))}%` }}
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between pt-0.5 text-[10.5px] text-[var(--color-text-muted)]">
+              <span className="inline-flex items-center gap-1 tabular-nums" dir="ltr">
+                <HardDrive size={11} />
+                {telemetry.disk_free_gb} GB
+              </span>
+              <button
+                id="btn-clear-cache"
+                onClick={onClearCache}
+                title={t.cleanCache}
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] cursor-pointer transition-colors"
+              >
+                <Trash2 size={10} />
+                <span>{t.cleanCache}</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* QASSIMZ Suite Identity Card */}
         <button
           id="btn-fix-cep"
           onClick={onFixCep}
-          className="w-full h-8 px-2.5 rounded-lg flex items-center gap-2 text-[12px] font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] cursor-pointer mb-2"
+          title={cepReady ? t.cepReady : t.cepEnable}
+          className="w-full px-2.5 py-2 rounded-xl bg-[var(--color-surface-hover)]/50 hover:bg-[var(--color-surface-hover)] border border-[var(--color-border-subtle)] flex items-center gap-2.5 cursor-pointer transition-colors text-start"
         >
-          <span className={`w-2 h-2 rounded-full shrink-0 ${cepReady ? "bg-[#34d399]" : "bg-[#fbbf24]"}`} />
-          <span className="sb-collapse-hide truncate">{cepReady ? t.cepReady : t.cepEnable}</span>
-        </button>
-
-        <div className="sb-collapse-hide flex items-center justify-between px-2 text-[11px] text-[var(--color-text-muted)] mb-2">
-          <span>{t.installedSummary(counts.installed, counts.total)}</span>
-          <span className="font-semibold">v{state?.hub_version || "1.6.3"}</span>
-        </div>
-
-        <button
-          id="btn-sidebar-quit"
-          onClick={onQuit}
-          className="w-full h-8 px-2.5 rounded-lg flex items-center justify-center gap-2 text-[12px] font-semibold text-[var(--color-text-secondary)] hover:text-[#f87171] hover:bg-red-500/10 border border-[var(--color-border-subtle)] cursor-pointer transition-colors"
-        >
-          <LogOut size={14} />
-          <span className="sb-collapse-hide">{t.quit}</span>
+          <img
+            src="./logo.svg"
+            alt="Qh"
+            width={22}
+            height={22}
+            className="w-[22px] h-[22px] rounded-[6px] shrink-0"
+          />
+          <div className="sb-collapse-hide min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 text-[11.5px] font-semibold text-[var(--color-text-primary)] truncate">
+              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cepReady ? "bg-[#34d399]" : "bg-[#fbbf24]"}`} />
+              <span className="truncate">{t.suiteReady}</span>
+            </div>
+            <div className="flex items-center justify-between text-[10.5px] text-[var(--color-text-muted)] mt-0.5" dir="ltr">
+              <span>v{state?.hub_version || "2.1.0"}</span>
+              <span>{t.installedSummary(counts.installed, counts.total)}</span>
+            </div>
+          </div>
         </button>
       </div>
     </aside>
