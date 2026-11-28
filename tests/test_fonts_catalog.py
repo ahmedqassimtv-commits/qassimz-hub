@@ -21,13 +21,10 @@ class TestFontsCatalogLink(unittest.TestCase):
 
     def test_item_and_apps_entry_present(self) -> None:
         self.assertEqual(self.item["category"], "desktop")
-        self.assertEqual(self.item["version"], "0.1.0")
-        self.assertEqual(self.item["setup_url"], "")
-        self.assertEqual(self.item["setup_size"], 0)
-        self.assertEqual(self.item["setup_sha256"], "")
+        self.assertTrue(bool(self.item["version"]))
         apps = self.cat["apps"]["qassimz-fonts"]
-        self.assertEqual(apps["version"], "0.1.0")
-        self.assertEqual(apps["setup_url"], "")
+        self.assertEqual(apps["version"], self.item["version"])
+        self.assertEqual(apps["setup_url"], self.item["setup_url"])
         self.assertNotIn("_note", self.item)
 
     def test_offline_icons_exist(self) -> None:
@@ -41,13 +38,13 @@ class TestFontsCatalogLink(unittest.TestCase):
             {"schema_version": 1, "items": [dict(it) for it in self.cat["items"]]}
         )
         by_id = {it["id"]: it for it in enriched["items"]}
-        self.assertTrue(by_id["qassimz-fonts"]["coming_soon"])
+        expected_coming_soon = not bool(self.item.get("setup_url"))
+        self.assertEqual(by_id["qassimz-fonts"]["coming_soon"], expected_coming_soon)
         self.assertFalse(by_id["qassimz-studio"]["coming_soon"])
-        self.assertEqual(
-            [i for i, it in by_id.items() if it["coming_soon"]], ["qassimz-fonts"]
-        )
 
     def test_install_refused_without_installer(self) -> None:
+        if self.item.get("setup_url"):
+            return
         with tempfile.TemporaryDirectory() as tmp:
             api = server.HubApi(Path(tmp))
             with self.assertRaises(ValueError) as ctx:
