@@ -25,7 +25,7 @@ from detector import (
 )
 from installer_runner import UA, TaskQueue, run_uninstall_command, ssl_context
 
-VERSION = "1.5.4"
+VERSION = "1.5.5"
 HUB_REPO = "ahmedqassimtv-commits/qassimz-hub"
 REMOTE_CATALOG_URL = f"https://raw.githubusercontent.com/{HUB_REPO}/main/catalog.json"
 STATE_CACHE_TTL = 3.0
@@ -292,6 +292,9 @@ class HubApi:
 
     def tasks(self) -> list[dict[str, Any]]:
         return self.queue.snapshot()
+
+    def clear_finished_tasks(self) -> dict[str, Any]:
+        return {"ok": self.queue.clear_finished()}
 
     def install(self, id: str, silent: bool | None = None) -> dict[str, Any]:
         item = self._get_item(id)

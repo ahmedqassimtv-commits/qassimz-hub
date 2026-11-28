@@ -814,15 +814,20 @@
     });
     $("#q-sort").value = UI.sort;
 
-    // Activity/Downloads button & Bell badge
+    // Activity/Downloads button & Bell badge (always accessible in header like Adobe CC)
     const live = activeTasks();
     const actBtn = $("#btn-activity");
-    if (live.length > 0) {
-      actBtn.hidden = false;
-      $("#activity-badge").textContent = String(live.length);
-    } else {
-      actBtn.hidden = true;
+    const actBadge = $("#activity-badge");
+    if (actBtn) actBtn.hidden = false;
+    if (actBadge) {
+      if (live.length > 0) {
+        actBadge.hidden = false;
+        actBadge.textContent = String(live.length);
+      } else {
+        actBadge.hidden = true;
+      }
     }
+    if (UI.activityOpen) renderActivityPopup();
 
     const attention = st.counts.updates + live.length + (st.hub_has_update ? 1 : 0);
     const bellBadge = $("#bell-badge");
@@ -861,6 +866,103 @@
     updateInstallTheater(live);
     renderUpdateAlertCard(st, live);
     if (UI.bellOpen) renderBellPopup();
+  }
+
+  // Adobe CC Top-Header Activity & Updates Dropdown Popover
+  function renderActivityPopup() {
+    const pop = $("#activity-popup");
+    if (!pop) return;
+    if (!UI.activityOpen || !UI.state) {
+      pop.hidden = true;
+      return;
+    }
+    pop.hidden = false;
+    const isAr = UI.lang === "ar";
+    const tasks = UI.state.tasks || [];
+    const title = isAr ? "متابعة التحديثات والتنزيلات" : "Updates & Downloads";
+    const openWinLbl = isAr ? "فتح في نافذة مستقلة" : "Open Window";
+    const clearLbl = isAr ? "مسح المكتمل" : "Clear Done";
+    const emptyLbl = isAr ? "لا توجد تحديثات أو تنزيلات جارية حالياً." : "No active updates or downloads right now.";
+
+    const live = activeTasks();
+    const hasDone = tasks.some((x) => ["completed", "error", "cancelled"].includes(x.status));
+
+    const itemsHTML = tasks.length
+      ? tasks
+          .map((tk) => {
+            const ico = tk.id === "qassimz-hub" ? "./logo.svg" : `./icons/${esc(tk.id)}.svg`;
+            const isBusy = ["queued", "downloading", "installing"].includes(tk.status);
+            const speed = tk.speed_bps > 0 ? `${humanBytes(tk.speed_bps)}/s` : "";
+            const sub = isBusy
+              ? [`${tk.progress}%`, speed].filter(Boolean).join(" · ")
+              : tk.status === "completed"
+              ? (isAr ? "اكتمل بنجاح ✓" : "Completed ✓")
+              : tk.status === "cancelled"
+              ? (isAr ? "تم الإلغاء" : "Cancelled")
+              : (tk.error || (isAr ? "فشل" : "Failed"));
+            return `
+              <div class="act-item">
+                <div class="act-row">
+                  <img class="act-ico" src="${ico}" alt="" />
+                  <div class="act-info">
+                    <div class="act-name">${esc(tk.name)} <span style="opacity:.65;font-weight:500;">v${esc(tk.version)}</span></div>
+                    <div class="act-sub">${esc(sub)}</div>
+                  </div>
+                  ${
+                    isBusy
+                      ? `<button class="cc-icon-btn sm" data-act-open="${esc(tk.id)}" title="${esc(openWinLbl)}">↗</button>
+                         <button class="cc-icon-btn sm" data-act-cancel="${esc(tk.id)}" title="${esc(tr().cancel)}">✕</button>`
+                      : ""
+                  }
+                </div>
+                ${isBusy ? `<div class="act-track"><div class="act-fill" style="width:${tk.progress}%"></div></div>` : ""}
+              </div>`;
+          })
+          .join("")
+      : `<div class="act-empty">${esc(emptyLbl)}</div>`;
+
+    pop.innerHTML = `
+      <div class="act-head">
+        <strong>${esc(title)}</strong>
+        <div style="display:flex;gap:6px;">
+          ${live.length ? `<button class="cc-link-btn" id="act-open-main">${esc(openWinLbl)}</button>` : ""}
+          ${hasDone ? `<button class="cc-link-btn" id="act-clear-done">${esc(clearLbl)}</button>` : ""}
+        </div>
+      </div>
+      <div class="act-list">${itemsHTML}</div>
+    `;
+
+    const openMain = $("#act-open-main", pop);
+    if (openMain) {
+      openMain.onclick = () => {
+        UI.activityOpen = false;
+        pop.hidden = true;
+        UI.theaterMinimized = false;
+        updateInstallTheater(activeTasks());
+      };
+    }
+    const clearBtn = $("#act-clear-done", pop);
+    if (clearBtn) {
+      clearBtn.onclick = async () => {
+        await api("clear_finished_tasks").catch(() => {});
+        await reloadState();
+      };
+    }
+    $$("[data-act-open]", pop).forEach((b) => {
+      b.onclick = () => {
+        UI.theaterTaskId = b.dataset.actOpen;
+        UI.activityOpen = false;
+        pop.hidden = true;
+        UI.theaterMinimized = false;
+        updateInstallTheater(activeTasks());
+      };
+    });
+    $$("[data-act-cancel]", pop).forEach((b) => {
+      b.onclick = async () => {
+        await api("cancel_task", { id: b.dataset.actCancel }).catch(() => {});
+        await reloadState();
+      };
+    });
   }
 
   // Animated Update Available Confirmation Card (Hub or Installed Apps)
@@ -1028,19 +1130,18 @@
     $("#th-app-ver").textContent = `v${cur.version}`;
     $("#th-status-msg").textContent = cur.message_ar || t.connecting;
 
-    // Delta / Fallback / Full mode badge
+    // Clean Adobe Creative Cloud mode badge (no raw internal error codes)
     const badgeEl = $("#th-delta-badge");
     if (badgeEl) {
       badgeEl.classList.remove("mode-delta", "mode-fallback");
       if (isDelta) {
         badgeEl.hidden = false;
         badgeEl.classList.add("mode-delta");
-        badgeEl.textContent = isAr ? "تحديث تفاضلي" : "Delta Update";
+        badgeEl.textContent = isAr ? "تحديث ذكي سريع" : "Smart Delta Update";
       } else if (isFallback) {
         badgeEl.hidden = false;
         badgeEl.classList.add("mode-fallback");
-        const reasonTag = cur.delta_fallback_reason ? ` (${cur.delta_fallback_reason})` : "";
-        badgeEl.textContent = isAr ? `تنزيل كامل تلقائي${reasonTag}` : `Full Fallback${reasonTag}`;
+        badgeEl.textContent = isAr ? "حزمة التثبيت الكاملة" : "Full Package";
       } else {
         badgeEl.hidden = true;
       }
@@ -1078,14 +1179,9 @@
       $("#th-fill").style.width = `${cur.progress}%`;
       $("#th-telemetry").textContent = tele;
       if (savedEl) {
-        const metaParts = [savedTxt, chunksTxt].filter(Boolean);
-        if (metaParts.length) {
+        if (savedTxt) {
           savedEl.hidden = false;
-          const fullTxt =
-            cur.delta_full_size > 0
-              ? (isAr ? `الحجم الكامل ${humanBytes(cur.delta_full_size)}` : `Full ${humanBytes(cur.delta_full_size)}`)
-              : "";
-          savedEl.textContent = [...metaParts, fullTxt].filter(Boolean).join(" · ");
+          savedEl.textContent = savedTxt;
         } else {
           savedEl.hidden = true;
         }
@@ -2016,11 +2112,21 @@
       render();
     };
 
-    // Activity button opens Install Theater
-    $("#btn-activity").onclick = () => {
-      UI.theaterMinimized = false;
-      updateInstallTheater(activeTasks());
+    // Activity button toggles Adobe CC top-header Updates & Downloads dropdown
+    $("#btn-activity").onclick = (e) => {
+      e.stopPropagation();
+      UI.activityOpen = !UI.activityOpen;
+      UI.bellOpen = false;
+      $("#bell-popup").hidden = true;
+      renderActivityPopup();
     };
+    document.addEventListener("click", (e) => {
+      const pop = $("#activity-popup");
+      if (UI.activityOpen && pop && !pop.contains(e.target) && !e.target.closest("#btn-activity")) {
+        UI.activityOpen = false;
+        pop.hidden = true;
+      }
+    });
 
     // Frameless Windows 11 Caption Controls (with smooth close & maximize/restore morph)
     $("#btn-win-min").onclick = () => api("win_minimize").catch(() => {});

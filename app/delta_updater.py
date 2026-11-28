@@ -16,6 +16,7 @@ Key guarantees:
 """
 from __future__ import annotations
 
+import concurrent.futures
 import dataclasses
 import datetime as _dt
 import hashlib
@@ -27,6 +28,7 @@ import shutil
 import ssl
 import sys
 import tempfile
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -40,11 +42,11 @@ try:
 except Exception:
     certifi = None
 
-UA = "QASSIMZ-Hub-Delta/1.4"
+UA = "QASSIMZ-Hub-Delta/1.5"
 VERSION_STAMP_NAME = ".qassimz-version.json"
 FORMAT_VERSION = 1
 DEFAULT_CHUNK_SIZE = 65536
-DEFAULT_MAX_GAP = 16384
+DEFAULT_MAX_GAP = 65536
 DEFAULT_MAX_BATCH_BYTES = 4 * 1024 * 1024  # 4 MiB
 _HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
 _WIN_DRIVE_RE = re.compile(r"^[A-Za-z]:")
@@ -719,69 +721,97 @@ class DeltaUpdater:
             delta_chunks_total=total_chunks,
         )
 
-        # 4. Download ONLY needed ranges and verify every blob SHA-256
+        # 4. Download ONLY needed ranges in parallel (up to 6 workers) and verify every blob SHA-256
         downloaded_blobs: dict[tuple[str, int | None], bytes] = {}
         downloaded_bytes_actual = 0
         chunks_done = 0
         t0 = time.monotonic()
+        prog_lock = threading.Lock()
+
+        def _on_net_chunk(n: int) -> None:
+            nonlocal downloaded_bytes_actual
+            with prog_lock:
+                downloaded_bytes_actual += n
+                dl_now = downloaded_bytes_actual
+                ch_now = chunks_done
+            elapsed = max(0.05, time.monotonic() - t0)
+            speed = int(dl_now / elapsed)
+            rem = max(0, total_dl_target - dl_now)
+            eta = int(rem / speed) if (rem > 0 and speed > 0) else 0
+            pct = 10 + int(min(1.0, dl_now / max(1, total_dl_target)) * 68)
+            emit(
+                "downloading",
+                progress=pct,
+                downloaded=dl_now,
+                total=total_dl_target,
+                speed_bps=speed,
+                eta_sec=eta,
+                delta_full_size=plan.full_package_bytes,
+                delta_saved_bytes=max(0, plan.full_package_bytes - dl_now),
+                delta_saved_pct=round(
+                    max(0.0, min(100.0, ((plan.full_package_bytes - dl_now) / max(1, plan.full_package_bytes)) * 100.0)),
+                    1,
+                ),
+                delta_chunks_done=ch_now,
+                delta_chunks_total=total_chunks,
+            )
+
+        def _process_batch(batch: CoalescedRange) -> list[tuple[tuple[str, int | None], bytes]]:
+            check_cancel()
+            batch_bytes = self._fetch_range_bytes(
+                qpkg_urls,
+                batch.start,
+                batch.end,
+                cancel_check=cancel_check,
+                on_chunk=_on_net_chunk,
+            )
+            verified: list[tuple[tuple[str, int | None], bytes]] = []
+            for ri in batch.items:
+                rel_off = ri.offset - batch.start
+                comp_blob = batch_bytes[rel_off : rel_off + ri.length]
+                raw_blob = _decompress(comp_blob, compression)
+                if len(raw_blob) != ri.raw_size:
+                    raise DeltaHashError(f"Decompressed size mismatch for {ri.path}#{ri.chunk_index}")
+                actual_sha = hashlib.sha256(raw_blob).hexdigest()
+                if actual_sha != ri.expected_sha256:
+                    raise DeltaHashError(f"SHA-256 mismatch for {ri.path}#{ri.chunk_index}")
+                verified.append(((ri.path, ri.chunk_index), raw_blob))
+            return verified
 
         try:
-            for batch in batches:
-                check_cancel()
-
-                def _on_net_chunk(n: int) -> None:
-                    nonlocal downloaded_bytes_actual
-                    downloaded_bytes_actual += n
-                    elapsed = max(0.05, time.monotonic() - t0)
-                    speed = int(downloaded_bytes_actual / elapsed)
-                    rem = max(0, total_dl_target - downloaded_bytes_actual)
-                    eta = int(rem / speed) if (rem > 0 and speed > 0) else 0
-                    pct = 10 + int(min(1.0, downloaded_bytes_actual / max(1, total_dl_target)) * 68)
+            if len(batches) <= 1:
+                for batch in batches:
+                    for key, raw_blob in _process_batch(batch):
+                        downloaded_blobs[key] = raw_blob
+                        chunks_done += 1
                     emit(
                         "downloading",
-                        progress=pct,
+                        progress=10 + int((chunks_done / max(1, total_chunks)) * 68),
                         downloaded=downloaded_bytes_actual,
                         total=total_dl_target,
-                        speed_bps=speed,
-                        eta_sec=eta,
-                        delta_full_size=plan.full_package_bytes,
-                        delta_saved_bytes=max(0, plan.full_package_bytes - downloaded_bytes_actual),
-                        delta_saved_pct=round(
-                            max(0.0, min(100.0, ((plan.full_package_bytes - downloaded_bytes_actual) / max(1, plan.full_package_bytes)) * 100.0)),
-                            1,
-                        ),
                         delta_chunks_done=chunks_done,
                         delta_chunks_total=total_chunks,
                     )
-
-                batch_bytes = self._fetch_range_bytes(
-                    qpkg_urls,
-                    batch.start,
-                    batch.end,
-                    cancel_check=cancel_check,
-                    on_chunk=_on_net_chunk,
-                )
-
-                for ri in batch.items:
-                    rel_off = ri.offset - batch.start
-                    comp_blob = batch_bytes[rel_off : rel_off + ri.length]
-                    raw_blob = _decompress(comp_blob, compression)
-                    if len(raw_blob) != ri.raw_size:
-                        raise DeltaHashError(f"Decompressed size mismatch for {ri.path}#{ri.chunk_index}")
-                    actual_sha = hashlib.sha256(raw_blob).hexdigest()
-                    if actual_sha != ri.expected_sha256:
-                        raise DeltaHashError(f"SHA-256 mismatch for {ri.path}#{ri.chunk_index}")
-                    downloaded_blobs[(ri.path, ri.chunk_index)] = raw_blob
-                    chunks_done += 1
-
-                emit(
-                    "downloading",
-                    progress=10 + int((chunks_done / max(1, total_chunks)) * 68),
-                    downloaded=downloaded_bytes_actual,
-                    total=total_dl_target,
-                    delta_chunks_done=chunks_done,
-                    delta_chunks_total=total_chunks,
-                )
+            else:
+                workers = min(6, len(batches))
+                with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
+                    futures = [pool.submit(_process_batch, b) for b in batches]
+                    for fut in concurrent.futures.as_completed(futures):
+                        res_list = fut.result()
+                        with prog_lock:
+                            for key, raw_blob in res_list:
+                                downloaded_blobs[key] = raw_blob
+                                chunks_done += 1
+                            ch_now = chunks_done
+                            dl_now = downloaded_bytes_actual
+                        emit(
+                            "downloading",
+                            progress=10 + int((ch_now / max(1, total_chunks)) * 68),
+                            downloaded=dl_now,
+                            total=total_dl_target,
+                            delta_chunks_done=ch_now,
+                            delta_chunks_total=total_chunks,
+                        )
         except DeltaCancelled:
             res.cancelled = True
             return res

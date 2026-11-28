@@ -7,14 +7,14 @@
     "code": "Qh",
     "name": "QASSIMZ Hub",
     "name_ar": "مركز قَاسِمز الرسمي",
-    "version": "1.5.4",
+    "version": "1.5.5",
     "accent": "#3B63FB",
-    "setup_filename": "QASSIMZ-Hub-Setup-1.5.4.exe",
-    "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.4/QASSIMZ-Hub-Setup-1.5.4.exe",
-    "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.4/QASSIMZ-Hub-Portable.zip",
-    "delta_manifest_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.4/manifest.json",
-    "delta_qpkg_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.4/qassimz-hub-v1.5.4.qpkg",
-    "release_notes_ar": "الإصدار 1.5.4: محرك التحديث التفاضلي الذكي (Delta Updates)، دقة HiDPI V2 للوجوهات، إصلاح تكبير الشاشة بدون ظهور تسجيل كرت الشاشة، صفحة مستقلة متحركة لكل تطبيق، قائمة ترتيب مخصصة، وتأثيرات حركة احترافية بألوان كل تطبيق."
+    "setup_filename": "QASSIMZ-Hub-Setup-1.5.5.exe",
+    "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.5/QASSIMZ-Hub-Setup-1.5.5.exe",
+    "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.5/QASSIMZ-Hub-Portable.zip",
+    "delta_manifest_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.5/manifest.json",
+    "delta_qpkg_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.5/qassimz-hub-v1.5.5.qpkg",
+    "release_notes_ar": "الإصدار 1.5.5: تسريع التحديث التفاضلي حتى 6 أضعاف (تنزيل متوازي + تبديل فوري في ثانية ونصف)، مركز متابعة التحديثات المنسدل في الشريط العلوي، وواجهة تثبيت نظيفة بأسلوب Adobe Creative Cloud."
   },
   "apps": {
     "qassimz-music": {

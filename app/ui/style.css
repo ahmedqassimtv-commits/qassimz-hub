@@ -3012,6 +3012,109 @@ img[src$=".svg"] {
 }
 
 /* ==========================================================================
+   Adobe Creative Cloud Top-Header Activity / Updates Dropdown
+   ========================================================================== */
+.activity-anchor {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.activity-popup {
+  position: absolute;
+  top: calc(100% + 10px);
+  inset-inline-end: 0;
+  width: 360px;
+  max-width: calc(100vw - 24px);
+  border-radius: 16px;
+  background: var(--bg-surface, #242424);
+  border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.14));
+  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.52), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  z-index: 260;
+  overflow: hidden;
+  transform-origin: top right;
+  animation: ccMenuPop 210ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+[dir="rtl"] .activity-popup {
+  transform-origin: top left;
+}
+.act-head {
+  padding: 13px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+}
+.act-head strong {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.act-list {
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.act-item {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--bg-elevated, #2B2B2B);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.07));
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.act-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.act-ico {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+.act-info {
+  flex: 1;
+  min-width: 0;
+}
+.act-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.act-sub {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.act-track {
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.10);
+  overflow: hidden;
+}
+.act-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent, #3B63FB);
+  transition: width 220ms ease;
+}
+.act-empty {
+  padding: 24px 16px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+/* ==========================================================================
    Reduced Motion Preference
    ========================================================================== */
 @media (prefers-reduced-motion: reduce) {
