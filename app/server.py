@@ -25,7 +25,7 @@ from detector import (
 )
 from installer_runner import UA, TaskQueue, run_uninstall_command, ssl_context
 
-VERSION = "1.5.8"
+VERSION = "1.5.9"
 HUB_REPO = "ahmedqassimtv-commits/qassimz-hub"
 REMOTE_CATALOG_URL = f"https://raw.githubusercontent.com/{HUB_REPO}/main/catalog.json"
 STATE_CACHE_TTL = 3.0
@@ -549,6 +549,16 @@ class HubApi:
         return False
 
     def win_minimize(self) -> dict[str, Any]:
+        if os.name == "nt":
+            hwnd = getattr(self, "_hwnd", None)
+            if hwnd:
+                try:
+                    import ctypes
+                    SW_MINIMIZE = 6
+                    ctypes.windll.user32.ShowWindow(int(hwnd), SW_MINIMIZE)
+                    return {"ok": True}
+                except Exception:
+                    pass
         if self.window is not None:
             try:
                 self.window.minimize()

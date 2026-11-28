@@ -108,6 +108,8 @@
     query: "",
     selectedId: null,
     settingsOpen: false,
+    updateCenterOpen: false,
+    updateCenterPhase: "idle", // idle | checking | uptodate | available | downloading | error
     bellOpen: false,
     sidebarExpanded: false,
     isMaximized: false,
@@ -860,6 +862,169 @@
     updateInstallTheater(live);
     renderUpdateAlertCard(st, live);
     if (UI.bellOpen) renderBellPopup();
+    if (UI.updateCenterOpen) renderUpdateCenter();
+  }
+
+  // Interactive Modern Update Center Modal (replaces dry technical GitHub toast)
+  function closeUpdateCenter() {
+    UI.updateCenterOpen = false;
+    const bd = $("#update-center-backdrop");
+    if (bd) bd.hidden = true;
+  }
+
+  function renderUpdateCenter() {
+    const bd = $("#update-center-backdrop");
+    const modal = $("#update-center-modal");
+    if (!bd || !modal) return;
+    if (!UI.updateCenterOpen) {
+      bd.hidden = true;
+      return;
+    }
+    bd.hidden = false;
+
+    const isAr = UI.lang === "ar";
+    const st = UI.state || {};
+    const live = activeTasks();
+    const updApps = (st.items || []).filter((x) => x.state?.has_update);
+    const hasHubUpd = Boolean(st.hub_has_update);
+    const curVer = st.hub_version || "1.5.9";
+    const remoteVer = st.hub_remote_version || curVer;
+
+    let phase = UI.updateCenterPhase;
+    if (phase !== "checking" && phase !== "error") {
+      if (live.length > 0) phase = "downloading";
+      else if (hasHubUpd || updApps.length > 0) phase = "available";
+      else phase = "uptodate";
+    }
+
+    const headTitle = isAr ? "مركز التحديثات" : "Update Center";
+    const closeLbl = isAr ? "إغلاق" : "Close";
+    let bodyHTML = "";
+    let footHTML = `<button class="cc-btn secondary" id="btn-uc-close">${esc(closeLbl)}</button>`;
+
+    if (phase === "checking") {
+      bodyHTML = `
+        <div class="uc-icon-stage"><div class="uc-spinner-ring"></div></div>
+        <h3 class="uc-title" id="uc-title">${isAr ? "جارٍ فحص التحديثات…" : "Checking for updates…"}</h3>
+        <p class="uc-desc">${isAr ? "نبحث الآن عن أحدث إصدار لـ QASSIMZ Hub وبرامج الحزمة المثبّتة." : "Looking for the latest QASSIMZ Hub and suite releases."}</p>
+        <div class="uc-progress-wrap">
+          <div class="uc-progress-track"><div class="uc-progress-indet"></div></div>
+        </div>`;
+    } else if (phase === "error") {
+      bodyHTML = `
+        <div class="uc-icon-stage err">
+          <svg class="uc-check-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </div>
+        <h3 class="uc-title" id="uc-title">${isAr ? "تعذّر الوصول لخادم التحديثات" : "Couldn't reach update server"}</h3>
+        <p class="uc-desc">${isAr ? "تحقّق من اتصالك بالإنترنت وحاول مرة أخرى خلال لحظات." : "Please check your internet connection and try again in a moment."}</p>`;
+      footHTML = `
+        <button class="cc-btn secondary" id="btn-uc-close">${esc(closeLbl)}</button>
+        <button class="cc-btn accent" id="btn-uc-retry">${isAr ? "إعادة المحاولة" : "Try Again"}</button>`;
+    } else if (phase === "downloading") {
+      const tk = live[0];
+      const pct = Math.max(0, Math.min(100, Number(tk.progress || 0)));
+      const speed = tk.speed_bps > 0 ? `${humanBytes(tk.speed_bps)}/s` : "";
+      bodyHTML = `
+        <div class="uc-icon-stage"><div class="uc-spinner-ring"></div></div>
+        <h3 class="uc-title" id="uc-title">${isAr ? `جارٍ تحديث ${esc(tk.name)}` : `Updating ${esc(tk.name)}`}</h3>
+        <p class="uc-desc">${isAr ? "يتم تنزيل الأجزاء المتغيرة فقط بأقصى سرعة وأمان." : "Downloading only changed files via Smart Delta."}</p>
+        <div class="uc-progress-wrap">
+          <div class="uc-progress-meta"><span>${esc(speed || (isAr ? "جارٍ التجهيز…" : "Preparing…"))}</span><strong>${pct}%</strong></div>
+          <div class="uc-progress-track"><div class="uc-progress-fill" style="transform:scaleX(${(pct / 100).toFixed(3)})"></div></div>
+        </div>`;
+      footHTML = `
+        <button class="cc-btn secondary" id="btn-uc-close">${isAr ? "متابعة في الخلفية" : "Run in Background"}</button>`;
+    } else if (phase === "available") {
+      const notes = hasHubUpd
+        ? (st.hub_release_notes || (isAr ? "تحسينات جديدة في الأداء والاستقرار والواجهة مع إعادة تشغيل تلقائية." : "New performance, stability, and UI improvements with automatic restart."))
+        : updApps.map((a) => `• ${a.name} → v${a.version}`).join("<br>");
+      bodyHTML = `
+        <div class="uc-icon-stage">
+          <img src="./logo.svg" alt="QASSIMZ" width="34" height="34" style="border-radius:8px;" />
+        </div>
+        <h3 class="uc-title" id="uc-title">${hasHubUpd
+          ? (isAr ? `يتوفر تحديث جديد QASSIMZ Hub v${esc(remoteVer)}` : `QASSIMZ Hub v${esc(remoteVer)} is Ready`)
+          : (isAr ? `يتوفر تحديث لـ ${updApps.length} برامج` : `${updApps.length} App Updates Ready`)}</h3>
+        <span class="uc-ver-pill">v${esc(curVer)} → v${esc(hasHubUpd ? remoteVer : updApps[0].version)}</span>
+        <div class="uc-notes-box">${notes}</div>`;
+      footHTML = `
+        <button class="cc-btn secondary" id="btn-uc-close">${isAr ? "لاحقاً" : "Later"}</button>
+        <button class="cc-btn accent" id="btn-uc-install">${isAr ? "تحديث الآن" : "Update Now"}</button>`;
+    } else {
+      bodyHTML = `
+        <div class="uc-icon-stage ok">
+          <svg class="uc-check-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <polyline class="uc-check-path" points="4.5 12.8 9.5 17.8 19.5 6.8"/>
+          </svg>
+        </div>
+        <h3 class="uc-title" id="uc-title">${isAr ? "لديك أحدث نسخة من QASSIMZ Hub" : "You're Up to Date"}</h3>
+        <span class="uc-ver-pill">QASSIMZ Hub v${esc(curVer)}</span>
+        <p class="uc-desc">${isAr ? "جميع برامج الحزمة المثبّتة تعمل بأحدث إصدار مستقر." : "QASSIMZ Hub and all installed suite apps are running the latest version."}</p>`;
+    }
+
+    modal.innerHTML = `
+      <div class="uc-head">
+        <div class="uc-head-brand">
+          <img src="./logo.svg" alt="" />
+          <span>${esc(headTitle)}</span>
+        </div>
+        <button class="cc-icon-btn sm" id="btn-uc-x" aria-label="${esc(closeLbl)}">✕</button>
+      </div>
+      <div class="uc-body">${bodyHTML}</div>
+      <div class="uc-foot">${footHTML}</div>
+    `;
+
+    const closeBtn = $("#btn-uc-close", modal);
+    const xBtn = $("#btn-uc-x", modal);
+    if (closeBtn) closeBtn.onclick = closeUpdateCenter;
+    if (xBtn) xBtn.onclick = closeUpdateCenter;
+
+    const retryBtn = $("#btn-uc-retry", modal);
+    if (retryBtn) retryBtn.onclick = () => openUpdateCenterAndCheck();
+
+    const instBtn = $("#btn-uc-install", modal);
+    if (instBtn) {
+      instBtn.onclick = async () => {
+        UI.updateCenterPhase = "downloading";
+        renderUpdateCenter();
+        if (hasHubUpd) {
+          closeUpdateCenter();
+          await triggerHubSelfUpdate();
+        } else {
+          try {
+            await api("update_all");
+            await reloadState();
+          } catch (_) {
+            UI.updateCenterPhase = "error";
+            renderUpdateCenter();
+          }
+        }
+      };
+    }
+  }
+
+  async function openUpdateCenterAndCheck() {
+    const btn = $("#btn-refresh");
+    const brandBtn = $("#btn-replay-logo");
+    if (btn) btn.classList.add("spinning");
+    if (brandBtn) brandBtn.classList.add("is-checking");
+    UI.updateCenterOpen = true;
+    UI.updateCenterPhase = "checking";
+    renderUpdateCenter();
+    try {
+      UI.state = await api("refresh_catalog");
+      UI.updateCenterPhase = "idle";
+      render();
+      renderUpdateCenter();
+    } catch (_) {
+      UI.updateCenterPhase = "error";
+      renderUpdateCenter();
+    } finally {
+      if (btn) btn.classList.remove("spinning");
+      if (brandBtn) brandBtn.classList.remove("is-checking");
+    }
   }
 
   // Adobe CC Top-Header Activity & Updates Dropdown Popover
@@ -2180,6 +2345,12 @@
         UI.sidebarExpanded = false;
         $("#app-sidebar").classList.remove("expanded");
         render();
+        const grid = $("#apps-grid");
+        if (grid) {
+          grid.classList.remove("view-enter");
+          void grid.offsetWidth;
+          grid.classList.add("view-enter");
+        }
       };
     });
 
@@ -2247,19 +2418,7 @@
       render();
     };
 
-    $("#btn-refresh").onclick = async () => {
-      const btn = $("#btn-refresh");
-      btn.classList.add("spinning");
-      try {
-        UI.state = await api("refresh_catalog");
-        render();
-        toast(tr().toastCatalogSynced);
-      } catch (e) {
-        toast(e.message, "error");
-      } finally {
-        btn.classList.remove("spinning");
-      }
-    };
+    $("#btn-refresh").onclick = () => openUpdateCenterAndCheck();
 
     $("#btn-update-all").onclick = async () => {
       try {
@@ -2350,6 +2509,12 @@
         renderSettingsSheet();
       }
     };
+    const ucBackdrop = $("#update-center-backdrop");
+    if (ucBackdrop) {
+      ucBackdrop.onclick = (e) => {
+        if (e.target.id === "update-center-backdrop") closeUpdateCenter();
+      };
+    }
 
     document.addEventListener("click", (e) => {
       if (!e.target.closest("#card-more-menu") && !e.target.closest('[data-act="menu"]')) {
@@ -2369,6 +2534,7 @@
     window.addEventListener("keydown", (e) => {
       if (e.code === "Escape") {
         $("#card-more-menu").hidden = true;
+        if (UI.updateCenterOpen) { closeUpdateCenter(); return; }
         if (UI.bellOpen) { UI.bellOpen = false; $("#bell-popup").hidden = true; return; }
         if (UI.settingsOpen) { UI.settingsOpen = false; renderSettingsSheet(); return; }
         if (UI.selectedId) { UI.selectedId = null; renderDetailsSheet(); return; }

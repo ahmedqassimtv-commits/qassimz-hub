@@ -208,7 +208,57 @@ def main() -> None:
 
     api._on_release_lock = _release_lock
 
+    def _enable_win11_frameless_animations() -> None:
+        """Restore native Windows 11 DWM minimize/maximize/restore transitions & rounded corners on frameless HWND."""
+        if os.name != "nt":
+            return
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            user32 = ctypes.windll.user32
+            dwmapi = ctypes.windll.dwmapi
+            hwnd = user32.FindWindowW(None, "QASSIMZ Hub — مركز قَاسِمز الرسمي")
+            if not hwnd:
+                hwnd = user32.GetForegroundWindow()
+            if not hwnd:
+                return
+            api._hwnd = int(hwnd)
+
+            GWL_STYLE = -16
+            WS_MINIMIZEBOX = 0x00020000
+            WS_MAXIMIZEBOX = 0x00010000
+            WS_SYSMENU = 0x00080000
+            style = user32.GetWindowLongW(hwnd, GWL_STYLE)
+            new_style = style | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU
+            if new_style != style:
+                user32.SetWindowLongW(hwnd, GWL_STYLE, new_style)
+
+            # Enable native DWM transitions (DWMWA_TRANSITIONS_FORCEDISABLED = 3 -> 0)
+            # and Windows 11 native rounded corners (DWMWA_WINDOW_CORNER_PREFERENCE = 33 -> DWMWCP_ROUND = 2)
+            disable_transitions = ctypes.c_int(0)
+            dwmapi.DwmSetWindowAttribute(hwnd, 3, ctypes.byref(disable_transitions), ctypes.sizeof(disable_transitions))
+            corner_pref = ctypes.c_int(2)
+            dwmapi.DwmSetWindowAttribute(hwnd, 33, ctypes.byref(corner_pref), ctypes.sizeof(corner_pref))
+
+            class MARGINS(ctypes.Structure):
+                _fields_ = [("cxLeftWidth", ctypes.c_int), ("cxRightWidth", ctypes.c_int),
+                            ("cyTopHeight", ctypes.c_int), ("cyBottomHeight", ctypes.c_int)]
+
+            margins = MARGINS(0, 0, 0, 1)
+            dwmapi.DwmExtendFrameIntoClientArea(hwnd, ctypes.byref(margins))
+
+            SWP_FRAMECHANGED = 0x0020
+            SWP_NOMOVE = 0x0002
+            SWP_NOSIZE = 0x0001
+            SWP_NOZORDER = 0x0004
+            SWP_NOACTIVATE = 0x0010
+            user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE)
+        except Exception:
+            pass
+
     def on_loaded():
+        _enable_win11_frameless_animations()
         try:
             win.evaluate_js("window.focus(); document.body && document.body.focus();")
         except Exception:

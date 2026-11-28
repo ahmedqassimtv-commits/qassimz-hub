@@ -1,21 +1,20 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-11-28T00:51:47Z",
+  "updated_at": "2026-11-27T17:05:00Z",
   "hub_repo": "ahmedqassimtv-commits/qassimz-hub",
   "hub": {
     "id": "qassimz-hub",
     "code": "Qh",
     "name": "QASSIMZ Hub",
     "name_ar": "مركز قَاسِمز الرسمي",
-    "version": "1.5.8",
+    "version": "1.5.9",
     "accent": "#3B63FB",
-    "setup_filename": "QASSIMZ-Hub-Setup-1.5.8.exe",
-    "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.8/QASSIMZ-Hub-Setup-1.5.8.exe",
-    "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.8/QASSIMZ-Hub-Portable.zip",
-    "delta_manifest_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.8/manifest.json",
-    "delta_qpkg_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.8/qassimz-hub-v1.5.8.qpkg",
-    "release_notes_ar": "الإصدار 1.5.8: إزالة شريط التحديث القديم المكرر والإبقاء على بطاقة التحديث المتحركة الجديدة فقط، وإصلاح آلية التحديث الذاتي بـ robocopy وإعادة التشغيل التلقائي المضمونة.",
-    "delta_qpkg_size": 24389775
+    "setup_filename": "QASSIMZ-Hub-Setup-1.5.9.exe",
+    "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.9/QASSIMZ-Hub-Setup-1.5.9.exe",
+    "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.9/QASSIMZ-Hub-Portable.zip",
+    "delta_manifest_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.9/manifest.json",
+    "delta_qpkg_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.9/qassimz-hub-v1.5.9.qpkg",
+    "release_notes_ar": "الإصدار 1.5.9: شعار Qh + قَاسِـمز مدمج بتدرج لوني متحرك ونبض ناعم، مركز تحديثات تفاعلي عصري بدلاً من التنبيه النصي، خلفيات Dark Mesh بإضاءة محيطية، وحركات 60 FPS فائقة النعومة."
   },
   "apps": {
     "qassimz-music": {
