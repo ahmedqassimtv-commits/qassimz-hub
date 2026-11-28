@@ -25,7 +25,7 @@ from detector import (
 )
 from installer_runner import UA, TaskQueue, run_uninstall_command, ssl_context
 
-VERSION = "1.5.7"
+VERSION = "1.5.8"
 HUB_REPO = "ahmedqassimtv-commits/qassimz-hub"
 REMOTE_CATALOG_URL = f"https://raw.githubusercontent.com/{HUB_REPO}/main/catalog.json"
 STATE_CACHE_TTL = 3.0
@@ -160,39 +160,90 @@ class HubApi:
                 rel()
             except Exception:
                 pass
+
+        # Use CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP (never combine CREATE_NO_WINDOW with DETACHED_PROCESS).
+        no_win_flags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200)
+
         if target_path.is_dir():
-            # Unicode-safe PowerShell Delta swapper (handles Arabic user paths, spaces, and DLL locks)
+            # Unicode-safe PowerShell + robocopy Delta swapper (avoids PS 5.1 Copy-Item -Recurse nesting bug,
+            # retries locked WebView2/Python DLLs, and guarantees relaunch of QASSIMZ Hub.exe).
             install_dir = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent.parent
             exe_path = Path(sys.executable) if getattr(sys, "frozen", False) else (install_dir / "QASSIMZ Hub.exe")
             ps1_path = self.cache_dir / f"qhub_delta_swap_{os.getpid()}.ps1"
+            log_path = self.cache_dir / "last_self_update.log"
+            src_esc = str(target_path).replace("'", "''")
+            dst_esc = str(install_dir).replace("'", "''")
+            exe_esc = str(exe_path).replace("'", "''")
+            log_esc = str(log_path).replace("'", "''")
             ps1_body = (
                 f"$pidToWait = {os.getpid()}\r\n"
-                f"$src = '{str(target_path).replace(chr(39), chr(39)*2)}'\r\n"
-                f"$dst = '{str(install_dir).replace(chr(39), chr(39)*2)}'\r\n"
-                f"$exe = '{str(exe_path).replace(chr(39), chr(39)*2)}'\r\n"
-                "for ($i = 0; $i -lt 30; $i++) {\r\n"
+                f"$src = '{src_esc}'\r\n"
+                f"$dst = '{dst_esc}'\r\n"
+                f"$exe = '{exe_esc}'\r\n"
+                f"$log = '{log_esc}'\r\n"
+                "function Write-Log($m) { try { Add-Content -Path $log -Value \"$(Get-Date -Format o) $m\" -Encoding UTF8 } catch {} }\r\n"
+                "Write-Log \"Start swap pid=$pidToWait src=$src dst=$dst exe=$exe\"\r\n"
+                "for ($i = 0; $i -lt 28; $i++) {\r\n"
                 "  if (-not (Get-Process -Id $pidToWait -ErrorAction SilentlyContinue)) { break }\r\n"
                 "  Start-Sleep -Milliseconds 250\r\n"
                 "}\r\n"
+                "if (Get-Process -Id $pidToWait -ErrorAction SilentlyContinue) {\r\n"
+                "  Stop-Process -Id $pidToWait -Force -ErrorAction SilentlyContinue\r\n"
+                "  Start-Sleep -Milliseconds 400\r\n"
+                "}\r\n"
                 "Start-Sleep -Milliseconds 350\r\n"
-                "for ($attempt = 0; $attempt -lt 5; $attempt++) {\r\n"
-                "  try {\r\n"
-                "    Copy-Item -Path (Join-Path $src '*') -Destination $dst -Recurse -Force -ErrorAction Stop\r\n"
-                "    break\r\n"
-                "  } catch {\r\n"
-                "    Start-Sleep -Milliseconds 500\r\n"
+                "$rc = 99\r\n"
+                "try {\r\n"
+                "  & robocopy.exe $src $dst /E /IS /IT /R:15 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null\r\n"
+                "  $rc = $LASTEXITCODE\r\n"
+                "  Write-Log \"robocopy exit=$rc\"\r\n"
+                "} catch {\r\n"
+                "  Write-Log \"robocopy threw: $_\"\r\n"
+                "}\r\n"
+                "if ($rc -gt 7) {\r\n"
+                "  Write-Log 'Fallback to per-file .NET copy'\r\n"
+                "  $srcRoot = (Resolve-Path $src).Path.TrimEnd('\\')\r\n"
+                "  Get-ChildItem -Path $srcRoot -Recurse -File | ForEach-Object {\r\n"
+                "    $relPath = $_.FullName.Substring($srcRoot.Length).TrimStart('\\')\r\n"
+                "    $outPath = Join-Path $dst $relPath\r\n"
+                "    $outDir = Split-Path -Parent $outPath\r\n"
+                "    if (-not (Test-Path $outDir)) { New-Item -ItemType Directory -Path $outDir -Force | Out-Null }\r\n"
+                "    for ($a = 0; $a -lt 8; $a++) {\r\n"
+                "      try { [System.IO.File]::Copy($_.FullName, $outPath, $true); break } catch { Start-Sleep -Milliseconds 400 }\r\n"
+                "    }\r\n"
                 "  }\r\n"
                 "}\r\n"
-                "if (Test-Path $exe) { Start-Process -FilePath $exe -WorkingDirectory $dst }\r\n"
+                "Start-Sleep -Milliseconds 350\r\n"
+                "$launched = $false\r\n"
+                "if (Test-Path $exe) {\r\n"
+                "  try {\r\n"
+                "    $p = Start-Process -FilePath $exe -WorkingDirectory $dst -PassThru\r\n"
+                "    if ($p) { $launched = $true; Write-Log \"Relaunched via Start-Process pid=$($p.Id)\" }\r\n"
+                "  } catch {\r\n"
+                "    Write-Log \"Start-Process failed: $_\"\r\n"
+                "  }\r\n"
+                "  if (-not $launched) {\r\n"
+                "    try {\r\n"
+                "      & cmd.exe /c start \"\" /D \"$dst\" \"$exe\"\r\n"
+                "      Write-Log 'Relaunched via cmd start'\r\n"
+                "    } catch {\r\n"
+                "      Write-Log \"cmd start failed: $_\"\r\n"
+                "    }\r\n"
+                "  }\r\n"
+                "} else {\r\n"
+                "  Write-Log \"Executable missing at $exe\"\r\n"
+                "}\r\n"
                 "Remove-Item -Path $src -Recurse -Force -ErrorAction SilentlyContinue\r\n"
                 "Remove-Item -Path $PSCommandPath -Force -ErrorAction SilentlyContinue\r\n"
             )
             ps1_path.write_text(ps1_body, encoding="utf-8-sig")
-            creation_flags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000) | getattr(subprocess, "DETACHED_PROCESS", 0x00000008)
             subprocess.Popen(
                 ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", str(ps1_path)],
                 cwd=str(self.cache_dir),
-                creationflags=creation_flags,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=no_win_flags,
                 close_fds=True,
             )
             threading.Timer(0.35, lambda: os._exit(0)).start()
@@ -206,7 +257,15 @@ class HubApi:
             "/CLOSEAPPLICATIONS",
             "/AUTORUN=1",
         ]
-        subprocess.Popen(args, cwd=str(target_path.parent))
+        subprocess.Popen(
+            args,
+            cwd=str(target_path.parent),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200),
+            close_fds=True,
+        )
         threading.Timer(0.6, lambda: os._exit(0)).start()
 
     def _invalidate_state_cache(self) -> None:

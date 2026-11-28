@@ -1,20 +1,20 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-11-27T15:50:36Z",
+  "updated_at": "2026-11-27T16:45:00Z",
   "hub_repo": "ahmedqassimtv-commits/qassimz-hub",
   "hub": {
     "id": "qassimz-hub",
     "code": "Qh",
     "name": "QASSIMZ Hub",
     "name_ar": "مركز قَاسِمز الرسمي",
-    "version": "1.5.7",
+    "version": "1.5.8",
     "accent": "#3B63FB",
-    "setup_filename": "QASSIMZ-Hub-Setup-1.5.7.exe",
-    "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.7/QASSIMZ-Hub-Setup-1.5.7.exe",
-    "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.7/QASSIMZ-Hub-Portable.zip",
-    "delta_manifest_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.7/manifest.json",
-    "delta_qpkg_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.7/qassimz-hub-v1.5.7.qpkg",
-    "release_notes_ar": "الإصدار 1.5.7: شاشة إقلاع أدوبي مستقلة تتوسع بسلاسة للواجهة الرئيسية، إصلاح النقر على الشعار للعودة للرئيسية دون إعادة التحميل، وحركات ناعمة لتصغير وتكبير وإغلاق النافذة."
+    "setup_filename": "QASSIMZ-Hub-Setup-1.5.8.exe",
+    "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.8/QASSIMZ-Hub-Setup-1.5.8.exe",
+    "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.8/QASSIMZ-Hub-Portable.zip",
+    "delta_manifest_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.8/manifest.json",
+    "delta_qpkg_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.8/qassimz-hub-v1.5.8.qpkg",
+    "release_notes_ar": "الإصدار 1.5.8: إزالة شريط التحديث القديم المكرر والإبقاء على بطاقة التحديث المتحركة الجديدة فقط، وإصلاح آلية التحديث الذاتي بـ robocopy وإعادة التشغيل التلقائي المضمونة."
   },
   "apps": {
     "qassimz-music": {

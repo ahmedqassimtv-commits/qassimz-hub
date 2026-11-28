@@ -528,10 +528,7 @@
     }
     syncSortDropdown();
 
-    // Banner & strip labels
-    $("#lbl-ub-pill").textContent = t.updatePill;
-    $("#btn-ub-notes").textContent = t.whatsNewLink;
-    $("#btn-hub-self-update").textContent = t.updateAndRestart;
+    // Strip labels
     $("#btn-open-theater").textContent = t.showInstaller;
 
     // Theater static localized labels
@@ -842,15 +839,6 @@
       bellBadge.textContent = attention > 9 ? "9+" : String(attention);
     } else {
       bellBadge.hidden = true;
-    }
-
-    // Hub Self-Update Banner
-    const banner = $("#hub-update-banner");
-    if (st.hub_has_update && !UI.bannerDismissed) {
-      banner.hidden = false;
-      $("#ub-text").textContent = t.hubUpdateAvail(st.hub_remote_version);
-    } else {
-      banner.hidden = true;
     }
 
     // Update All pill
@@ -2296,15 +2284,6 @@
       UI.settingsOpen = true;
       renderSettingsSheet();
     };
-
-    // Hub Update Banner
-    $("#btn-hub-self-update").onclick = () => triggerHubSelfUpdate();
-    $("#btn-ub-dismiss").onclick = () => {
-      UI.bannerDismissed = true;
-      updateChrome(visibleItems().length);
-    };
-    $("#btn-ub-notes").onclick = () =>
-      api("open_url", { url: "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases" });
 
     // Theater chrome controls
     const minimizeTheater = () => {

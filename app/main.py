@@ -22,16 +22,28 @@ SINGLE_INSTANCE_PORT = 49617
 
 def _acquire_single_instance(on_activate) -> socket.socket | None:
     """Bind localhost IPC port; if already running, signal existing instance to show window and exit."""
-    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-        srv.bind(("127.0.0.1", SINGLE_INSTANCE_PORT))
-        srv.listen(4)
-    except OSError:
+    srv: socket.socket | None = None
+    for attempt in range(10):
+        cand = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
-            with socket.create_connection(("127.0.0.1", SINGLE_INSTANCE_PORT), timeout=1.5) as cli:
-                cli.sendall(b"SHOW\n")
+            cand.bind(("127.0.0.1", SINGLE_INSTANCE_PORT))
+            cand.listen(4)
+            srv = cand
+            break
         except OSError:
-            pass
+            cand.close()
+            try:
+                with socket.create_connection(("127.0.0.1", SINGLE_INSTANCE_PORT), timeout=1.0) as cli:
+                    cli.sendall(b"SHOW\n")
+                return None
+            except OSError:
+                # Previous instance just exited (e.g. during self-update); wait briefly and retry bind.
+                if attempt < 9:
+                    time.sleep(0.15)
+                    continue
+                return None
+
+    if srv is None:
         return None
 
     def _listener():
@@ -183,6 +195,12 @@ def main() -> None:
     api._on_quit_request = quit_app
 
     def _release_lock():
+        quitting["flag"] = True
+        try:
+            if tray_ref["icon"] is not None:
+                tray_ref["icon"].stop()
+        except Exception:
+            pass
         try:
             lock_sock.close()
         except Exception:
