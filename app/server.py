@@ -77,7 +77,9 @@ class HubSettings:
             for k, v in (values or {}).items():
                 if k in self.DEFAULTS:
                     self._data[k] = bool(v)
-            self.file.write_text(json.dumps(self._data, ensure_ascii=False, indent=2), encoding="utf-8")
+            out = dict(self._data)
+            out["_schema"] = 2
+            self.file.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
             snap = dict(self._data)
         if "start_with_windows" in (values or {}):
             self._apply_startup(snap["start_with_windows"])
