@@ -187,11 +187,23 @@ def main() -> None:
         if quitting["flag"]:
             return True
         if api.settings.all().get("minimize_to_tray", True):
+            if api.cc_updater.has_pending_core_update():
+                api.cc_updater.apply_pending_core_swap(relaunch_minimized=True)
+                return False
             win.hide()
             return False
         return True
 
-    api._on_close_request = lambda: (win.hide() if api.settings.all().get("minimize_to_tray", True) else quit_app())
+    def _handle_close_request():
+        if api.settings.all().get("minimize_to_tray", True):
+            if api.cc_updater.has_pending_core_update():
+                api.cc_updater.apply_pending_core_swap(relaunch_minimized=True)
+                return
+            win.hide()
+        else:
+            quit_app()
+
+    api._on_close_request = _handle_close_request
     api._on_quit_request = quit_app
 
     def _release_lock():

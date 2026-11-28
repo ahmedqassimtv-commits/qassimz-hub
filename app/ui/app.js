@@ -823,7 +823,43 @@
     const live = activeTasks();
     const actBtn = $("#btn-activity");
     const actBadge = $("#activity-badge");
-    if (actBtn) actBtn.hidden = false;
+    const ringFill = $("#cc-ring-fill");
+    const dlIco = $("#act-dl-ico");
+    const chkIco = $("#cc-ring-check");
+    const cc = st.cc_updater || {};
+    const ccActive = cc.phase === "downloading" || cc.phase === "extracting";
+    const ccReadyOrDone = cc.phase === "applied" || cc.phase === "staged_ready";
+    const isAr = UI.lang === "ar";
+    const ringCircumference = 84.82;
+
+    if (actBtn) {
+      actBtn.hidden = false;
+      if (live.length > 0 || ccActive) {
+        const pct = live.length > 0
+          ? Math.round(live.reduce((acc, x) => acc + Number(x.progress || 0), 0) / live.length)
+          : Math.max(0, Math.min(100, Number(cc.progress || 0)));
+        actBtn.classList.add("is-ring-active");
+        actBtn.classList.remove("is-ring-done");
+        if (ringFill) ringFill.style.strokeDashoffset = (ringCircumference * (1 - pct / 100)).toFixed(2);
+        if (dlIco) dlIco.hidden = false;
+        if (chkIco) chkIco.hidden = true;
+        actBtn.title = isAr ? `جارٍ التحديث في الخلفية (${pct}%)` : `Updating in background (${pct}%)`;
+      } else if (ccReadyOrDone) {
+        actBtn.classList.remove("is-ring-active");
+        actBtn.classList.add("is-ring-done");
+        if (ringFill) ringFill.style.strokeDashoffset = "0";
+        if (dlIco) dlIco.hidden = true;
+        if (chkIco) chkIco.hidden = false;
+        actBtn.title = cc.phase === "staged_ready"
+          ? (isAr ? `التحديث v${cc.target_version} جاهز — يُطبّق تلقائياً عند الإغلاق` : `Update v${cc.target_version} ready — applies on close`)
+          : (isAr ? "تم التحديث إلى أحدث إصدار" : "Updated to latest version");
+      } else {
+        actBtn.classList.remove("is-ring-active", "is-ring-done");
+        if (ringFill) ringFill.style.strokeDashoffset = String(ringCircumference);
+        if (dlIco) dlIco.hidden = false;
+        if (chkIco) chkIco.hidden = true;
+      }
+    }
     if (actBadge) {
       if (live.length > 0) {
         actBadge.hidden = false;
@@ -2561,6 +2597,9 @@
   }
 
   async function boot() {
+    window.__qhubOnHotPatched = () => {
+      reloadState().catch(() => {});
+    };
     applyThemeAndLang();
     bindEvents();
     const statePromise = reloadState().catch((e) => {

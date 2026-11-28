@@ -23,9 +23,10 @@ from detector import (
     enrich_catalog,
     parse_version,
 )
+from cc_updater import CreativeCloudUpdater
 from installer_runner import UA, TaskQueue, run_uninstall_command, ssl_context
 
-VERSION = "1.5.9"
+VERSION = "1.6.0"
 HUB_REPO = "ahmedqassimtv-commits/qassimz-hub"
 REMOTE_CATALOG_URL = f"https://raw.githubusercontent.com/{HUB_REPO}/main/catalog.json"
 STATE_CACHE_TTL = 3.0
@@ -133,6 +134,23 @@ class HubApi:
             on_finished=self._on_task_finished,
             on_self_update_ready=self._apply_hub_self_update,
         )
+        install_dir = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent.parent
+        self.cc_updater = CreativeCloudUpdater(
+            install_dir=install_dir,
+            staging_root=self.root / ".staging" if os.name != "nt" else None,
+            on_status_change=lambda _st: self._notify_ui_sync(),
+            on_hot_patched=self._on_hot_patched,
+            on_before_exit=lambda: self._on_release_lock() if callable(self._on_release_lock) else None,
+        )
+
+    def _on_hot_patched(self, new_version: str) -> None:
+        win = self.window
+        if win is not None:
+            try:
+                safe_ver = json.dumps(new_version)
+                win.evaluate_js(f"window.__qhubOnHotPatched && window.__qhubOnHotPatched({safe_ver});")
+            except Exception:
+                pass
 
     def _notify_ui_sync(self) -> None:
         win = self.window
@@ -385,7 +403,9 @@ class HubApi:
             "hub_version": VERSION,
             "hub_has_update": hub_has_update,
             "hub_remote_version": remote_hub_ver,
+            "hub_release_notes": hub_meta.get("release_notes_ar") or "",
             "hub_repo_url": f"https://github.com/{HUB_REPO}",
+            "cc_updater": self.cc_updater.snapshot(),
             "last_sync": self._last_sync,
             "sync_error": self._sync_error,
             "settings": self.settings.all(),
@@ -759,21 +779,27 @@ class HubApi:
         }
         return self.queue.enqueue_install(hub_item, silent=True, self_update=True)
 
+    def apply_staged_update(self) -> dict[str, Any]:
+        """Apply a pending staged Creative Cloud core update and restart smoothly."""
+        ok = self.cc_updater.apply_pending_core_swap(relaunch_minimized=False)
+        return {"ok": ok}
+
     def run_auto_update_cycle(self) -> dict[str, Any]:
-        """Refresh remote catalog and automatically update installed apps (and Hub if enabled)."""
+        """Refresh remote catalog and silently stage/update installed apps & Hub in background."""
         cfg = self.settings.all()
         st = self.refresh_catalog()
         queued_apps: list[str] = []
         hub_queued = False
-        if cfg.get("auto_update_apps", True):
+        if cfg.get("auto_update_apps", False):
             for it in st.get("items") or []:
                 if it.get("state", {}).get("has_update"):
                     self.queue.enqueue_install(it, silent=cfg.get("silent_install", True))
                     queued_apps.append(it["id"])
         if cfg.get("auto_update_hub", False) and st.get("hub_has_update"):
             try:
-                self.install_hub_update()
-                hub_queued = True
+                with self._catalog_lock:
+                    hub_meta = dict(self._catalog.get("hub") or {})
+                hub_queued = self.cc_updater.stage_update_async(hub_meta)
             except Exception:
                 pass
         self._notify_ui_sync()
