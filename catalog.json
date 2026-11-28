@@ -7,14 +7,14 @@
     "code": "Qh",
     "name": "QASSIMZ Hub",
     "name_ar": "مركز قَاسِمز الرسمي",
-    "version": "1.5.6",
+    "version": "1.5.7",
     "accent": "#3B63FB",
-    "setup_filename": "QASSIMZ-Hub-Setup-1.5.6.exe",
-    "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.6/QASSIMZ-Hub-Setup-1.5.6.exe",
-    "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.6/QASSIMZ-Hub-Portable.zip",
-    "delta_manifest_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.6/manifest.json",
-    "delta_qpkg_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.6/qassimz-hub-v1.5.6.qpkg",
-    "release_notes_ar": "الإصدار 1.5.6: إيقاف التثبيت التلقائي المفاجئ عند فتح البرنامج (يظهر تنبيه لتأكيدك أولاً)، وإصلاح التبديل التلقائي للتحديث الذاتي بـ PowerShell يدعم المسارات العربية وإعادة التشغيل الفوري."
+    "setup_filename": "QASSIMZ-Hub-Setup-1.5.7.exe",
+    "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.7/QASSIMZ-Hub-Setup-1.5.7.exe",
+    "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.7/QASSIMZ-Hub-Portable.zip",
+    "delta_manifest_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.7/manifest.json",
+    "delta_qpkg_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.7/qassimz-hub-v1.5.7.qpkg",
+    "release_notes_ar": "الإصدار 1.5.7: شاشة إقلاع أدوبي مستقلة تتوسع بسلاسة للواجهة الرئيسية، إصلاح النقر على الشعار للعودة للرئيسية دون إعادة التحميل، وحركات ناعمة لتصغير وتكبير وإغلاق النافذة."
   },
   "apps": {
     "qassimz-music": {

@@ -586,14 +586,20 @@
       clearTimeout(maxTimer);
       if (status) status.textContent = tr().bootReady;
       if (fill) fill.style.width = "100%";
+      api("win_reveal_main").catch(() => {});
+      const shell = $(".cc-shell");
       setTimeout(() => {
         intro.classList.add("fading");
+        if (shell) {
+          shell.classList.add("is-opening");
+          setTimeout(() => shell.classList.remove("is-opening"), 260);
+        }
         setTimeout(() => {
           intro.hidden = true;
           intro.classList.remove("fading");
           triggerHeaderLogoWave();
         }, 280);
-      }, 120);
+      }, 140);
     };
 
     intro.onclick = dismiss;
@@ -2089,9 +2095,49 @@
     } catch (_) {}
   }
 
+  function animateWindowMinimize() {
+    const shell = $(".cc-shell");
+    if (shell) {
+      shell.classList.remove("is-opening", "win-morph");
+      shell.classList.add("is-minimizing");
+    }
+    setTimeout(() => {
+      api("win_minimize").catch(() => {});
+      if (shell) {
+        setTimeout(() => shell.classList.remove("is-minimizing"), 320);
+      }
+    }, 165);
+  }
+
   function bindEvents() {
-    // Replay official QASSIMZ logo splash on click
-    $("#btn-replay-logo").onclick = () => startSplashSequence(Promise.resolve(), true);
+    // Clicking header brand logo returns cleanly to Home (All Apps) + plays subtle logo wave (never replays loading splash)
+    $("#btn-replay-logo").onclick = () => {
+      if (UI.selectedId) closeDetailsPage();
+      UI.view = "all";
+      UI.query = "";
+      const searchEl = $("#q-search");
+      if (searchEl) searchEl.value = "";
+      UI.activityOpen = false;
+      UI.bellOpen = false;
+      const ap = $("#activity-popup");
+      const bp = $("#bell-popup");
+      if (ap) ap.hidden = true;
+      if (bp) bp.hidden = true;
+      render();
+      const scroll = $("#page-scroll");
+      if (scroll) scroll.scrollTo({ top: 0, behavior: "smooth" });
+      triggerHeaderLogoWave();
+    };
+
+    // Smooth entrance when restored from taskbar
+    window.addEventListener("focus", () => {
+      const shell = $(".cc-shell");
+      if (shell && shell.classList.contains("is-minimizing")) {
+        shell.classList.remove("is-minimizing");
+        shell.classList.add("is-opening");
+        setTimeout(() => shell.classList.remove("is-opening"), 240);
+      }
+    });
 
     // Responsive sidebar drawer toggle
     $("#btn-sidebar-toggle").onclick = (e) => {
@@ -2128,8 +2174,8 @@
       }
     });
 
-    // Frameless Windows 11 Caption Controls (with smooth close & maximize/restore morph)
-    $("#btn-win-min").onclick = () => api("win_minimize").catch(() => {});
+    // Frameless Windows 11 Caption Controls (with smooth minimize, close & maximize/restore morph)
+    $("#btn-win-min").onclick = () => animateWindowMinimize();
     $("#btn-win-max").onclick = () => toggleMaximizeWindow();
     $("#btn-win-close").onclick = () => animateWindowClose("win_close");
     $("#app-titlebar").ondblclick = (e) => {

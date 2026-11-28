@@ -2458,7 +2458,13 @@ select:focus-visible,
 }
 .cc-shell.is-closing {
   opacity: 0;
-  transform: scale(0.962) translateY(8px);
+  transform: scale(0.945) translateY(10px);
+  pointer-events: none;
+}
+.cc-shell.is-minimizing {
+  opacity: 0;
+  transform: translateY(26px) scale(0.92);
+  transition: transform 170ms cubic-bezier(0.4, 0, 1, 1), opacity 150ms ease;
   pointer-events: none;
 }
 .cc-shell.is-opening {

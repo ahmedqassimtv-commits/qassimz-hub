@@ -125,12 +125,25 @@ def main() -> None:
             )
 
     url = start_server(api)
+    # Start as a compact centered Adobe-style Splash Card (480x310) and smoothly expand
+    # to the full 1360x860 workspace via HubApi.win_reveal_main() once initialized.
+    splash_w, splash_h = 480, 310
+    splash_x, splash_y = None, None
+    if os.name == "nt" and not minimized:
+        work = api._get_windows_work_area(100, 100)
+        if work is not None:
+            wx, wy, ww, wh = work
+            splash_x = wx + max(0, (ww - splash_w) // 2)
+            splash_y = wy + max(0, (wh - splash_h) // 2)
+
     win = webview.create_window(
         "QASSIMZ Hub — مركز قَاسِمز الرسمي",
         url,
-        width=1360,
-        height=860,
-        min_size=(1040, 680),
+        x=splash_x,
+        y=splash_y,
+        width=splash_w if os.name == "nt" else 1360,
+        height=splash_h if os.name == "nt" else 860,
+        min_size=(480, 310),
         background_color="#1D1D1D",
         frameless=True,
         easy_drag=False,
@@ -139,6 +152,7 @@ def main() -> None:
     )
     api.window = win
     api._is_maximized = False
+    api._splash_expanded = (os.name != "nt")
 
     def quit_app():
         quitting["flag"] = True

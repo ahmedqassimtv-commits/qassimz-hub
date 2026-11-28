@@ -25,7 +25,7 @@ from detector import (
 )
 from installer_runner import UA, TaskQueue, run_uninstall_command, ssl_context
 
-VERSION = "1.5.6"
+VERSION = "1.5.7"
 HUB_REPO = "ahmedqassimtv-commits/qassimz-hub"
 REMOTE_CATALOG_URL = f"https://raw.githubusercontent.com/{HUB_REPO}/main/catalog.json"
 STATE_CACHE_TTL = 3.0
@@ -534,15 +534,79 @@ class HubApi:
             pass
         return None
 
+    @staticmethod
+    def _animate_window_bounds(
+        win: Any,
+        x0: int,
+        y0: int,
+        w0: int,
+        h0: int,
+        x1: int,
+        y1: int,
+        w1: int,
+        h1: int,
+        steps: int = 8,
+        duration: float = 0.13,
+    ) -> None:
+        """Smoothly interpolate Win32 window position & size with ease-out cubic easing."""
+        if not (hasattr(win, "move") and hasattr(win, "resize")):
+            return
+        step_sleep = duration / max(1, steps)
+        for i in range(1, steps + 1):
+            t = i / steps
+            ease = 1.0 - (1.0 - t) ** 3
+            cx = int(round(x0 + (x1 - x0) * ease))
+            cy = int(round(y0 + (y1 - y0) * ease))
+            cw = int(round(w0 + (w1 - w0) * ease))
+            ch = int(round(h0 + (h1 - h0) * ease))
+            try:
+                win.move(cx, cy)
+                win.resize(cw, ch)
+            except Exception:
+                break
+            if i < steps:
+                time.sleep(step_sleep)
+
+    def win_reveal_main(self) -> dict[str, Any]:
+        """Smoothly expand compact Adobe splash window (480x310) into full 1360x860 workspace."""
+        if self.window is None or getattr(self, "_splash_expanded", True):
+            self._splash_expanded = True
+            return {"ok": True, "expanded": True}
+        self._splash_expanded = True
+        if os.name == "nt":
+            try:
+                cx = int(getattr(self.window, "x", 400) or 400)
+                cy = int(getattr(self.window, "y", 250) or 250)
+                cw = int(getattr(self.window, "width", 480) or 480)
+                ch = int(getattr(self.window, "height", 310) or 310)
+                work = self._get_windows_work_area(cx, cy)
+                target_w, target_h = 1360, 860
+                if work is not None:
+                    wx, wy, ww, wh = work
+                    target_w = min(1360, max(1040, ww - 48))
+                    target_h = min(860, max(680, wh - 48))
+                    tx = wx + max(0, (ww - target_w) // 2)
+                    ty = wy + max(0, (wh - target_h) // 2)
+                else:
+                    tx = max(20, cx - (target_w - cw) // 2)
+                    ty = max(20, cy - (target_h - ch) // 2)
+                self._animate_window_bounds(self.window, cx, cy, cw, ch, tx, ty, target_w, target_h, steps=9, duration=0.16)
+            except Exception:
+                pass
+        return {"ok": True, "expanded": True}
+
     def win_toggle_maximize(self) -> dict[str, Any]:
         if self.window is not None:
             try:
                 if getattr(self, "_is_maximized", False):
                     bounds = getattr(self, "_restore_bounds", None)
                     if os.name == "nt" and bounds and hasattr(self.window, "move") and hasattr(self.window, "resize"):
+                        cx = int(getattr(self.window, "x", 0) or 0)
+                        cy = int(getattr(self.window, "y", 0) or 0)
+                        cw = int(getattr(self.window, "width", 1360) or 1360)
+                        ch = int(getattr(self.window, "height", 860) or 860)
                         rx, ry, rw, rh = bounds
-                        self.window.resize(rw, rh)
-                        self.window.move(rx, ry)
+                        self._animate_window_bounds(self.window, cx, cy, cw, ch, rx, ry, rw, rh, steps=7, duration=0.12)
                     else:
                         self.window.restore()
                     self._is_maximized = False
@@ -558,8 +622,7 @@ class HubApi:
                             wx, wy, ww, wh = work
                             # Use work area (excludes taskbar) so NVIDIA/AMD/Game Bar never
                             # treat the frameless WebView2 window as an exclusive fullscreen game.
-                            self.window.move(wx, wy)
-                            self.window.resize(ww, wh)
+                            self._animate_window_bounds(self.window, cx, cy, cw, ch, wx, wy, ww, wh, steps=7, duration=0.12)
                             self._is_maximized = True
                             return {"ok": True, "maximized": True}
                     self.window.maximize()
