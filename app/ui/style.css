@@ -2699,6 +2699,101 @@ img[src$=".svg"] {
 }
 
 /* ==========================================================================
+   Animated Update Available Confirmation Card
+   ========================================================================== */
+.update-alert-card {
+  position: fixed;
+  bottom: 22px;
+  inset-inline-end: 22px;
+  z-index: 260;
+  width: 372px;
+  max-width: calc(100vw - 32px);
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: var(--bg-surface, #222222);
+  border: 1px solid rgba(59, 99, 251, 0.45);
+  box-shadow: 0 22px 54px rgba(0, 0, 0, 0.48), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: ccUpdateSlideIn 340ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.update-alert-card.is-leaving {
+  animation: ccUpdateSlideOut 200ms cubic-bezier(0.4, 0, 1, 1) both;
+  pointer-events: none;
+}
+@keyframes ccUpdateSlideIn {
+  from { opacity: 0; transform: translateY(24px) scale(0.94); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes ccUpdateSlideOut {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateY(18px) scale(0.95); }
+}
+.ua-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ua-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 11px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+.ua-meta {
+  flex: 1;
+  min-width: 0;
+}
+.ua-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #6B94FF;
+}
+.ua-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3B63FB;
+  box-shadow: 0 0 0 0 rgba(59, 99, 251, 0.7);
+  animation: uaPulseRing 1.8s infinite;
+}
+@keyframes uaPulseRing {
+  0%   { box-shadow: 0 0 0 0 rgba(59, 99, 251, 0.7); }
+  70%  { box-shadow: 0 0 0 8px rgba(59, 99, 251, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(59, 99, 251, 0); }
+}
+.ua-title {
+  margin: 2px 0 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ua-sub {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.ua-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.cc-update-banner {
+  animation: ccUpdateSlideIn 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ==========================================================================
    Reduced Motion Preference
    ========================================================================== */
 @media (prefers-reduced-motion: reduce) {

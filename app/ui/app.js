@@ -822,7 +822,111 @@
     $("#sidebar-hub-version").textContent = `v${st.hub_version || "1.3.0"}`;
 
     updateInstallTheater(live);
+    renderUpdateAlertCard(st, live);
     if (UI.bellOpen) renderBellPopup();
+  }
+
+  // Animated Update Available Confirmation Card (Hub or Installed Apps)
+  function renderUpdateAlertCard(st, live) {
+    const card = $("#update-alert-card");
+    if (!card || !st) return;
+
+    // Hide while an installation is already actively open in theater
+    if (live.length > 0 && !UI.theaterMinimized) {
+      card.hidden = true;
+      return;
+    }
+
+    const isAr = UI.lang === "ar";
+    const updApps = (st.items || []).filter((x) => x.state?.has_update);
+    const hasHubUpd = Boolean(st.hub_has_update);
+
+    if (!hasHubUpd && updApps.length === 0) {
+      card.hidden = true;
+      return;
+    }
+
+    const key = hasHubUpd
+      ? `hub:${st.hub_remote_version}`
+      : `apps:${updApps.map((x) => `${x.id}@${x.version}`).join(",")}`;
+
+    if (UI.dismissedUpdateKey === key) {
+      card.hidden = true;
+      return;
+    }
+
+    if (card.dataset.alertKey === key && !card.hidden) {
+      return;
+    }
+
+    card.dataset.alertKey = key;
+    card.classList.remove("is-leaving");
+    card.hidden = false;
+
+    const iconSrc = hasHubUpd
+      ? "./logo.svg"
+      : `./icons/${esc(updApps[0].id)}.svg`;
+    const kicker = isAr ? "تحديث جديد متوفر الآن" : "New Update Available";
+    const title = hasHubUpd
+      ? (isAr ? `QASSIMZ Hub v${st.hub_remote_version}` : `QASSIMZ Hub v${st.hub_remote_version}`)
+      : updApps.length === 1
+      ? `${updApps[0].name} v${updApps[0].version}`
+      : (isAr ? `تحديث متوفر لـ ${updApps.length} تطبيقات` : `${updApps.length} App Updates Ready`);
+    const sub = hasHubUpd
+      ? (isAr ? "تحديث ذكي سريع مع إعادة تشغيل تلقائية" : "Fast smart delta update with automatic restart")
+      : (isAr ? "ينزّل الملفات المتغيرة فقط بسرعة فائقة" : "Downloads only changed files via Smart Delta");
+    const confirmLbl = isAr ? "تأكيد التحديث والتنزيل" : "Confirm & Update";
+    const laterLbl = isAr ? "لاحقاً" : "Later";
+
+    card.innerHTML = `
+      <div class="ua-top">
+        <img class="ua-icon" src="${iconSrc}" alt="" />
+        <div class="ua-meta">
+          <div class="ua-kicker"><span class="ua-pulse"></span><span>${esc(kicker)}</span></div>
+          <div class="ua-title">${esc(title)}</div>
+          <div class="ua-sub">${esc(sub)}</div>
+        </div>
+      </div>
+      <div class="ua-actions">
+        <button class="cc-btn secondary sm" id="ua-later">${esc(laterLbl)}</button>
+        <button class="cc-btn accent sm" id="ua-confirm">${esc(confirmLbl)}</button>
+      </div>
+    `;
+
+    const dismiss = () => {
+      UI.dismissedUpdateKey = key;
+      card.classList.add("is-leaving");
+      setTimeout(() => {
+        card.classList.remove("is-leaving");
+        card.hidden = true;
+      }, 190);
+    };
+
+    const laterBtn = $("#ua-later", card);
+    if (laterBtn) laterBtn.onclick = dismiss;
+
+    const confirmBtn = $("#ua-confirm", card);
+    if (confirmBtn) {
+      confirmBtn.onclick = async () => {
+        dismiss();
+        if (hasHubUpd) {
+          triggerHubSelfUpdate();
+        } else if (updApps.length === 1) {
+          triggerInstall(updApps[0].id, true);
+        } else {
+          try {
+            const list = await api("update_all");
+            if (list && list.length) {
+              toast(tr().toastQueuedUpdates(list.length));
+              UI.theaterMinimized = false;
+              await reloadState();
+            }
+          } catch (e) {
+            toast(e.message, "error");
+          }
+        }
+      };
+    }
   }
 
   // Adobe CC-Style In-App Installer Modal (#install-theater) + Minimized Strip
