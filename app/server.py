@@ -25,7 +25,7 @@ from detector import (
 )
 from installer_runner import UA, TaskQueue, run_uninstall_command, ssl_context
 
-VERSION = "1.5.5"
+VERSION = "1.5.6"
 HUB_REPO = "ahmedqassimtv-commits/qassimz-hub"
 REMOTE_CATALOG_URL = f"https://raw.githubusercontent.com/{HUB_REPO}/main/catalog.json"
 STATE_CACHE_TTL = 3.0
@@ -52,7 +52,7 @@ class HubSettings:
         "minimize_to_tray": True,
         "start_with_windows": False,
         "auto_check_updates": True,
-        "auto_update_apps": True,
+        "auto_update_apps": False,
         "auto_update_hub": False,
     }
 
@@ -64,7 +64,13 @@ class HubSettings:
             try:
                 loaded = json.loads(self.file.read_text(encoding="utf-8"))
                 if isinstance(loaded, dict):
-                    self._data.update(loaded)
+                    self._data.update({k: bool(loaded[k]) for k in self.DEFAULTS if k in loaded})
+                    if loaded.get("_schema", 1) < 2:
+                        self._data["auto_update_apps"] = False
+                        self._data["auto_update_hub"] = False
+                        out = dict(self._data)
+                        out["_schema"] = 2
+                        self.file.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
             except Exception:
                 pass
 
@@ -145,7 +151,7 @@ class HubApi:
         self._invalidate_state_cache()
         self._notify_ui_sync()
 
-    def _apply_hub_self_update(self, setup_exe: Path) -> None:
+    def _apply_hub_self_update(self, target_path: Path) -> None:
         if os.name != "nt":
             return
         rel = self._on_release_lock
@@ -154,15 +160,53 @@ class HubApi:
                 rel()
             except Exception:
                 pass
+        if target_path.is_dir():
+            # Unicode-safe PowerShell Delta swapper (handles Arabic user paths, spaces, and DLL locks)
+            install_dir = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent.parent
+            exe_path = Path(sys.executable) if getattr(sys, "frozen", False) else (install_dir / "QASSIMZ Hub.exe")
+            ps1_path = self.cache_dir / f"qhub_delta_swap_{os.getpid()}.ps1"
+            ps1_body = (
+                f"$pidToWait = {os.getpid()}\r\n"
+                f"$src = '{str(target_path).replace(chr(39), chr(39)*2)}'\r\n"
+                f"$dst = '{str(install_dir).replace(chr(39), chr(39)*2)}'\r\n"
+                f"$exe = '{str(exe_path).replace(chr(39), chr(39)*2)}'\r\n"
+                "for ($i = 0; $i -lt 30; $i++) {\r\n"
+                "  if (-not (Get-Process -Id $pidToWait -ErrorAction SilentlyContinue)) { break }\r\n"
+                "  Start-Sleep -Milliseconds 250\r\n"
+                "}\r\n"
+                "Start-Sleep -Milliseconds 350\r\n"
+                "for ($attempt = 0; $attempt -lt 5; $attempt++) {\r\n"
+                "  try {\r\n"
+                "    Copy-Item -Path (Join-Path $src '*') -Destination $dst -Recurse -Force -ErrorAction Stop\r\n"
+                "    break\r\n"
+                "  } catch {\r\n"
+                "    Start-Sleep -Milliseconds 500\r\n"
+                "  }\r\n"
+                "}\r\n"
+                "if (Test-Path $exe) { Start-Process -FilePath $exe -WorkingDirectory $dst }\r\n"
+                "Remove-Item -Path $src -Recurse -Force -ErrorAction SilentlyContinue\r\n"
+                "Remove-Item -Path $PSCommandPath -Force -ErrorAction SilentlyContinue\r\n"
+            )
+            ps1_path.write_text(ps1_body, encoding="utf-8-sig")
+            creation_flags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000) | getattr(subprocess, "DETACHED_PROCESS", 0x00000008)
+            subprocess.Popen(
+                ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", str(ps1_path)],
+                cwd=str(self.cache_dir),
+                creationflags=creation_flags,
+                close_fds=True,
+            )
+            threading.Timer(0.35, lambda: os._exit(0)).start()
+            return
+
         args = [
-            str(setup_exe),
+            str(target_path),
             "/VERYSILENT",
             "/SUPPRESSMSGBOXES",
             "/NORESTART",
             "/CLOSEAPPLICATIONS",
             "/AUTORUN=1",
         ]
-        subprocess.Popen(args, cwd=str(setup_exe.parent))
+        subprocess.Popen(args, cwd=str(target_path.parent))
         threading.Timer(0.6, lambda: os._exit(0)).start()
 
     def _invalidate_state_cache(self) -> None:
