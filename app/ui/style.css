@@ -196,33 +196,38 @@ select:focus-visible,
 @keyframes qzPartReveal {
   0% {
     opacity: 0;
-    transform: translateY(8px) scale(0.82);
-  }
-  70% {
-    opacity: 1;
-    transform: translateY(-1px) scale(1.03);
+    transform: translate3d(7px, 2px, 0) scale(0.95);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
 @keyframes qzHeaderWave {
-  0% { transform: translateY(0) scale(1); }
-  45% { transform: translateY(-2.5px) scale(1.06); }
-  100% { transform: translateY(0) scale(1); }
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  42% {
+    opacity: 0.52;
+    transform: scale(1.025);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes qzInstallerPulse {
-  0%, 100% { opacity: 0.92; transform: translateY(0) scale(1); }
-  50% { opacity: 1; transform: translateY(-2px) scale(1.03); }
+  0%, 100% { opacity: 0.86; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.015); }
 }
 
 @keyframes logoSquircleIn {
   0% {
     opacity: 0;
-    transform: scale(0.92);
+    transform: scale(0.88);
   }
   100% {
     opacity: 1;
@@ -2934,25 +2939,29 @@ img[src$=".svg"] {
   pointer-events: none;
   opacity: 0;
   background: radial-gradient(
-    280px circle at var(--mx, 50%) var(--my, 30%),
-    color-mix(in srgb, var(--app-color, #3B63FB) 19%, transparent),
+    260px circle at var(--mx, 50%) var(--my, 30%),
+    color-mix(in srgb, var(--app-color, #3B63FB) 13%, transparent),
     transparent 68%
   );
-  transition: opacity 260ms ease;
+  transition: opacity 280ms cubic-bezier(0.22, 1, 0.36, 1);
   z-index: 0;
 }
 .craft-card::after {
   content: "";
   position: absolute;
   top: 0;
-  inset-inline-start: 0;
-  width: 100%;
-  height: 2.5px;
+  inset-inline: 14px;
+  height: 1px;
   pointer-events: none;
-  background: linear-gradient(90deg, var(--app-color, #3B63FB), color-mix(in srgb, var(--app-color, #3B63FB) 45%, #ffffff));
-  transform: scaleX(0);
-  transform-origin: inline-start center;
-  transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--app-color, #3B63FB) 52%, rgba(255, 255, 255, 0.45)),
+    transparent
+  );
+  opacity: 0;
+  transform: scaleX(0.45);
+  transition: opacity 260ms ease, transform 340ms cubic-bezier(0.16, 1, 0.3, 1);
   z-index: 2;
 }
 .craft-card > * {
@@ -2960,24 +2969,91 @@ img[src$=".svg"] {
   z-index: 1;
 }
 .craft-card:hover {
-  transform: translateY(-4px);
-  border-color: color-mix(in srgb, var(--app-color, #3B63FB) 48%, rgba(255, 255, 255, 0.14)) !important;
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--app-color, #3B63FB) 32%, rgba(255, 255, 255, 0.14)) !important;
   box-shadow:
-    0 16px 36px rgba(0, 0, 0, 0.34),
-    0 0 0 1px color-mix(in srgb, var(--app-color, #3B63FB) 22%, transparent) !important;
+    0 18px 38px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
 }
 .craft-card:hover::before {
   opacity: 1;
 }
 .craft-card:hover::after {
+  opacity: 1;
   transform: scaleX(1);
 }
+
+/* Apple-Grade App Icon Motion: Pure Spring Micro-Lift + Specular Glass Glint + Soft Color Floor */
+.card-icon-stage {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 11px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  isolation: isolate;
+}
+.card-icon-stage::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 12px;
+  background: var(--app-color, #3B63FB);
+  opacity: 0;
+  transform: translateY(5px) scale(0.84);
+  filter: blur(11px);
+  transition: opacity 300ms cubic-bezier(0.16, 1, 0.3, 1),
+              transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 0;
+  pointer-events: none;
+}
+.card-icon-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 11px;
+  background: linear-gradient(
+    115deg,
+    transparent 24%,
+    rgba(255, 255, 255, 0.34) 48%,
+    rgba(255, 255, 255, 0.06) 56%,
+    transparent 74%
+  );
+  transform: translateX(-135%);
+  opacity: 0;
+  z-index: 2;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+}
 .craft-card .card-icon {
-  transition: transform 280ms cubic-bezier(0.34, 1.56, 0.64, 1), filter 260ms ease;
+  position: relative;
+  z-index: 1;
+  width: 44px;
+  height: 44px;
+  border-radius: 11px;
+  transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+.craft-card:hover .card-icon-stage::before {
+  opacity: 0.42;
+  transform: translateY(7px) scale(1.04);
+}
+.craft-card:hover .card-icon-stage::after {
+  animation: qzAppleGlassGlint 640ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 .craft-card:hover .card-icon {
-  transform: translateY(-2px) scale(1.08) rotate(-2.5deg);
-  filter: drop-shadow(0 8px 16px color-mix(in srgb, var(--app-color, #3B63FB) 38%, transparent));
+  transform: translateY(-2.5px) scale(1.055);
+}
+.craft-card:active .card-icon {
+  transform: translateY(0) scale(0.97);
+  transition-duration: 110ms;
+}
+@keyframes qzAppleGlassGlint {
+  0%   { opacity: 0; transform: translateX(-130%); }
+  22%  { opacity: 0.85; }
+  100% { opacity: 0; transform: translateX(135%); }
 }
 
 /* Global Pro Micro-Animations on Buttons, Menus, Lists & Dialogs */
@@ -3120,163 +3196,297 @@ img[src$=".svg"] {
 }
 
 /* ==========================================================================
-   v1.5.9 Ultra-Modern Visual & Motion Overhaul (60 FPS GPU-Accelerated)
+   v1.6.1 Apple Cupertino Visual Unification & Keynote Brand Choreography
    ========================================================================== */
 
-/* 1. Unified Animated Brand Logo Container (Qh + QASSIMZ Wordmark) */
+/* 1. Full-Shell Unified Ambient Canvas (Titlebar + Sidebar + Canvas + Menus) */
+[data-theme="dark"] .cc-shell {
+  background:
+    radial-gradient(64% 52% at 10% -6%, rgba(59, 99, 251, 0.125) 0%, rgba(59, 99, 251, 0) 68%),
+    radial-gradient(50% 42% at 92% 4%, rgba(56, 189, 248, 0.075) 0%, rgba(56, 189, 248, 0) 64%),
+    radial-gradient(56% 48% at 50% 105%, rgba(45, 212, 191, 0.04) 0%, rgba(45, 212, 191, 0) 70%),
+    #111318;
+}
+[data-theme="light"] .cc-shell {
+  background:
+    radial-gradient(60% 48% at 10% -4%, rgba(59, 99, 251, 0.065) 0%, rgba(59, 99, 251, 0) 68%),
+    radial-gradient(48% 40% at 92% 6%, rgba(14, 165, 233, 0.05) 0%, rgba(14, 165, 233, 0) 64%),
+    #F4F6FA;
+}
+
+/* Seamless Translucent Titlebar & Sidebar Blended Into Unified Shell */
+[data-theme="dark"] .cc-titlebar {
+  background: rgba(17, 19, 24, 0.72);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.065);
+}
+[data-theme="light"] .cc-titlebar {
+  background: rgba(255, 255, 255, 0.78);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.07);
+}
+
+[data-theme="dark"] .cc-sidebar {
+  background: rgba(255, 255, 255, 0.02);
+  border-inline-end: 1px solid rgba(255, 255, 255, 0.065);
+}
+[data-theme="light"] .cc-sidebar {
+  background: rgba(255, 255, 255, 0.56);
+  border-inline-end: 1px solid rgba(15, 23, 42, 0.07);
+}
+
+[data-theme="dark"] .sb-footer {
+  background: rgba(0, 0, 0, 0.12);
+  border-top: 1px solid rgba(255, 255, 255, 0.065);
+}
+[data-theme="light"] .sb-footer {
+  background: rgba(15, 23, 42, 0.02);
+  border-top: 1px solid rgba(15, 23, 42, 0.07);
+}
+
+[data-theme="dark"] .cc-sidebar .sb-item:hover {
+  background: rgba(255, 255, 255, 0.055);
+}
+[data-theme="dark"] .cc-sidebar .sb-item.active {
+  background: rgba(255, 255, 255, 0.088);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+[data-theme="light"] .cc-sidebar .sb-item.active {
+  background: rgba(59, 99, 251, 0.10);
+  color: #1D4ED8;
+}
+
+[data-theme="dark"] .cc-scroll,
+[data-theme="light"] .cc-scroll {
+  background: transparent;
+}
+
+/* Unified Floating Glass-Obsidian Menus, Popups, Search, Drawers & Modals */
+[data-theme="dark"] .hdr-search-box {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.085);
+}
+[data-theme="dark"] .hdr-search-box:focus-within {
+  background: rgba(255, 255, 255, 0.075);
+  border-color: rgba(96, 165, 250, 0.45);
+}
+
+[data-theme="dark"] .cc-dialog,
+[data-theme="dark"] .th-modal,
+[data-theme="dark"] .uc-modal,
+[data-theme="dark"] .details-dialog,
+[data-theme="dark"] .activity-popup,
+[data-theme="dark"] .bell-popup,
+[data-theme="dark"] .cc-sort-menu,
+[data-theme="dark"] .cc-menu,
+[data-theme="dark"] .update-alert-card {
+  background:
+    radial-gradient(80% 50% at 0% 0%, rgba(59, 99, 251, 0.09) 0%, rgba(59, 99, 251, 0) 60%),
+    #161920;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.58),
+    inset 0 1px 0 rgba(255, 255, 255, 0.085);
+}
+[data-theme="light"] .cc-dialog,
+[data-theme="light"] .th-modal,
+[data-theme="light"] .uc-modal,
+[data-theme="light"] .details-dialog,
+[data-theme="light"] .activity-popup,
+[data-theme="light"] .bell-popup,
+[data-theme="light"] .cc-sort-menu,
+[data-theme="light"] .cc-menu,
+[data-theme="light"] .update-alert-card {
+  background:
+    radial-gradient(80% 48% at 0% 0%, rgba(59, 99, 251, 0.05) 0%, rgba(59, 99, 251, 0) 60%),
+    #FFFFFF;
+  border: 1px solid rgba(15, 23, 42, 0.09);
+  box-shadow: 0 22px 54px rgba(15, 23, 42, 0.13);
+}
+
+/* 2. Apple Keynote Splash Screen & Brand Lockup (Qh + QASSIMZ Calligraphy) */
+[data-theme="dark"] .brand-intro {
+  background:
+    radial-gradient(75% 65% at 50% 0%, rgba(59, 99, 251, 0.14) 0%, rgba(59, 99, 251, 0) 68%),
+    #0C0E13;
+}
+[data-theme="dark"] .intro-card {
+  background:
+    radial-gradient(90% 60% at 50% -10%, rgba(59, 99, 251, 0.13) 0%, rgba(59, 99, 251, 0) 64%),
+    #14171F;
+  border: 1px solid rgba(255, 255, 255, 0.095);
+  box-shadow:
+    0 32px 84px rgba(0, 0, 0, 0.68),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10);
+}
+.intro-icon-stage {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  border-radius: 15px;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.42);
+  animation: logoSquircleIn 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.intro-icon-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 24%,
+    rgba(255, 255, 255, 0.42) 48%,
+    rgba(255, 255, 255, 0.08) 56%,
+    transparent 74%
+  );
+  transform: translateX(-140%);
+  animation: qzAppleGlassGlint 780ms cubic-bezier(0.16, 1, 0.3, 1) 280ms forwards;
+  pointer-events: none;
+}
+.intro-app-logo {
+  width: 60px;
+  height: 60px;
+  border-radius: 15px;
+  animation: none;
+}
+.brand-intro .qz-p0 { animation: qzPartReveal 440ms cubic-bezier(0.16, 1, 0.3, 1) 130ms both; }
+.brand-intro .qz-p1 { animation: qzPartReveal 440ms cubic-bezier(0.16, 1, 0.3, 1) 185ms both; }
+.brand-intro .qz-p2 { animation: qzPartReveal 440ms cubic-bezier(0.16, 1, 0.3, 1) 240ms both; }
+.brand-intro .qz-p3 { animation: qzPartReveal 440ms cubic-bezier(0.16, 1, 0.3, 1) 295ms both; }
+.brand-intro .qz-p4 { animation: qzPartReveal 440ms cubic-bezier(0.16, 1, 0.3, 1) 350ms both; }
+.brand-intro .qz-p5 { animation: qzPartReveal 440ms cubic-bezier(0.16, 1, 0.3, 1) 405ms both; }
+
+.intro-subtitle {
+  animation: qzSubtitleCalmIn 520ms cubic-bezier(0.16, 1, 0.3, 1) 340ms both;
+}
+@keyframes qzSubtitleCalmIn {
+  from { opacity: 0; transform: translateY(4px); letter-spacing: 0.11em; }
+  to   { opacity: 0.78; transform: translateY(0); letter-spacing: 0.05em; }
+}
+
+/* Header Brand Lockup: Clean Apple Poise (No Spinning RGB Ring) */
 .hdr-brand-btn {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 9px;
-  height: 34px;
-  padding: 0 11px 0 6px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02));
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1),
-              background 180ms ease,
-              border-color 180ms ease;
+  gap: 8px;
+  height: 32px;
+  padding: 0 9px 0 5px;
+  border-radius: 9px;
+  background: transparent;
+  border: 1px solid transparent;
+  transition: background 180ms ease,
+              border-color 180ms ease,
+              transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 [dir="rtl"] .hdr-brand-btn {
-  padding: 0 6px 0 11px;
-}
-[data-theme="light"] .hdr-brand-btn {
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.045), rgba(15, 23, 42, 0.015));
-  border-color: rgba(15, 23, 42, 0.10);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  padding: 0 5px 0 9px;
 }
 .hdr-brand-btn:hover {
-  background: linear-gradient(135deg, rgba(59, 99, 251, 0.14), rgba(56, 189, 248, 0.08));
-  border-color: rgba(96, 165, 250, 0.34);
-  transform: translateY(-0.5px);
+  background: rgba(255, 255, 255, 0.055);
+  border-color: rgba(255, 255, 255, 0.075);
+}
+[data-theme="light"] .hdr-brand-btn:hover {
+  background: rgba(15, 23, 42, 0.05);
+  border-color: rgba(15, 23, 42, 0.08);
 }
 .hdr-brand-btn:active {
-  transform: scale(0.965);
+  transform: scale(0.97);
 }
 
-.hdr-logo-orb {
+.hdr-logo-mark {
   position: relative;
-  width: 26px;
-  height: 26px;
-  border-radius: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 6.5px;
+  overflow: hidden;
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
-  flex-shrink: 0;
-  padding: 1.5px;
-  isolation: isolate;
+  transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 240ms ease;
 }
-.hdr-logo-flow {
+.hdr-logo-mark::after {
+  content: "";
   position: absolute;
-  inset: -65%;
-  z-index: 0;
-  background: conic-gradient(
-    from 0deg,
-    #3B63FB 0deg,
-    #38BDF8 110deg,
-    #2DD4BF 210deg,
-    #60A5FA 300deg,
-    #3B63FB 360deg
+  inset: 0;
+  border-radius: 6.5px;
+  background: linear-gradient(
+    115deg,
+    transparent 24%,
+    rgba(255, 255, 255, 0.45) 48%,
+    rgba(255, 255, 255, 0.08) 56%,
+    transparent 74%
   );
-  opacity: 0.72;
-  will-change: transform;
-  animation: qzLogoFlowSpin 7.5s linear infinite;
-}
-.hdr-logo-pulse {
-  position: absolute;
-  inset: -2px;
-  z-index: 0;
-  border-radius: 9px;
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.55) 0%, rgba(59, 99, 251, 0) 70%);
+  transform: translateX(-140%);
   opacity: 0;
-  transform: scale(0.85);
-  will-change: transform, opacity;
   pointer-events: none;
 }
-.hdr-brand-btn:hover .hdr-logo-flow,
-.hdr-brand-btn.is-checking .hdr-logo-flow {
-  opacity: 1;
-  animation-duration: 2.6s;
+.hdr-brand-btn:hover .hdr-logo-mark {
+  transform: scale(1.045);
+  box-shadow: 0 4px 12px rgba(59, 99, 251, 0.28);
 }
-.hdr-brand-btn:hover .hdr-logo-pulse,
-.hdr-brand-btn.is-checking .hdr-logo-pulse {
-  animation: qzLogoPulseGlow 1.6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+.hdr-brand-btn:hover .hdr-logo-mark::after {
+  animation: qzAppleGlassGlint 580ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+.hdr-brand-btn.is-checking .hdr-logo-mark {
+  animation: qzAppleCalmBreath 1.8s ease-in-out infinite;
+}
+@keyframes qzAppleCalmBreath {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.62; transform: scale(0.96); }
+}
+
 .hdr-brand-btn .hdr-brand-icon {
-  position: relative;
-  z-index: 1;
-  width: 23px;
-  height: 23px;
+  width: 24px;
+  height: 24px;
   border-radius: 6.5px;
   display: block;
+}
+.hdr-brand-sep {
+  width: 1px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.14);
+  flex-shrink: 0;
+}
+[data-theme="light"] .hdr-brand-sep {
+  background: rgba(15, 23, 42, 0.14);
 }
 .hdr-brand-btn .hdr-logo-svg {
   height: 19px;
   width: auto;
+  opacity: 0.90;
   shape-rendering: geometricPrecision;
+  transition: opacity 200ms ease, transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
 }
+.hdr-brand-btn:hover .hdr-logo-svg {
+  opacity: 1;
+}
+.hdr-brand-btn.wave .qz-p0 { animation: qzHeaderWave 480ms cubic-bezier(0.16, 1, 0.3, 1) 0ms; }
+.hdr-brand-btn.wave .qz-p1 { animation: qzHeaderWave 480ms cubic-bezier(0.16, 1, 0.3, 1) 38ms; }
+.hdr-brand-btn.wave .qz-p2 { animation: qzHeaderWave 480ms cubic-bezier(0.16, 1, 0.3, 1) 76ms; }
+.hdr-brand-btn.wave .qz-p3 { animation: qzHeaderWave 480ms cubic-bezier(0.16, 1, 0.3, 1) 114ms; }
+.hdr-brand-btn.wave .qz-p4 { animation: qzHeaderWave 480ms cubic-bezier(0.16, 1, 0.3, 1) 152ms; }
+.hdr-brand-btn.wave .qz-p5 { animation: qzHeaderWave 480ms cubic-bezier(0.16, 1, 0.3, 1) 190ms; }
 
 @keyframes qzLogoFlowSpin {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
 }
-@keyframes qzLogoPulseGlow {
-  0%   { opacity: 0.15; transform: scale(0.92); }
-  50%  { opacity: 0.75; transform: scale(1.18); }
-  100% { opacity: 0.15; transform: scale(0.92); }
-}
-
-/* 2. Dark Mesh Gradient + Ambient Spotlight & High-Res Surfaces */
-[data-theme="dark"] .cc-scroll {
-  background:
-    radial-gradient(62% 48% at 14% 0%, rgba(59, 99, 251, 0.11) 0%, rgba(59, 99, 251, 0) 68%),
-    radial-gradient(52% 42% at 88% 8%, rgba(56, 189, 248, 0.08) 0%, rgba(56, 189, 248, 0) 65%),
-    radial-gradient(60% 50% at 50% 100%, rgba(45, 212, 191, 0.045) 0%, rgba(45, 212, 191, 0) 70%),
-    #14161B;
-}
-[data-theme="light"] .cc-scroll {
-  background:
-    radial-gradient(58% 44% at 12% 0%, rgba(59, 99, 251, 0.06) 0%, rgba(59, 99, 251, 0) 68%),
-    radial-gradient(48% 38% at 90% 10%, rgba(14, 165, 233, 0.05) 0%, rgba(14, 165, 233, 0) 64%),
-    #F5F7FA;
-}
-
-[data-theme="dark"] .cc-dialog,
-[data-theme="dark"] .th-modal,
-[data-theme="dark"] .uc-modal {
-  background:
-    radial-gradient(80% 55% at 0% 0%, rgba(59, 99, 251, 0.12) 0%, rgba(59, 99, 251, 0) 62%),
-    radial-gradient(65% 50% at 100% 0%, rgba(56, 189, 248, 0.08) 0%, rgba(56, 189, 248, 0) 60%),
-    #181B22;
-  border: 1px solid rgba(255, 255, 255, 0.11);
-  box-shadow:
-    0 28px 72px rgba(0, 0, 0, 0.62),
-    inset 0 1px 0 rgba(255, 255, 255, 0.09);
-}
-[data-theme="light"] .cc-dialog,
-[data-theme="light"] .th-modal,
-[data-theme="light"] .uc-modal {
-  background:
-    radial-gradient(80% 50% at 0% 0%, rgba(59, 99, 251, 0.06) 0%, rgba(59, 99, 251, 0) 62%),
-    #FFFFFF;
-  border: 1px solid rgba(15, 23, 42, 0.10);
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.14);
-}
 
 /* Crisp 1px Translucent Borders, Cards, Buttons & Toggles */
 [data-theme="dark"] .craft-card {
-  background: linear-gradient(180deg, rgba(32, 36, 46, 0.88) 0%, rgba(24, 27, 34, 0.94) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.085);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, rgba(28, 32, 41, 0.72) 0%, rgba(21, 24, 31, 0.86) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055);
 }
 [data-theme="dark"] .craft-card:hover {
-  border-color: rgba(255, 255, 255, 0.17);
+  background: linear-gradient(180deg, rgba(33, 38, 49, 0.82) 0%, rgba(24, 28, 36, 0.92) 100%);
+  border-color: rgba(255, 255, 255, 0.15);
   box-shadow:
-    0 16px 36px rgba(0, 0, 0, 0.42),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    0 18px 38px rgba(0, 0, 0, 0.44),
+    inset 0 1px 0 rgba(255, 255, 255, 0.11);
 }
 
 .cc-btn {

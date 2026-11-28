@@ -1481,7 +1481,9 @@
                data-card-id="${esc(it.id)}">
         <div>
           <div class="card-row-top">
-            <img class="card-icon" src="./icons/${esc(it.id)}.svg" alt="${esc(it.name)}" decoding="async" />
+            <span class="card-icon-stage">
+              <img class="card-icon" src="./icons/${esc(it.id)}.svg" alt="${esc(it.name)}" decoding="async" />
+            </span>
             <div class="card-title-col">
               <div class="card-title-line">
                 <span class="card-name">${esc(it.name)}</span>
