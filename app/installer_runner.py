@@ -33,16 +33,10 @@ def ssl_context() -> ssl.SSLContext:
 
 def _friendly_download_error(exc: Exception) -> str:
     if isinstance(exc, urllib.error.HTTPError):
-        if exc.code == 404:
-            return "ملف التثبيت غير موجود على الخادم حالياً (404) — حدّث الدليل أو انتظر اكتمال نشر الإصدار."
-        if exc.code in (401, 403):
-            return f"تعذّر الوصول إلى رابط التحميل (كود {exc.code})."
-        return f"خطأ من خادم التحميل (HTTP {exc.code})."
-    if isinstance(exc, urllib.error.URLError):
-        return "تعذّر الاتصال بخادم التحميل — تحقّق من اتصال الإنترنت."
-    if isinstance(exc, TimeoutError):
-        return "انتهت مهلة الاتصال أثناء التحميل — حاول مجدداً."
-    return str(exc)
+        return "تعذّر إكمال التحديث حالياً، سنحاول لاحقاً."
+    if isinstance(exc, (urllib.error.URLError, TimeoutError)):
+        return "تعذّر الاتصال بالإنترنت حالياً، سنحاول لاحقاً."
+    return "تعذّر إكمال التحديث حالياً، سنحاول لاحقاً."
 
 
 def _run_elevated_and_wait(exe_path: str, params_list: list[str]) -> int:

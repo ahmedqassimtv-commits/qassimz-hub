@@ -630,9 +630,18 @@
     return json.data;
   }
 
+  const _activeToastKeys = new Set();
+
   function toast(msg, kind = "info") {
     const box = $("#toasts");
-    if (!box) return;
+    const text = String(msg ?? "").trim();
+    if (!box || !text) return;
+
+    // Strict singleton deduplication: never show the same notification twice simultaneously
+    const dedupeKey = `${kind}:${text}`;
+    if (_activeToastKeys.has(dedupeKey)) return;
+    _activeToastKeys.add(dedupeKey);
+
     const el = document.createElement("div");
     el.className = `cc-toast ${kind === "error" ? "error" : ""}`;
     el.innerHTML = `
@@ -642,10 +651,14 @@
       </div>
       <div class="toast-body"></div>
     `;
-    $(".toast-body", el).textContent = msg;
-    $("button", el).onclick = () => el.remove();
+    const cleanup = () => {
+      _activeToastKeys.delete(dedupeKey);
+      el.remove();
+    };
+    $(".toast-body", el).textContent = text;
+    $("button", el).onclick = cleanup;
     box.appendChild(el);
-    setTimeout(() => el.remove(), 4400);
+    setTimeout(cleanup, 4400);
   }
 
   function esc(str) {
@@ -896,7 +909,9 @@
     $("#sidebar-hub-version").textContent = `v${st.hub_version || "1.3.0"}`;
 
     updateInstallTheater(live);
-    renderUpdateAlertCard(st, live);
+    const oldAlert = $("#update-alert-card");
+    if (oldAlert) oldAlert.hidden = true;
+    if (window.QHubUpdater) window.QHubUpdater.renderUpdatePill(st);
     if (UI.bellOpen) renderBellPopup();
     if (UI.updateCenterOpen) renderUpdateCenter();
   }
@@ -1414,7 +1429,11 @@
     };
     $("#btn-th-retry").onclick = () => {
       UI.theaterTerminalTask = null;
-      triggerInstall(cur.id, true);
+      if (cur.id === "qassimz-hub") {
+        triggerHubSelfUpdate();
+      } else {
+        triggerInstall(cur.id, true);
+      }
     };
   }
 
@@ -2606,10 +2625,26 @@
     window.__qhubOnHotPatched = () => {
       reloadState().catch(() => {});
     };
+    window.__qhubUpdaterBridge = {
+      getLang: () => UI.lang,
+      refreshCatalogSilently: async () => {
+        const st = await api("refresh_catalog");
+        UI.state = st;
+        render();
+        return st;
+      },
+      startHubSelfUpdate: async () => {
+        await triggerHubSelfUpdate();
+      },
+      applyStagedUpdate: async () => {
+        await api("apply_staged_update");
+      },
+      showFriendlyError: (msg) => toast(msg, "error"),
+    };
     applyThemeAndLang();
     bindEvents();
     const statePromise = reloadState().catch((e) => {
-      toast(e.message, "error");
+      console.debug("[QHub Boot] Initial state fetch deferred:", e?.message || e);
     });
     startSplashSequence(statePromise, false);
   }

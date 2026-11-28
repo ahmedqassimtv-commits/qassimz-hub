@@ -26,7 +26,7 @@ from detector import (
 from cc_updater import CreativeCloudUpdater
 from installer_runner import UA, TaskQueue, run_uninstall_command, ssl_context
 
-VERSION = "1.6.2"
+VERSION = "1.6.3"
 HUB_REPO = "ahmedqassimtv-commits/qassimz-hub"
 REMOTE_CATALOG_URL = f"https://raw.githubusercontent.com/{HUB_REPO}/main/catalog.json"
 STATE_CACHE_TTL = 3.0
@@ -318,7 +318,9 @@ class HubApi:
                 raw = r.read().decode("utf-8")
             parsed = json.loads(raw)
             if isinstance(parsed, dict) and isinstance(parsed.get("items"), list) and parsed["items"]:
-                # Also check live GitHub releases/latest for Hub itself so Hub updates are detected immediately
+                # Use live published GitHub releases/latest (with real uploaded assets) as the
+                # single source of truth for Hub self-updates so unbuilt CI commits never 404.
+                hub_obj = dict(parsed.get("hub") or {})
                 try:
                     rel_req = urllib.request.Request(
                         f"https://api.github.com/repos/{HUB_REPO}/releases/latest",
@@ -326,26 +328,38 @@ class HubApi:
                     )
                     with urllib.request.urlopen(rel_req, timeout=8, context=ssl_context()) as rr:
                         rel_data = json.loads(rr.read().decode("utf-8"))
+                    is_draft = bool(rel_data.get("draft") or rel_data.get("prerelease"))
                     rel_tag = str(rel_data.get("tag_name") or "").strip()
                     rel_ver = rel_tag.lstrip("vV")
-                    hub_obj = dict(parsed.get("hub") or {})
-                    if rel_ver and parse_version(rel_ver) > parse_version(hub_obj.get("version") or "0"):
-                        assets = rel_data.get("assets") or []
-                        setup_a = next((a for a in assets if str(a.get("name", "")).lower().endswith(".exe")), None)
-                        man_a = next((a for a in assets if str(a.get("name", "")).lower() == "manifest.json"), None)
-                        qpkg_a = next((a for a in assets if str(a.get("name", "")).lower().endswith(".qpkg")), None)
+                    assets = rel_data.get("assets") or []
+                    setup_a = next((a for a in assets if str(a.get("name", "")).lower().endswith(".exe")), None)
+                    port_a = next((a for a in assets if str(a.get("name", "")).lower().endswith(".zip")), None)
+                    man_a = next((a for a in assets if str(a.get("name", "")).lower() == "manifest.json"), None)
+                    qpkg_a = next((a for a in assets if str(a.get("name", "")).lower().endswith(".qpkg")), None)
+                    if not is_draft and rel_ver and (setup_a or (man_a and qpkg_a)):
                         hub_obj["version"] = rel_ver
                         if setup_a:
                             hub_obj["setup_filename"] = setup_a["name"]
                             hub_obj["setup_url"] = setup_a["browser_download_url"]
                             hub_obj["setup_size"] = int(setup_a.get("size") or 0)
+                        if port_a:
+                            hub_obj["portable_url"] = port_a["browser_download_url"]
                         if man_a and qpkg_a:
                             hub_obj["delta_manifest_url"] = man_a["browser_download_url"]
                             hub_obj["delta_qpkg_url"] = qpkg_a["browser_download_url"]
                             hub_obj["delta_qpkg_size"] = int(qpkg_a.get("size") or 0)
+                        else:
+                            hub_obj["delta_manifest_url"] = ""
+                            hub_obj["delta_qpkg_url"] = ""
+                        parsed["hub"] = hub_obj
+                    else:
+                        # Release is still draft/building — do not advertise an unreachable version
+                        hub_obj["version"] = VERSION
                         parsed["hub"] = hub_obj
                 except Exception:
-                    pass
+                    # If GitHub API is unreachable, avoid advertising an unverified Hub bump
+                    hub_obj["version"] = VERSION
+                    parsed["hub"] = hub_obj
                 with self._catalog_lock:
                     self._catalog = parsed
                     self._last_sync = time.time()
@@ -422,9 +436,12 @@ class HubApi:
         return {"ok": self.queue.clear_finished()}
 
     def install(self, id: str, silent: bool | None = None) -> dict[str, Any]:
+        # Separate Hub self-update from sub-apps catalog so Retry/Install on qassimz-hub never errors
+        if id == "qassimz-hub":
+            return self.install_hub_update(force=True)
         item = self._get_item(id)
         if not item:
-            raise ValueError(f"البرنامج غير موجود في الدليل: {id}")
+            raise ValueError("تعذّر العثور على هذا التطبيق حالياً، سنحاول لاحقاً.")
         item_copy = dict(item)
         if "state" not in item_copy or not item_copy.get("state"):
             try:
