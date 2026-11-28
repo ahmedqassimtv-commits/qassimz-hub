@@ -54,17 +54,27 @@ def _sha256_file(path: Path) -> str:
     return h.hexdigest().lower()
 
 
+# A hot patch may only ever touch the web UI. Anything else (executables,
+# python, scripts, config outside app/ui) must go through the full core swap.
+HOT_PATCH_ROOT = "app/ui/"
+
+
 def _is_hot_patch_only(staged_dir: Path) -> bool:
-    """Return True iff every file in staged_dir is a non-binary UI/asset/config file."""
+    """Return True iff every file in staged_dir is a web UI asset under app/ui/."""
     found_any = False
     for f in staged_dir.rglob("*"):
-        if f.is_file():
-            found_any = True
-            rel = f.relative_to(staged_dir).as_posix().lower()
-            if f.suffix.lower() not in HOT_PATCH_EXTS:
-                return False
-            if rel.endswith(".exe") or rel.endswith(".dll") or rel.endswith(".pyd") or rel.endswith(".py"):
-                return False
+        if f.is_symlink():
+            return False
+        if not f.is_file():
+            continue
+        found_any = True
+        rel = f.relative_to(staged_dir).as_posix().lower()
+        if not rel.startswith(HOT_PATCH_ROOT):
+            return False
+        if f.suffix.lower() not in HOT_PATCH_EXTS:
+            return False
+        if ".." in rel.split("/"):
+            return False
     return found_any
 
 
@@ -94,6 +104,7 @@ class CreativeCloudUpdater:
             "target_version": "",
             "staged_dir": "",
             "method": "",           # delta | zip | hot_patch
+            "error": "",            # last staging failure, shown once in the UI
             "updated_at": 0.0,
         }
 
@@ -207,24 +218,67 @@ class CreativeCloudUpdater:
                     shutil.copyfileobj(src, dst, length=131072)
 
     def _apply_hot_patch(self, staged_dir: Path, target_version: str) -> bool:
-        """Atomically replace UI/asset files in-place without closing the running application."""
-        for src in staged_dir.rglob("*"):
-            if not src.is_file():
-                continue
-            rel = src.relative_to(staged_dir)
-            dst = self.install_dir / rel
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            fd, tmp_name = tempfile.mkstemp(prefix=f".{dst.name}.", suffix=".qpatch", dir=str(dst.parent))
-            os.close(fd)
-            try:
-                shutil.copy2(src, tmp_name)
-                os.replace(tmp_name, dst)
-            except Exception:
+        """Atomically replace UI/asset files in-place without closing the running application.
+
+        Only paths under ``app/ui/`` are written, every write is contained in the
+        install directory, and any failure rolls the whole patch back so the app
+        never ends up half-updated.
+        """
+        if not _is_hot_patch_only(staged_dir):
+            raise RuntimeError("Hot patch rejected: staged files are not limited to app/ui/")
+        install_resolved = self.install_dir.resolve()
+        applied: list[tuple[Path, Path | None]] = []  # (destination, backup or None)
+        try:
+            for src in staged_dir.rglob("*"):
+                if src.is_symlink() or not src.is_file():
+                    continue
+                rel = src.relative_to(staged_dir)
+                dst = (self.install_dir / rel).resolve()
+                if install_resolved not in dst.parents:
+                    raise RuntimeError(f"Blocked hot-patch path outside install dir: {rel}")
+                if not dst.as_posix().lower().startswith((install_resolved / "app/ui").as_posix().lower()):
+                    raise RuntimeError(f"Blocked hot-patch path outside app/ui: {rel}")
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                backup: Path | None = None
+                if dst.exists():
+                    fd_b, backup_name = tempfile.mkstemp(prefix=f".{dst.name}.", suffix=".qbak", dir=str(dst.parent))
+                    os.close(fd_b)
+                    shutil.copy2(dst, backup_name)
+                    backup = Path(backup_name)
+                fd, tmp_name = tempfile.mkstemp(prefix=f".{dst.name}.", suffix=".qpatch", dir=str(dst.parent))
+                os.close(fd)
                 try:
-                    os.unlink(tmp_name)
+                    shutil.copy2(src, tmp_name)
+                    os.replace(tmp_name, dst)
+                except Exception:
+                    try:
+                        os.unlink(tmp_name)
+                    except OSError:
+                        pass
+                    raise
+                applied.append((dst, backup))
+        except Exception:
+            for dst, backup in reversed(applied):
+                try:
+                    if backup is not None:
+                        os.replace(backup, dst)
+                    else:
+                        dst.unlink(missing_ok=True)
                 except OSError:
                     pass
-                raise
+            for _, backup in applied:
+                if backup is not None:
+                    try:
+                        backup.unlink(missing_ok=True)
+                    except OSError:
+                        pass
+            raise
+        for _, backup in applied:
+            if backup is not None:
+                try:
+                    backup.unlink(missing_ok=True)
+                except OSError:
+                    pass
 
         shutil.rmtree(staged_dir, ignore_errors=True)
         self._set_state(
@@ -267,6 +321,7 @@ class CreativeCloudUpdater:
 
             staged_dir: Path | None = None
             method = ""
+            verified_source = False
 
             # 1. Try Smart Delta staging first (fastest, minimal bandwidth)
             if hub_meta.get("delta_manifest_url") and self.install_dir.is_dir():
@@ -300,6 +355,7 @@ class CreativeCloudUpdater:
                     if res.ok and res.staged_dir:
                         staged_dir = Path(res.staged_dir)
                         method = "delta"
+                        verified_source = bool(str(hub_meta.get("delta_manifest_sha256") or "").strip())
                 except Exception:
                     staged_dir = None
 
@@ -311,6 +367,7 @@ class CreativeCloudUpdater:
                     return
                 zip_dest = self.staging_root / f"qassimz-hub-v{ver}.zip"
                 expected_sha = str(hub_meta.get("portable_sha256") or "").strip()
+                verified_source = bool(expected_sha)
 
                 self._download_resumable(
                     zip_url,
@@ -336,10 +393,15 @@ class CreativeCloudUpdater:
                     staged_dir = out_dir
                 method = "zip"
 
-            # 3. Hot-Patch UI/assets immediately OR mark Core Swap ready
-            if _is_hot_patch_only(staged_dir):
-                self._apply_hot_patch(staged_dir, ver)
-                return
+            # 3. Hot-Patch UI/assets immediately OR mark Core Swap ready.
+            # Unverified archives never get written into the live install dir.
+            if verified_source and _is_hot_patch_only(staged_dir):
+                try:
+                    self._apply_hot_patch(staged_dir, ver)
+                    return
+                except Exception:
+                    self._set_state(phase="idle", progress=0)
+                    return
 
             self._set_state(
                 phase="staged_ready",
@@ -348,9 +410,9 @@ class CreativeCloudUpdater:
                 staged_dir=str(staged_dir),
                 method=method,
             )
-        except Exception:
-            # Silent UX: never disturb the user on offline/network errors
-            self._set_state(phase="idle", progress=0)
+        except Exception as exc:
+            # Stay quiet visually, but keep the reason so the UI can offer a retry.
+            self._set_state(phase="idle", progress=0, error=str(exc)[:300])
         finally:
             with self._lock:
                 self._busy = False

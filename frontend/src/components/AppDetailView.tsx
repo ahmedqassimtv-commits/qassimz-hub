@@ -75,7 +75,11 @@ export const AppDetailView: React.FC<Props> = ({
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {item.state?.installed && !item.state?.has_update ? (
+                  {item.coming_soon ? (
+                    <span className="h-9 px-4 rounded-xl border border-dashed border-[var(--color-border-strong)] text-[var(--color-text-muted)] text-[13px] font-semibold inline-flex items-center gap-2">
+                      <Download size={14} /> {t.comingSoon}
+                    </span>
+                  ) : item.state?.installed && !item.state?.has_update ? (
                     <button
                       onClick={() => onLaunch(item.id)}
                       className="h-9 px-4 rounded-xl bg-[var(--color-action-bg)] text-white text-[13px] font-semibold inline-flex items-center gap-2 cursor-pointer"
@@ -115,7 +119,7 @@ export const AppDetailView: React.FC<Props> = ({
                 </div>
                 <div className="p-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-hover)]">
                   <div className="text-[var(--color-text-muted)] text-[11px]">{isAr ? "الفئة" : "Category"}</div>
-                  <div dir="ltr" className={`font-bold mt-0.5 ${isAr ? "text-right" : "text-left"}`}>{item.category === "adobe" ? "Adobe CEP" : "Windows Desktop"}</div>
+                  <div dir="ltr" className={`font-bold mt-0.5 ${isAr ? "text-right" : "text-left"}`}>{item.category === "adobe" ? t.adobeCep : t.desktopApps}</div>
                 </div>
               </div>
 

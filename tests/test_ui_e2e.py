@@ -32,6 +32,9 @@ class TestQassimzHubUIE2E(unittest.TestCase):
             cls.quit_calls += 1
 
         cls.api._on_quit_request = _on_quit
+        # Deterministic catalog: never pull the live GitHub copy during tests,
+        # or the item count depends on whether the network answered in time.
+        cls.api.refresh_catalog = lambda force=False: cls.api.state()
         cls.url = server.start_server(cls.api)
         cls._pw = sync_playwright().start()
         cls.browser = cls._pw.chromium.launch(headless=True)
@@ -94,9 +97,9 @@ class TestQassimzHubUIE2E(unittest.TestCase):
             sb_w = page.locator("#app-sidebar").bounding_box()["width"]
             self.assertAlmostEqual(sb_w, 228.0, delta=1.0)
 
-            # All 13 full-color cards (no grayscale filter)
+            # All 14 full-color cards (no grayscale filter)
             cards = page.locator(".craft-card")
-            self.assertEqual(cards.count(), 13)
+            self.assertEqual(cards.count(), 14)
             filters = page.evaluate(
                 "() => Array.from(document.querySelectorAll('.card-icon')).map(el => getComputedStyle(el).filter)"
             )
@@ -135,34 +138,43 @@ class TestQassimzHubUIE2E(unittest.TestCase):
             self.assertEqual(bg_light, "rgb(248, 248, 248)")
             page.click("#btn-theme-toggle")
 
-            # Language toggle EN -> AR RTL
-            page.click("#btn-lang")
+            # Language: Arabic (RTL) is the product default for a fresh profile,
+            # and the toggle flips it to English (LTR) and back.
             self.assertEqual(page.evaluate("() => document.documentElement.dir"), "rtl")
             self.assertEqual(page.evaluate("() => document.documentElement.lang"), "ar")
             self.assertIn("كل التطبيقات", page.locator("#view-title").text_content())
             page.click("#btn-lang")
             self.assertEqual(page.evaluate("() => document.documentElement.dir"), "ltr")
+            self.assertEqual(page.evaluate("() => document.documentElement.lang"), "en")
+            page.click("#btn-lang")
+            self.assertEqual(page.evaluate("() => document.documentElement.dir"), "rtl")
 
             # Sidebar category filtering
             page.click("#nav-desktop")
-            self.assertEqual(page.locator(".craft-card").count(), 7)
+            page.wait_for_timeout(300)
+            self.assertEqual(page.locator(".craft-card").count(), 8)
             page.click("#nav-adobe")
+            page.wait_for_timeout(300)
             self.assertEqual(page.locator(".craft-card").count(), 6)
             page.click("#nav-all")
-            self.assertEqual(page.locator(".craft-card").count(), 13)
+            page.wait_for_timeout(300)
+            self.assertEqual(page.locator(".craft-card").count(), 14)
 
             # Search filtering
             page.fill("#q-search", "Captions")
             page.wait_for_timeout(150)
             self.assertEqual(page.locator(".craft-card").count(), 1)
             page.click("#btn-search-clear")
-            self.assertEqual(page.locator(".craft-card").count(), 13)
+            page.wait_for_timeout(250)
+            self.assertEqual(page.locator(".craft-card").count(), 14)
 
             # Grid <-> List toggle
             page.click("#btn-view-list")
-            self.assertEqual(page.locator(".app-list-row").count(), 13)
+            page.wait_for_timeout(250)
+            self.assertEqual(page.locator(".app-list-row").count(), 14)
             page.click("#btn-view-grid")
-            self.assertEqual(page.locator(".craft-card").count(), 13)
+            page.wait_for_timeout(250)
+            self.assertEqual(page.locator(".craft-card").count(), 14)
 
             # Settings modal: toggle minimize_to_tray checkbox, verify zero error toast & persisted state
             before_quits = self.quit_calls

@@ -1,6 +1,32 @@
 @import "tailwindcss";
 
 /* ============================================================================
+   Arabic UI typeface — bundled (offline, no CDN) so Arabic never falls back to
+   a system face with different metrics. Weights 400 / 500 / 600.
+   ============================================================================ */
+@font-face {
+  font-family: "QASSIMZ Arabic";
+  src: url("../assets/fonts/IBMPlexSansArabic-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "QASSIMZ Arabic";
+  src: url("../assets/fonts/IBMPlexSansArabic-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "QASSIMZ Arabic";
+  src: url("../assets/fonts/IBMPlexSansArabic-SemiBold.ttf") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ============================================================================
    3-TIER DESIGN TOKENS (Primitives -> Semantic -> Component)
    Modes: Dark (Default) | Light | High-Contrast (forced-colors: active)
    ============================================================================ */
@@ -514,4 +540,33 @@ input:focus-visible,
     animation: none !important;
     transition-duration: 120ms !important;
   }
+}
+
+
+/* ============================================================================
+   Arabic (RTL) typography rules
+   Arabic is a connected script: any positive letter-spacing stretches the joins
+   and looks broken, so tracking is forced to zero inside RTL, and secondary text
+   never drops below 12.5px.
+   ============================================================================ */
+[dir="rtl"] *,
+[lang="ar"] * {
+  letter-spacing: 0 !important;
+}
+
+[dir="rtl"] body,
+[lang="ar"] body {
+  font-family: "QASSIMZ Arabic", "IBM Plex Sans Arabic", var(--p-font-ui);
+}
+
+[dir="rtl"] [class*="text-[10.5px]"],
+[dir="rtl"] [class*="text-[11px]"],
+[dir="rtl"] [class*="text-[11.5px]"],
+[dir="rtl"] [class*="text-[12px]"],
+[lang="ar"] [class*="text-[10.5px]"],
+[lang="ar"] [class*="text-[11px]"],
+[lang="ar"] [class*="text-[11.5px]"],
+[lang="ar"] [class*="text-[12px]"] {
+  font-size: 12.5px;
+  line-height: 1.55;
 }

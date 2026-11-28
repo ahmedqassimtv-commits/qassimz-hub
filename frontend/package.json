@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "typecheck": "tsc --noEmit",
-    "build": "tsc --noEmit && vite build"
+    "build": "tsc --noEmit && vite build",
+    "postbuild": "node scripts/prune-ui.mjs"
   },
   "dependencies": {
     "@floating-ui/dom": "^1.7.0",

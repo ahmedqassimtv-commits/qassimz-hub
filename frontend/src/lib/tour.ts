@@ -32,8 +32,8 @@ export async function launchGuidedTour(lang: "en" | "ar"): Promise<void> {
       popover: {
         title: isAr ? "التصفية الذكية" : "Smart Views & Categories",
         description: isAr
-          ? "بدّل بسلاسة بين كل البرامج، المثبّتة، التحديثات، وبرامج سطح المكتب أو إضافات Adobe CEP."
-          : "Switch effortlessly between All Apps, Installed, Updates, Desktop Apps, and Adobe CEP panels.",
+          ? "بدّل بسلاسة بين كل البرامج، المثبّتة، التحديثات، وبرامج سطح المكتب أو إضافات قاسمز."
+          : "Switch effortlessly between All Apps, Installed, Updates, Desktop Apps, and QASSIMZ Plugins panels.",
       },
     },
     {

@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-11-28T00:00:00Z",
+  "items": [
+    {
+      "id": "whisper-tiny",
+      "kind": "model",
+      "name": "Whisper Tiny (multilingual)",
+      "name_ar": "ويسبر Tiny — تفريغ صوتي سريع",
+      "note_ar": "أسرع نموذج، دقة أقل. مناسب للتفريغ الأولي والمسودات.",
+      "size_bytes": 77691713,
+      "filename": "ggml-tiny.bin",
+      "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin",
+      "sha256": "",
+      "used_by": [
+        "qassimz-captions"
+      ],
+      "license": "MIT (whisper.cpp / OpenAI Whisper weights)",
+      "note_en": "Fastest model with lower accuracy. Good for quick drafts and previews."
+    },
+    {
+      "id": "whisper-base",
+      "kind": "model",
+      "name": "Whisper Base (multilingual)",
+      "name_ar": "ويسبر Base — التوازن الموصى به",
+      "note_ar": "التوازن الأفضل بين السرعة والدقة للعربية والإنجليزية.",
+      "size_bytes": 147951465,
+      "filename": "ggml-base.bin",
+      "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin",
+      "sha256": "",
+      "used_by": [
+        "qassimz-captions"
+      ],
+      "license": "MIT (whisper.cpp / OpenAI Whisper weights)",
+      "note_en": "Best balance of speed and accuracy for Arabic and English audio."
+    },
+    {
+      "id": "whisper-small",
+      "kind": "model",
+      "name": "Whisper Small (multilingual)",
+      "name_ar": "ويسبر Small — دقة أعلى",
+      "note_ar": "أدق في اللهجات والضجيج، وأبطأ وأثقل على القرص.",
+      "size_bytes": 487601967,
+      "filename": "ggml-small.bin",
+      "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin",
+      "sha256": "",
+      "used_by": [
+        "qassimz-captions"
+      ],
+      "license": "MIT (whisper.cpp / OpenAI Whisper weights)",
+      "note_en": "Most accurate with accents and background noise, heavier on disk."
+    }
+  ]
+}

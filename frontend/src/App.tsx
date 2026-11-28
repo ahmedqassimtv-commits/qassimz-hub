@@ -25,6 +25,7 @@ import { ContextMenu } from "./components/ContextMenu";
 import { CommandPalette } from "./components/CommandPalette";
 import { AppDetailView } from "./components/AppDetailView";
 import { InstallTheater } from "./components/InstallTheater";
+import { LibraryView } from "./components/LibraryView";
 import { SettingsModal } from "./components/SettingsModal";
 import { UpdateCenterModal, WhatsNewModal } from "./components/UpdateCenterModal";
 
@@ -87,9 +88,11 @@ function extractDragExt(dt: DataTransfer | null): string {
 }
 
 export const App: React.FC = () => {
-  const [lang, setLang] = useState<Lang>(() =>
-    localStorage.getItem("qhub_lang") === "ar" ? "ar" : "en"
-  );
+  const [lang, setLang] = useState<Lang>(() => {
+    const saved = localStorage.getItem("qhub_lang");
+    if (saved === "en" || saved === "ar") return saved;
+    return "ar"; // Arabic-first product: default to RTL until the user picks
+  });
   const [themePref, setThemePref] = useState<ThemePref>(() => {
     const v = localStorage.getItem("qhub_theme");
     return v === "light" || v === "system" ? v : "dark";
@@ -136,7 +139,9 @@ export const App: React.FC = () => {
   const soundEnabled = state?.settings?.sound_enabled !== false;
 
   // Singleton deduplicated toast helper
+  const quietRef = useRef(false);
   const showToast = useCallback((text: string, kind: "info" | "error" = "info") => {
+    if (kind === "info" && quietRef.current) return;
     const clean = text.trim();
     if (!clean) return;
     const key = `${kind}:${clean}`;
@@ -176,6 +181,7 @@ export const App: React.FC = () => {
   const reloadState = useCallback(async (force = false) => {
     const data = await HubBridge.state(force);
     setState(data);
+    quietRef.current = Boolean(data?.quiet_active);
     return data;
   }, []);
 
@@ -278,10 +284,21 @@ export const App: React.FC = () => {
     };
   }, [checkUpdatesSilently]);
 
-  // Sync sound engine with persisted setting
+  // Surface a failed background self-update once (P1-6: no silent failures)
+  const ccErrorShownRef = useRef("");
   useEffect(() => {
-    soundEngine.setEnabled(soundEnabled);
-  }, [soundEnabled]);
+    const err = state?.cc_updater ? (state.cc_updater as unknown as { error?: string }).error : "";
+    if (err && err !== ccErrorShownRef.current) {
+      ccErrorShownRef.current = err;
+      showToast(t.ccUpdateFailed, "error");
+    }
+  }, [state?.cc_updater, t.ccUpdateFailed, showToast]);
+
+  // Quiet / recording mode mutes sounds and non-critical notifications
+  const quietActive = Boolean(state?.quiet_active);
+  useEffect(() => {
+    soundEngine.setEnabled(soundEnabled && !quietActive);
+  }, [soundEnabled, quietActive]);
 
   // Live hardware telemetry polling (every 2s while visible)
   useEffect(() => {
@@ -448,7 +465,7 @@ export const App: React.FC = () => {
     setTheaterMinimized(false);
     setTerminalTask(null);
     try {
-      if (id === "qassimz-hub") await HubBridge.installHubUpdate(true);
+      if (id === "qassimz-hub") await HubBridge.installHubUpdate();
       else await HubBridge.install(id);
       await reloadState(false);
     } catch {
@@ -464,7 +481,15 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleUninstall = async (id: string) => {
+  const [confirmUninstall, setConfirmUninstall] = useState<CatalogItem | null>(null);
+
+  const handleUninstall = (id: string) => {
+    const item = (state?.items || []).find((it) => it.id === id) || null;
+    setConfirmUninstall(item || ({ id, name: id } as CatalogItem));
+  };
+
+  const runUninstall = async (id: string) => {
+    setConfirmUninstall(null);
     try {
       await HubBridge.uninstall(id);
       await reloadState(true);
@@ -473,11 +498,24 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleOpenFolder = useCallback(
+    (id: string) => {
+      const item = (state?.items || []).find((it) => it.id === id);
+      const path = item?.state?.install_dir || item?.state?.cep_dir || item?.state?.exe_path;
+      if (!path) {
+        showToast(t.friendlyErr, "error");
+        return;
+      }
+      HubBridge.openFolder(path).catch(() => {});
+    },
+    [state?.items, t.friendlyErr, showToast]
+  );
+
   const handleManualUpdateCheck = async () => {
     setUpdateCenterOpen(true);
     setCheckingUpdates(true);
     try {
-      const fresh = await HubBridge.refreshCatalog();
+      const fresh = await HubBridge.refreshCatalog(true);
       setState(fresh);
     } catch {
       // Friendly update center handles offline quietly
@@ -505,6 +543,57 @@ export const App: React.FC = () => {
     } catch {
       showToast(t.friendlyErr, "error");
     }
+  };
+
+  const handleSaveSettings = async (values: Partial<HubSettingsData>) => {
+    const updated = await HubBridge.saveSettings(values);
+    setState((prev) => (prev ? { ...prev, settings: updated } : prev));
+  };
+
+  const handleChooseFolder = async () => {
+    try {
+      const res = await HubBridge.chooseInstallFolder();
+      if (res?.path) await handleSaveSettings({ install_root: res.path });
+    } catch {
+      showToast(t.friendlyErr, "error");
+    }
+  };
+
+  const handleSaveWorkspace = async (modeId: string, appIds: string[]) => {
+    try {
+      const res = await HubBridge.setWorkspaces(modeId, appIds);
+      setState((prev) =>
+        prev ? { ...prev, settings: { ...prev.settings, workspaces: res.workspaces } } : prev
+      );
+      showToast(t.done, "info");
+    } catch {
+      showToast(t.friendlyErr, "error");
+    }
+  };
+
+  const handleExportSettings = () => {
+    HubBridge.exportSettings()
+      .then((bundle) => {
+        const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "qassimz-hub-settings.json";
+        a.click();
+        URL.revokeObjectURL(url);
+      })
+      .catch(() => showToast(t.friendlyErr, "error"));
+  };
+
+  const handleImportSettings = (file: File) => {
+    file
+      .text()
+      .then((text) => HubBridge.importSettings(JSON.parse(text)))
+      .then((updated) => {
+        setState((prev) => (prev ? { ...prev, settings: updated } : prev));
+        showToast(t.importOk, "info");
+      })
+      .catch(() => showToast(t.importFailed, "error"));
   };
 
   const handleSaveMechMode = async (mode: MechanicalBgMode) => {
@@ -612,16 +701,24 @@ export const App: React.FC = () => {
       ? t.desktopApps
       : view === "adobe"
       ? t.adobeCep
+      : view === "library"
+      ? t.libraryTitle
       : t.allApps;
 
   const attentionCount = (state?.counts?.updates || 0) + (state?.hub_has_update ? 1 : 0);
 
-  const workspaces = [
-    { id: "editing", label: t.wsEditing, icon: <Film size={13} /> },
-    { id: "podcast", label: t.wsPodcast, icon: <Mic size={13} /> },
-    { id: "study", label: t.wsStudy, icon: <BookOpen size={13} /> },
-    { id: "design", label: t.wsDesign, icon: <Palette size={13} /> },
-  ];
+  const wsIcon = (id: string) =>
+    id === "podcast" ? <Mic size={13} /> : id === "study" ? <BookOpen size={13} /> : id === "design" ? <Palette size={13} /> : <Film size={13} />;
+  const wsLabel = (id: string) =>
+    id === "editing" ? t.wsEditing : id === "podcast" ? t.wsPodcast : id === "study" ? t.wsStudy : id === "design" ? t.wsDesign : id.replace(/^custom_/, "").replace(/_/g, " ");
+  const wsMap: Record<string, string[]> = {
+    editing: ["qassimz-studio", "qassimz-producer", "qassimz-organizer", "qassimz-music"],
+    podcast: ["qassimz-producer", "qassimz-music", "qassimz-studio"],
+    study: ["qassimz-study", "qassimz-music", "qdm"],
+    design: ["qassimz-thumbs", "qassimz-organizer", "qassimz-producer"],
+    ...(state?.settings?.workspaces || {}),
+  };
+  const workspaces = Object.keys(wsMap).map((id) => ({ id, label: wsLabel(id), icon: wsIcon(id) }));
 
   return (
     <>
@@ -752,10 +849,12 @@ export const App: React.FC = () => {
                   <h1 id="view-title" className="m-0 text-[22px] font-bold tracking-tight">
                     {viewTitle}
                   </h1>
-                  <span className="text-[12px] font-semibold px-2 py-0.5 rounded-full bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)] tabular-nums">
-                    {visibleItems.length}
-                  </span>
-                  {(state?.counts?.updates || 0) > 0 && (
+                  {view !== "library" && (
+                    <span className="text-[12px] font-semibold px-2 py-0.5 rounded-full bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)] tabular-nums">
+                      {visibleItems.length}
+                    </span>
+                  )}
+                  {view !== "library" && (state?.counts?.updates || 0) > 0 && (
                     <m.button
                       id="btn-update-all"
                       whileTap={{ scale: 0.96 }}
@@ -773,6 +872,7 @@ export const App: React.FC = () => {
                   )}
                 </div>
 
+                {view !== "library" && (
                 <div className="flex items-center gap-2">
                   <select
                     id="q-sort"
@@ -823,6 +923,7 @@ export const App: React.FC = () => {
                     </button>
                   </div>
                 </div>
+                )}
               </div>
 
               {/* Creator OS: 1-Click Workspace Modes Bar */}
@@ -847,8 +948,15 @@ export const App: React.FC = () => {
                 </div>
               )}
 
-              {/* Adobe Creative Cloud Layout: Compact Horizontal Installed Rows + Clean Available Grid */}
-              {layout === "grid" ? (
+              {/* Library & AI Models — shared models, fonts and brand assets */}
+              {view === "library" ? (
+                <LibraryView
+                  lang={lang}
+                  library={state?.library || null}
+                  onRefresh={() => reloadState(true).catch(() => {})}
+                  onToast={showToast}
+                />
+              ) : layout === "grid" ? (
                 (() => {
                   const installedList = visibleItems.filter((it) => it.state?.installed);
                   const availableList = visibleItems.filter((it) => !it.state?.installed);
@@ -950,7 +1058,7 @@ export const App: React.FC = () => {
         onClose={() => setContextMenu(null)}
         onInstall={handleInstall}
         onLaunch={handleLaunch}
-        onOpenFolder={(id) => HubBridge.openFolder(id).catch(() => {})}
+        onOpenFolder={handleOpenFolder}
         onOtherVersions={(it) => {
           const url = it.repo
             ? `https://github.com/${it.repo}/releases`
@@ -988,7 +1096,7 @@ export const App: React.FC = () => {
         onClose={() => setSelectedItem(null)}
         onInstall={handleInstall}
         onLaunch={handleLaunch}
-        onOpenFolder={(id) => HubBridge.openFolder(id).catch(() => {})}
+        onOpenFolder={handleOpenFolder}
         onUninstall={handleUninstall}
       />
 
@@ -1012,12 +1120,71 @@ export const App: React.FC = () => {
         onDone={() => setTerminalTask(null)}
       />
 
+      {/* Destructive action confirmation (P1-7) */}
+      <AnimatePresence>
+        {confirmUninstall && (
+          <m.div
+            id="uninstall-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onPointerDown={(e) => {
+              if (e.target === e.currentTarget) setConfirmUninstall(null);
+            }}
+            className="fixed inset-0 z-[370] flex items-center justify-center p-5 bg-[var(--color-scrim)]"
+          >
+            <m.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="uninstall-title"
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={SPRINGS.smooth}
+              className="w-full max-w-[380px] rounded-2xl p-5 flex flex-col gap-3 bg-[var(--color-surface-elevated)] border border-[var(--color-border-strong)]"
+              style={{ boxShadow: "var(--shadow-elevated)" }}
+            >
+              <h3 id="uninstall-title" className="m-0 text-[15px] font-bold">
+                {t.uninstallConfirmTitle}
+              </h3>
+              <p className="m-0 text-[12.5px] text-[var(--color-text-secondary)]">
+                {t.uninstallConfirmBody(confirmUninstall.name)}
+              </p>
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  autoFocus
+                  onClick={() => setConfirmUninstall(null)}
+                  className="h-8 px-3.5 rounded-lg bg-[var(--color-surface-hover)] text-[12.5px] font-semibold cursor-pointer"
+                >
+                  {t.cancel}
+                </button>
+                <button
+                  id="btn-confirm-uninstall"
+                  onClick={() => runUninstall(confirmUninstall.id)}
+                  className="h-8 px-3.5 rounded-lg bg-red-500/20 text-[#f87171] text-[12.5px] font-semibold cursor-pointer hover:bg-red-500/30"
+                >
+                  {t.confirm}
+                </button>
+              </div>
+            </m.div>
+          </m.div>
+        )}
+      </AnimatePresence>
+
       {/* Settings Modal */}
       <SettingsModal
         open={settingsOpen}
         lang={lang}
         themePref={themePref}
         settings={state?.settings || DEFAULT_SETTINGS}
+        items={state?.items || []}
+        workspaces={wsMap}
+        workspaceLabels={workspaces.map((w) => ({ id: w.id, label: w.label }))}
+        onSaveSettings={handleSaveSettings}
+        onChooseFolder={handleChooseFolder}
+        onSaveWorkspace={handleSaveWorkspace}
+        onExport={handleExportSettings}
+        onImport={handleImportSettings}
         onClose={() => setSettingsOpen(false)}
         onThemePick={(pref, el) =>
           switchThemeWithCircle(pref, el, (p) => {
@@ -1029,6 +1196,7 @@ export const App: React.FC = () => {
         onMechModePick={handleSaveMechMode}
         onToggleSetting={handleSaveSetting}
         onQuit={() => HubBridge.winQuit().catch(() => {})}
+        onToast={showToast}
       />
 
       {/* Update Center Modal */}

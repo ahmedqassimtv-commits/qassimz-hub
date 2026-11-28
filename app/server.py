@@ -5,6 +5,7 @@ import json
 import logging
 import mimetypes
 import os
+import re
 import secrets
 import shutil
 import subprocess
@@ -27,6 +28,7 @@ from detector import (
     parse_version,
 )
 from feature_flags import FeatureFlagStore
+from library import LibraryManager
 from installer_runner import UA, TaskQueue, run_uninstall_command, ssl_context
 from taskbar_progress import (
     TBPF_ERROR,
@@ -42,10 +44,24 @@ from window_state import (
     validate_window_rect,
 )
 
-VERSION = "2.1.0"
+VERSION = "2.2.0"
 HUB_REPO = "ahmedqassimtv-commits/qassimz-hub"
 REMOTE_CATALOG_URL = f"https://raw.githubusercontent.com/{HUB_REPO}/main/catalog.json"
 STATE_CACHE_TTL = 3.0
+CATALOG_SYNC_TTL = 600.0  # seconds between automatic catalog fetches
+MAX_BODY_BYTES = 64 * 1024
+
+ALLOWED_ENDPOINTS = frozenset({
+    "state", "tasks", "refresh_catalog", "install", "update_all", "launch", "uninstall",
+    "open_folder", "open_url", "fix_cep", "save_settings", "cancel_task", "pause_task",
+    "resume_task", "set_task_auto_launch", "force_close_and_retry", "telemetry",
+    "clear_cache", "launch_workspace", "open_with", "clear_finished_tasks",
+    "install_hub_update", "apply_staged_update", "report_ui_error", "win_minimize",
+    "win_toggle_maximize", "win_reveal_main", "win_close", "win_quit",
+    "remove_library_item", "choose_install_folder", "export_settings",
+    "import_settings", "set_workspaces",
+    "library_state", "install_library_item", "open_library_folder",
+})
 
 mimetypes.add_type("font/woff2", ".woff2")
 mimetypes.add_type("font/ttf", ".ttf")
@@ -63,6 +79,50 @@ def data_dir() -> Path:
     return base
 
 
+MAX_WORKSPACE_MODES = 8
+MAX_WORKSPACE_APPS = 20
+APP_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,39}$")
+
+
+def _clean_dir_setting(value: Any) -> str:
+    """Normalise a user-chosen folder. Empty string means 'use the default'."""
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    if len(raw) > 260:
+        return ""
+    candidate = Path(os.path.expandvars(os.path.expanduser(raw)))
+    windows_abs = bool(re.match(r"^[A-Za-z]:[\\/]", raw))
+    if not candidate.is_absolute() and not windows_abs:
+        return ""
+    return str(candidate)
+
+
+def _clean_workspaces(value: Any) -> dict[str, list[str]]:
+    """Validate workspace -> app-id lists coming from the UI or an imported file."""
+    if not isinstance(value, dict):
+        return {}
+    clean: dict[str, list[str]] = {}
+    for mode_id, app_ids in list(value.items())[:MAX_WORKSPACE_MODES]:
+        mode = str(mode_id).strip()
+        if not mode or len(mode) > 40 or not re.match(r"^[A-Za-z0-9_-]+$", mode):
+            continue
+        if not isinstance(app_ids, (list, tuple)):
+            continue
+        ids = [str(a) for a in app_ids if APP_ID_RE.match(str(a))][:MAX_WORKSPACE_APPS]
+        clean[mode] = list(dict.fromkeys(ids))
+    return clean
+
+
+def _as_bool(value: Any) -> bool:
+    """Strict boolean coercion: the string "false" must not become True."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in ("1", "true", "yes", "on")
+    return bool(value)
+
+
 class HubSettings:
     DEFAULTS: dict[str, Any] = {
         "silent_install": True,
@@ -73,10 +133,25 @@ class HubSettings:
         "auto_update_hub": False,
         "mechanical_bg_mode": "balanced",
         "sound_enabled": True,
+        "cep_debug_auto": False,
+        "require_signed_installers": False,
+        # v2.2.0 practical settings
+        "install_root": "",
+        "smart_pause": True,
+        "auto_clean_installers": True,
+        "cache_cleanup_days": 7,
+        "quiet_mode": False,
+        "quiet_auto_obs": True,
+        "workspaces": {},
     }
     ENUM_OPTIONS: dict[str, tuple[str, ...]] = {
         "mechanical_bg_mode": ("off", "balanced", "overdrive"),
     }
+    INT_ENUMS: dict[str, tuple[int, ...]] = {
+        "cache_cleanup_days": (0, 7, 30),
+    }
+    PATH_OPTIONS: tuple[str, ...] = ("install_root",)
+    MAP_OPTIONS: tuple[str, ...] = ("workspaces",)
 
     def __init__(self, root: Path):
         self.file = root / "settings.json"
@@ -89,12 +164,9 @@ class HubSettings:
                     for k in self.DEFAULTS:
                         if k not in loaded:
                             continue
-                        if k in self.ENUM_OPTIONS:
-                            val = str(loaded[k]).lower()
-                            if val in self.ENUM_OPTIONS[k]:
-                                self._data[k] = val
-                        else:
-                            self._data[k] = bool(loaded[k])
+                        coerced = self._coerce(k, loaded[k])
+                        if coerced is not None:
+                            self._data[k] = coerced
                     if loaded.get("_schema", 1) < 2:
                         self._data["auto_update_apps"] = False
                         self._data["auto_update_hub"] = False
@@ -104,6 +176,23 @@ class HubSettings:
             except Exception:
                 pass
 
+    def _coerce(self, key: str, value: Any) -> Any:
+        """Validate one setting. Returns None when the value must be ignored."""
+        if key in self.ENUM_OPTIONS:
+            val = str(value).lower()
+            return val if val in self.ENUM_OPTIONS[key] else None
+        if key in self.INT_ENUMS:
+            try:
+                num = int(value)
+            except (TypeError, ValueError):
+                return None
+            return num if num in self.INT_ENUMS[key] else None
+        if key in self.PATH_OPTIONS:
+            return _clean_dir_setting(value)
+        if key in self.MAP_OPTIONS:
+            return _clean_workspaces(value)
+        return _as_bool(value)
+
     def all(self) -> dict[str, Any]:
         with self._lock:
             return dict(self._data)
@@ -111,14 +200,11 @@ class HubSettings:
     def update(self, values: dict[str, Any]) -> dict[str, Any]:
         with self._lock:
             for k, v in (values or {}).items():
-                if k not in self.DEFAULTS:
+                if k not in self.DEFAULTS or k == "_schema":
                     continue
-                if k in self.ENUM_OPTIONS:
-                    val = str(v).lower()
-                    if val in self.ENUM_OPTIONS[k]:
-                        self._data[k] = val
-                else:
-                    self._data[k] = bool(v)
+                coerced = self._coerce(k, v)
+                if coerced is not None:
+                    self._data[k] = coerced
             out = dict(self._data)
             out["_schema"] = 2
             atomic_write_json(self.file, out)
@@ -153,6 +239,10 @@ class HubApi:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.settings = HubSettings(self.root)
         self.feature_flags = FeatureFlagStore(self.root)
+        self.library = LibraryManager(self.root, resource("library.json"))
+        self._library_lock = threading.Lock()
+        self._library_tasks: dict[str, dict[str, Any]] = {}
+        self._pending_self_update: Path | None = None
         self.window_state = WindowStateStore(self.root)
         self.window: Any = None
         self._is_maximized = False
@@ -173,7 +263,11 @@ class HubApi:
             on_finished=self._on_task_finished,
             on_self_update_ready=self._apply_hub_self_update,
             on_progress=self._on_tasks_progress,
+            should_pause=self._smart_pause_blocks,
+            cleanup_after_install=self._cleanup_after_install,
         )
+        self._proc_cache: tuple[float, set[str]] = (0.0, set())
+        self._cleanup_cache_on_start()
         install_dir = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent.parent
         self.cc_updater = CreativeCloudUpdater(
             install_dir=install_dir,
@@ -200,6 +294,10 @@ class HubApi:
             self.taskbar.set_progress(self.window, 100, 100, TBPF_ERROR)
         else:
             self.taskbar.clear(self.window)
+        if not active and not paused and self._pending_self_update is not None:
+            pending = self._pending_self_update
+            self._pending_self_update = None
+            threading.Thread(target=self._apply_hub_self_update, args=(pending,), daemon=True).start()
 
     def _on_hot_patched(self, new_version: str) -> None:
         win = self.window
@@ -218,8 +316,80 @@ class HubApi:
             except Exception:
                 pass
 
+    EDITING_PROCESSES = ("premiere pro.exe", "afterfx.exe", "qassimz studio.exe", "adobe premiere pro.exe")
+    OBS_PROCESSES = ("obs64.exe", "obs32.exe")
+
+    def _running_processes(self) -> set[str]:
+        """Cached process-name snapshot (Windows tasklist; empty elsewhere)."""
+        now = time.monotonic()
+        stamp, names = self._proc_cache
+        if now - stamp < 5.0:
+            return names
+        found: set[str] = set()
+        if os.name == "nt":
+            try:
+                out = subprocess.run(
+                    ["tasklist", "/FO", "CSV", "/NH"],
+                    capture_output=True, text=True, timeout=6,
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                ).stdout
+                for line in out.splitlines():
+                    if line.startswith('"'):
+                        found.add(line.split('","')[0].strip('"').lower())
+            except Exception:
+                found = set()
+        self._proc_cache = (now, found)
+        return found
+
+    def _quiet_active(self) -> bool:
+        cfg = self.settings.all()
+        if cfg.get("quiet_mode"):
+            return True
+        if cfg.get("quiet_auto_obs"):
+            return bool(self._running_processes() & set(self.OBS_PROCESSES))
+        return False
+
+    def _smart_pause_blocks(self) -> bool:
+        """True while an editing app is open or the CPU is saturated."""
+        if not self.settings.all().get("smart_pause", True):
+            return False
+        if self._running_processes() & set(self.EDITING_PROCESSES):
+            return True
+        try:
+            return float(self.telemetry_monitor.snapshot(self.root).get("cpu_pct") or 0) >= 85.0
+        except Exception:
+            return False
+
+    def _cleanup_after_install(self) -> bool:
+        return bool(self.settings.all().get("auto_clean_installers", True))
+
+    def _cleanup_cache_on_start(self) -> None:
+        """Delete stale installers/cache according to the user's cleanup schedule."""
+        try:
+            days = int(self.settings.all().get("cache_cleanup_days") or 0)
+        except (TypeError, ValueError):
+            days = 0
+        if days <= 0:
+            return
+        cutoff = time.time() - days * 86400
+
+        def _sweep() -> None:
+            try:
+                for f in self.cache_dir.rglob("*"):
+                    if not f.is_file():
+                        continue
+                    try:
+                        if f.stat().st_mtime < cutoff:
+                            f.unlink()
+                    except OSError:
+                        pass
+            except Exception:
+                pass
+
+        threading.Thread(target=_sweep, daemon=True).start()
+
     def _on_task_finished(self, item_id: str, item: dict[str, Any]) -> None:
-        if item.get("category") == "adobe":
+        if item.get("category") == "adobe" and self.settings.all().get("cep_debug_auto", False):
             try:
                 enable_cep_player_debug_mode()
             except Exception:
@@ -235,6 +405,15 @@ class HubApi:
 
     def _apply_hub_self_update(self, target_path: Path) -> None:
         if os.name != "nt":
+            return
+        busy = [
+            t for t in self.queue.snapshot()
+            if t["status"] in ("queued", "checking", "downloading", "verifying", "installing")
+            and t.get("id") != "qassimz-hub"
+        ]
+        if busy:
+            # Never kill the process in the middle of another app's install.
+            self._pending_self_update = Path(target_path)
             return
         rel = self._on_release_lock
         if callable(rel):
@@ -373,8 +552,14 @@ class HubApi:
                 pass
         return bundled_data
 
-    def refresh_catalog(self) -> dict[str, Any]:
-        """Fetch latest public catalog.json from qassimz-hub GitHub without login."""
+    def refresh_catalog(self, force: bool = False) -> dict[str, Any]:
+        """Fetch latest public catalog.json from qassimz-hub GitHub without login.
+
+        Cached for CATALOG_SYNC_TTL seconds so window-focus events cannot burn the
+        unauthenticated GitHub API quota (60 requests/hour per IP).
+        """
+        if not force and self._last_sync and (time.time() - self._last_sync) < CATALOG_SYNC_TTL:
+            return self.state()
         url = f"{REMOTE_CATALOG_URL}?t={int(time.time())}"
         try:
             req = urllib.request.Request(url, headers={"User-Agent": UA, "Cache-Control": "no-cache"})
@@ -486,6 +671,9 @@ class HubApi:
             "last_sync": self._last_sync,
             "sync_error": self._sync_error,
             "settings": self.settings.all(),
+            "quiet_active": self._quiet_active(),
+            "install_root": self.install_root(),
+            "library": self._library_payload(),
             "tasks": self.queue.snapshot(),
             "cache_dir": str(self.cache_dir),
             "cache_size_bytes": cache_bytes,
@@ -517,12 +705,15 @@ class HubApi:
         item = self._get_item(id)
         if not item:
             raise ValueError("تعذّر العثور على هذا التطبيق حالياً، سنحاول لاحقاً.")
+        if not str(item.get("setup_url") or "").strip():
+            raise ValueError("الإصدار الأول من هذا التطبيق قيد التجهيز ولم يُرفع ملف التثبيت بعد.")
         item_copy = dict(item)
         if "state" not in item_copy or not item_copy.get("state"):
             try:
                 item_copy["state"] = detect_item_state(item_copy)
             except Exception:
                 pass
+        item_copy["require_signature"] = bool(self.settings.all().get("require_signed_installers", False))
         use_silent = self.settings.all()["silent_install"] if silent is None else bool(silent)
         return self.queue.enqueue_install(item_copy, silent=use_silent)
 
@@ -631,15 +822,6 @@ class HubApi:
 
     def open_cache_dir(self) -> bool:
         return self.open_folder(str(self.cache_dir))
-
-    def clear_cache(self) -> dict[str, Any]:
-        if self.cache_dir.is_dir():
-            for child in self.cache_dir.iterdir():
-                if child.is_file() and not child.name.endswith(".part"):
-                    child.unlink(missing_ok=True)
-                elif child.is_dir():
-                    shutil.rmtree(child, ignore_errors=True)
-        return self.state()
 
     def open_url(self, url: str) -> bool:
         if str(url).startswith(("http://", "https://")):
@@ -940,9 +1122,85 @@ class HubApi:
         """Purge stale downloads & staging files while preserving active transfers."""
         return clear_hub_cache(self.root, active_filenames=self.queue.active_filenames())
 
+    def _workspace_map(self) -> dict[str, list[str]]:
+        """Built-in workspace presets, overridden by whatever the user customised."""
+        custom = self.settings.all().get("workspaces") or {}
+        merged: dict[str, list[str]] = {k: list(v) for k, v in self.WORKSPACE_MODES.items()}
+        for mode_id, app_ids in (custom or {}).items():
+            merged[str(mode_id)] = list(app_ids)
+        return merged
+
+    def set_workspaces(self, mode_id: str, app_ids: list[str]) -> dict[str, Any]:
+        """Save one workspace's app list (or a brand new custom workspace)."""
+        mode = str(mode_id or "").strip()
+        if not re.match(r"^[A-Za-z0-9_-]{1,40}$", mode):
+            raise ValueError("اسم مساحة العمل غير صالح")
+        known = {it["id"] for it in (self._get_enriched().get("items") or [])}
+        wanted = [str(a) for a in (app_ids or []) if str(a) in known]
+        current = dict(self.settings.all().get("workspaces") or {})
+        current[mode] = wanted[:MAX_WORKSPACE_APPS]
+        self.settings.update({"workspaces": current})
+        return {"ok": True, "workspaces": self._workspace_map()}
+
+    def export_settings(self) -> dict[str, Any]:
+        """Portable settings bundle the user can re-import on another PC."""
+        payload = self.settings.all()
+        return {"schema": 2, "app": "qassimz-hub", "version": VERSION, "settings": payload}
+
+    def import_settings(self, values: Any = None, payload: Any = None) -> dict[str, Any]:
+        """Import a previously exported bundle, validating every field first."""
+        source = payload if isinstance(payload, dict) else values
+        if isinstance(source, dict) and isinstance(source.get("settings"), dict):
+            source = source["settings"]
+        if not isinstance(source, dict):
+            raise ValueError("ملف الإعدادات غير صالح")
+        clean: dict[str, Any] = {}
+        for key, value in source.items():
+            if key in HubSettings.DEFAULTS and key != "_schema":
+                coerced = self.settings._coerce(key, value)
+                if coerced is not None:
+                    clean[key] = coerced
+        if not clean:
+            raise ValueError("لا توجد إعدادات صالحة في الملف")
+        return self.settings.update(clean)
+
+    def choose_install_folder(self) -> dict[str, Any]:
+        """Open the native Windows folder picker and return the chosen path."""
+        try:
+            import tkinter as tk
+            from tkinter import filedialog
+
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes("-topmost", True)
+            try:
+                chosen = filedialog.askdirectory(title="QASSIMZ Hub — Install & Models Location")
+            finally:
+                root.destroy()
+            if not chosen:
+                return {"ok": False, "path": ""}
+            path = _clean_dir_setting(chosen)
+            if not path:
+                return {"ok": False, "path": ""}
+            return {"ok": True, "path": path}
+        except Exception as exc:
+            return {"ok": False, "path": "", "error": str(exc)}
+
+    def install_root(self) -> str:
+        """Base folder for installs, models and cache (custom when configured)."""
+        custom = self.settings.all().get("install_root") or ""
+        if custom:
+            try:
+                p = Path(custom)
+                p.mkdir(parents=True, exist_ok=True)
+                return str(p)
+            except OSError:
+                pass
+        return str(self.root)
+
     def launch_workspace(self, mode_id: str) -> dict[str, Any]:
         """Launch all installed desktop apps associated with a Creator OS workspace mode."""
-        app_ids = self.WORKSPACE_MODES.get(str(mode_id).lower(), ())
+        app_ids = self._workspace_map().get(str(mode_id).lower(), ())
         if not app_ids:
             return {"ok": False, "launched": [], "skipped": []}
         st = self.state(force=False)
@@ -977,6 +1235,57 @@ class HubApi:
             return {"ok": True, "item_id": item_id, "file_path": file_path}
         return {"ok": True, "item_id": item_id, "file_path": file_path, "simulated": True}
 
+    # --- Library & AI connectors ------------------------------------------
+    def _library_payload(self) -> dict[str, Any]:
+        payload = self.library.state()
+        with self._library_lock:
+            payload["downloads"] = {k: dict(v) for k, v in self._library_tasks.items()}
+        return payload
+
+    def library_state(self) -> dict[str, Any]:
+        return self._library_payload()
+
+    def install_library_item(self, id: str) -> dict[str, Any]:
+        with self._library_lock:
+            current = self._library_tasks.get(id)
+            if current and current.get("status") in ("queued", "downloading"):
+                return dict(current)
+            self._library_tasks[id] = {"id": id, "status": "queued", "progress": 0}
+        threading.Thread(target=self._library_worker, args=(id,), daemon=True).start()
+        return {"id": id, "status": "queued", "progress": 0}
+
+    def _library_worker(self, item_id: str) -> None:
+        def on_progress(payload: dict[str, Any]) -> None:
+            with self._library_lock:
+                entry = self._library_tasks.setdefault(item_id, {"id": item_id})
+                entry.update(payload)
+                entry["id"] = item_id
+        try:
+            self.library.install(item_id, on_progress=on_progress)
+            with self._library_lock:
+                self._library_tasks.setdefault(item_id, {"id": item_id}).update(
+                    {"status": "completed", "progress": 100}
+                )
+        except Exception as exc:
+            with self._library_lock:
+                self._library_tasks.setdefault(item_id, {"id": item_id}).update(
+                    {"status": "error", "error": str(exc)}
+                )
+        self._notify_ui_sync()
+
+    def open_library_folder(self, kind: str = "assets") -> dict[str, Any]:
+        path = self.library.open_folder(kind)
+        try:
+            self.open_folder(path)
+        except Exception:
+            pass
+        return {"ok": True, "path": path}
+
+    def remove_library_item(self, id: str) -> dict[str, Any]:
+        removed = self.library.remove(id)
+        self._notify_ui_sync()
+        return {"ok": True, "removed": bool(removed)}
+
     def pause_task(self, item_id: str) -> dict[str, Any]:
         return {"ok": self.queue.pause(item_id)}
 
@@ -990,8 +1299,14 @@ class HubApi:
         return {"ok": self.queue.force_close_and_retry(item_id)}
 
 
-def make_handler(api: HubApi, token: str, ui_dir: Path):
+def make_handler(api: HubApi, token: str, ui_dir: Path, ctx: dict[str, Any] | None = None):
     ui_resolved = ui_dir.resolve()
+    server_ctx = ctx if ctx is not None else {}
+    csp = (
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; "
+        "object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+    )
     static_cache: dict[Path, tuple[int, bytes, str, str]] = {}
     static_lock = threading.Lock()
 
@@ -1012,6 +1327,11 @@ def make_handler(api: HubApi, token: str, ui_dir: Path):
                 self.send_response(code)
                 self.send_header("Content-Type", ctype)
                 self.send_header("Content-Length", str(len(body)))
+                self.send_header("X-Content-Type-Options", "nosniff")
+                self.send_header("Referrer-Policy", "no-referrer")
+                self.send_header("X-Frame-Options", "DENY")
+                if "html" in ctype:
+                    self.send_header("Content-Security-Policy", csp)
                 if etag:
                     self.send_header("ETag", etag)
                     self.send_header("Cache-Control", "public, max-age=86400")
@@ -1023,6 +1343,14 @@ def make_handler(api: HubApi, token: str, ui_dir: Path):
             except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
                 pass
 
+        def _host_ok(self) -> bool:
+            """Reject DNS-rebinding requests: only our own loopback origin may talk to us."""
+            host = (self.headers.get("Host") or "").strip().lower()
+            port = server_ctx.get("port")
+            if not host or port is None:
+                return True
+            return host in (f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}")
+
         def _strip_token(self) -> str | None:
             prefix = f"/{token}/"
             if not self.path.startswith(prefix):
@@ -1030,6 +1358,8 @@ def make_handler(api: HubApi, token: str, ui_dir: Path):
             return self.path[len(token) + 1 :]
 
         def do_GET(self) -> None:
+            if not self._host_ok():
+                return self._send(403, b"forbidden", "text/plain")
             rel = self._strip_token()
             if rel is None:
                 return self._send(403, b"forbidden", "text/plain")
@@ -1077,15 +1407,22 @@ def make_handler(api: HubApi, token: str, ui_dir: Path):
         do_HEAD = do_GET
 
         def do_POST(self) -> None:
+            if not self._host_ok():
+                return self._send(403, b"forbidden", "text/plain")
             rel = self._strip_token()
             if rel is None:
                 return self._send(403, b"forbidden", "text/plain")
             method_name = rel.split("?", 1)[0].removeprefix("/api/")
+            if method_name not in ALLOWED_ENDPOINTS:
+                return self._send(404, b'{"ok":false,"error":"unknown endpoint"}')
             fn = getattr(api, method_name, None)
-            if method_name.startswith("_") or not callable(fn):
+            if not callable(fn):
                 return self._send(404, b'{"ok":false,"error":"unknown endpoint"}')
             try:
                 length = int(self.headers.get("Content-Length") or 0)
+                if length > MAX_BODY_BYTES:
+                    self.close_connection = True
+                    return self._send(413, b'{"ok":false,"error":"payload too large"}')
                 payload = json.loads(self.rfile.read(length) or b"{}") if length > 0 else {}
                 result = fn(**payload) if isinstance(payload, dict) else fn()
                 resp = json.dumps({"ok": True, "data": result}, ensure_ascii=False, default=str)
@@ -1098,7 +1435,9 @@ def make_handler(api: HubApi, token: str, ui_dir: Path):
 
 def start_server(api: HubApi, port: int = 0) -> str:
     token = secrets.token_urlsafe(16)
-    httpd = ThreadingHTTPServer(("127.0.0.1", port), make_handler(api, token, resource("app/ui")))
+    ctx: dict[str, Any] = {}
+    httpd = ThreadingHTTPServer(("127.0.0.1", port), make_handler(api, token, resource("app/ui"), ctx))
+    ctx["port"] = httpd.server_address[1]
     httpd.daemon_threads = True
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     return f"http://127.0.0.1:{httpd.server_address[1]}/{token}/"

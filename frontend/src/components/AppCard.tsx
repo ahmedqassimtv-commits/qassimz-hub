@@ -427,7 +427,7 @@ export const AppCard: React.FC<SharedAppProps> = ({
             {isAdobe && (
               <>
                 <span>•</span>
-                <span>CEP</span>
+                <span>{t.pluginBadge}</span>
               </>
             )}
           </div>
@@ -442,7 +442,11 @@ export const AppCard: React.FC<SharedAppProps> = ({
       {/* Footer: Size + Spectrum Blue #1473E6 Install / Outlined Open / Inline Progress Pill */}
       <div className="relative z-10 mt-auto pt-1 flex items-center justify-between gap-2">
         <span className="text-[11.5px] text-[var(--color-text-muted)] tabular-nums" dir="ltr">
-          {installed && !hasUpdate ? t.installedTag : humanBytes(item.setup_size)}
+          {installed && !hasUpdate
+            ? t.installedTag
+            : item.coming_soon
+              ? `v${item.version}`
+              : humanBytes(item.setup_size)}
         </span>
 
         {busy && task ? (
@@ -454,6 +458,10 @@ export const AppCard: React.FC<SharedAppProps> = ({
             onCancel={onCancelTask}
             onForceCloseRetry={onForceCloseRetry}
           />
+        ) : item.coming_soon ? (
+          <span className="h-8 px-3.5 rounded-full border border-dashed border-[var(--color-border-strong)] text-[var(--color-text-muted)] text-[12px] font-semibold inline-flex items-center">
+            {t.comingSoon}
+          </span>
         ) : hasUpdate ? (
           <m.button
             whileTap={{ scale: 0.96 }}

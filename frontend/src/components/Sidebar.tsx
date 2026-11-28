@@ -7,6 +7,7 @@ import {
   ExternalLink,
   HardDrive,
   LayoutGrid,
+  LibraryBig,
   Monitor,
   Puzzle,
   RefreshCw,
@@ -16,7 +17,7 @@ import { CCUpdaterState, HubStatePayload, HubTask, TelemetryData } from "../lib/
 import { I18N, Lang } from "../lib/i18n";
 import { SPRINGS } from "../lib/motion";
 
-export type ViewKey = "all" | "installed" | "updates" | "desktop" | "adobe";
+export type ViewKey = "all" | "installed" | "updates" | "desktop" | "adobe" | "library";
 
 interface Props {
   lang: Lang;
@@ -70,9 +71,12 @@ export const Sidebar: React.FC<Props> = ({
     { id: "nav-updates", key: "updates", label: t.updates, count: counts.updates, icon: <RefreshCw size={15} /> },
   ];
 
+  const libraryReady = (state?.library?.items || []).filter((it) => it.installed).length;
+
   const catNav: Array<{ id: string; key: ViewKey; label: string; count: number; icon: React.ReactNode }> = [
     { id: "nav-desktop", key: "desktop", label: t.desktopApps, count: counts.desktop, icon: <Monitor size={15} /> },
     { id: "nav-adobe", key: "adobe", label: t.adobeCep, count: counts.adobe, icon: <Puzzle size={15} /> },
+    { id: "nav-library", key: "library", label: t.libraryNav, count: libraryReady, icon: <LibraryBig size={15} /> },
   ];
 
   const renderNavBtn = (item: { id: string; key: ViewKey; label: string; count: number; icon: React.ReactNode }) => {
@@ -97,9 +101,11 @@ export const Sidebar: React.FC<Props> = ({
         )}
         <span className="relative z-10 shrink-0">{item.icon}</span>
         <span className="relative z-10 sb-collapse-hide flex-1 text-start truncate">{item.label}</span>
-        <span className="relative z-10 sb-collapse-hide text-[11px] font-semibold px-1.5 py-0.5 rounded-full bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)] tabular-nums">
-          {item.count}
-        </span>
+        {item.key !== "library" && (
+          <span className="relative z-10 sb-collapse-hide text-[11px] font-semibold px-1.5 py-0.5 rounded-full bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)] tabular-nums">
+            {item.count}
+          </span>
+        )}
       </button>
     );
   };
@@ -301,7 +307,7 @@ export const Sidebar: React.FC<Props> = ({
           <div className="sb-collapse-hide min-w-0 flex-1">
             <div className="flex items-center gap-1.5 text-[11.5px] font-semibold text-[var(--color-text-primary)] truncate">
               <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cepReady ? "bg-[#34d399]" : "bg-[#fbbf24]"}`} />
-              <span className="truncate">{t.suiteReady}</span>
+              <span className="truncate" title={t.suiteReady}>{t.suiteReady}</span>
             </div>
             <div className="flex items-center justify-between text-[10.5px] text-[var(--color-text-muted)] mt-0.5" dir="ltr">
               <span>v{state?.hub_version || "2.1.0"}</span>

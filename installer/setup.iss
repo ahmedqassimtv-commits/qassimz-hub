@@ -8,6 +8,7 @@
 
 [Setup]
 AppId=QASSIMZ.Hub
+AppMutex=QASSIMZ.Hub.Mutex
 AppName={#AppName}
 AppVersion={#AppVer}
 AppPublisher=Ahmed Qassim — QASSIMZ

@@ -44,6 +44,28 @@ except Exception:
 
 UA = "QASSIMZ-Hub-Delta/1.5"
 VERSION_STAMP_NAME = ".qassimz-version.json"
+
+# Obsolete-file pruning is fenced: only these folders and file types are ever
+# deleted, and only while the prune set stays a small fraction of the install.
+PRUNE_DIRS = ("app/", "_internal/", "tools/")
+PRUNE_EXTS = frozenset({
+    ".py", ".pyc", ".pyd", ".dll", ".exe", ".js", ".css", ".html", ".json",
+    ".png", ".jpg", ".jpeg", ".webp", ".svg", ".ico", ".woff", ".woff2", ".ttf",
+    ".txt", ".md", ".map", ".qml", ".xml",
+})
+PRUNE_SANITY_RATIO = 0.5
+PRUNE_SANITY_FLOOR = 40
+
+
+def _is_prunable(rel_posix: str) -> bool:
+    rel = rel_posix.lower()
+    if ".." in rel.split("/"):
+        return False
+    if not rel.startswith(PRUNE_DIRS):
+        return False
+    suffix = os.path.splitext(rel)[1]
+    return suffix in PRUNE_EXTS
+
 FORMAT_VERSION = 1
 DEFAULT_CHUNK_SIZE = 65536
 DEFAULT_MAX_GAP = 65536
@@ -386,8 +408,18 @@ class DeltaUpdater:
                 urls.append(u)
         return urls
 
-    def fetch_manifest(self, manifest_urls: list[str], timeout: float | None = None) -> tuple[dict[str, Any], str]:
-        """Fetch and validate `manifest.json` from the first working candidate URL."""
+    def fetch_manifest(
+        self,
+        manifest_urls: list[str],
+        timeout: float | None = None,
+        expected_sha256: str | None = None,
+    ) -> tuple[dict[str, Any], str]:
+        """Fetch and validate `manifest.json` from the first working candidate URL.
+
+        When the catalog pins a manifest hash, the downloaded bytes must match it:
+        the manifest is what decides which files get replaced, so a tampered
+        manifest would let an attacker write arbitrary files into the install dir.
+        """
         eff_timeout = self.timeout if timeout is None else float(timeout)
         last_err: Exception | None = None
         for url in manifest_urls:
@@ -401,6 +433,14 @@ class DeltaUpdater:
                         raise DeltaManifestError(f"HTTP {status} fetching manifest")
                     raw = resp.read(16 * 1024 * 1024)  # 16 MiB safety cap
                     resolved_url = resp.geturl() or url
+                wanted = (expected_sha256 or "").strip().lower()
+                if wanted:
+                    actual = hashlib.sha256(raw).hexdigest()
+                    if actual != wanted:
+                        raise DeltaManifestError(
+                            "manifest.json checksum mismatch (expected "
+                            f"{wanted[:12]}…, got {actual[:12]}…)"
+                        )
                 data = json.loads(raw.decode("utf-8"))
                 return validate_manifest(data), resolved_url
             except DeltaManifestError:
@@ -492,8 +532,12 @@ class DeltaUpdater:
                 chunks_to_download += 1
                 total_download_bytes += ri.length
 
-        # Find obsolete files in install_dir (never prune VERSION_STAMP_NAME or temp dirs)
-        obsolete_files: list[str] = []
+        # Find obsolete files in install_dir (never prune VERSION_STAMP_NAME or temp dirs).
+        # Pruning is fenced: only shipped app folders and shipped file types may be
+        # removed, and a suspiciously large prune set aborts pruning entirely so a
+        # damaged or hostile manifest cannot wipe the install directory.
+        candidates: list[str] = []
+        scanned = 0
         if root.exists() and root.is_dir():
             for dirpath, dirnames, filenames in os.walk(root):
                 dirnames[:] = sorted(d for d in dirnames if not d.startswith(".qassimz-delta-"))
@@ -502,8 +546,12 @@ class DeltaUpdater:
                         continue
                     full = Path(dirpath) / fname
                     rel_posix = full.relative_to(root).as_posix()
+                    scanned += 1
                     if rel_posix not in manifest_paths:
-                        obsolete_files.append(rel_posix)
+                        candidates.append(rel_posix)
+        obsolete_files = [rel for rel in candidates if _is_prunable(rel)]
+        if len(obsolete_files) > max(PRUNE_SANITY_FLOOR, int(scanned * PRUNE_SANITY_RATIO)):
+            obsolete_files = []
 
         return DeltaPlan(
             manifest=manifest,
@@ -673,7 +721,10 @@ class DeltaUpdater:
         try:
             check_cancel()
             emit("manifest", progress=2)
-            manifest, resolved_manifest_url = self.fetch_manifest(manifest_urls)
+            manifest, resolved_manifest_url = self.fetch_manifest(
+                manifest_urls,
+                expected_sha256=str(item.get("delta_manifest_sha256") or "").strip() or None,
+            )
         except DeltaCancelled:
             res.cancelled = True
             return res

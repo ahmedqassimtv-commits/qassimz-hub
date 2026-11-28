@@ -30,11 +30,11 @@ def _post_json(url: str, payload: dict | None = None) -> dict:
 
 
 class TestQassimzHub(unittest.TestCase):
-    def test_catalog_contains_all_13_products(self):
+    def test_catalog_contains_all_14_products(self):
         cat = json.loads((ROOT / "catalog.json").read_text(encoding="utf-8"))
         self.assertEqual(cat["schema_version"], 1)
         items = cat["items"]
-        self.assertEqual(len(items), 13)
+        self.assertEqual(len(items), 14)
         expected_ids = {
             "qassimz-music",
             "qassimz-producer",
@@ -49,6 +49,7 @@ class TestQassimzHub(unittest.TestCase):
             "qassimz-mogrt-maker",
             "qassimz-captions",
             "qassimz-vox-fx",
+            "qassimz-fonts",
         }
         self.assertEqual({it["id"] for it in items}, expected_ids)
         self.assertEqual(set(cat["apps"].keys()), expected_ids)
@@ -60,8 +61,12 @@ class TestQassimzHub(unittest.TestCase):
             self.assertTrue((ROOT / "app" / "ui" / "icons" / f"{it['id']}.png").is_file())
             self.assertEqual(len(it["code"]), 2)
             codes.add(it["code"])
-            self.assertIn("qassimz-hub/releases/download/", it["setup_url"])
-        self.assertEqual(len(codes), 13)
+            if it["id"] == "qassimz-fonts":
+                # Linked before its first Windows build: listed, but no installer yet.
+                self.assertEqual(it["setup_url"], "")
+            else:
+                self.assertIn("qassimz-hub/releases/download/", it["setup_url"])
+        self.assertEqual(len(codes), 14)
 
     def test_version_parser_and_detector(self):
         self.assertGreater(detector.parse_version("1.1.0"), detector.parse_version("1.0.0"))
@@ -87,7 +92,7 @@ class TestQassimzHub(unittest.TestCase):
 
             payload = _post_json(base_url + "api/state")
             self.assertTrue(payload["ok"])
-            self.assertEqual(payload["data"]["counts"]["total"], 13)
+            self.assertEqual(payload["data"]["counts"]["total"], 14)
 
     def test_window_controls_and_win_quit(self):
         with tempfile.TemporaryDirectory() as tmp:

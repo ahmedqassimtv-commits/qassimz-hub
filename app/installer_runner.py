@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import ctypes
 import hashlib
+import json
 import os
 import shlex
+import shutil
 import ssl
 import subprocess
 import threading
@@ -37,6 +39,171 @@ def _friendly_download_error(exc: Exception) -> str:
     if isinstance(exc, (urllib.error.URLError, TimeoutError)):
         return "تعذّر الاتصال بالإنترنت حالياً، سنحاول لاحقاً."
     return "تعذّر إكمال التحديث حالياً، سنحاول لاحقاً."
+
+
+def verify_authenticode(path: Path, publisher_contains: str = "QASSIMZ") -> str:
+    """Check the Authenticode signature of a downloaded installer before running it.
+
+    Returns ``"valid"``, ``"unsigned"`` or raises on an invalid/tampered signature.
+    An unsigned file is reported rather than rejected here; the caller decides
+    (see ``require_signature``) so unsigned internal builds keep working until
+    code signing is in place.
+    """
+    if os.name != "nt":
+        return "unsigned"
+    from ctypes import wintypes
+
+    class GUID(ctypes.Structure):
+        _fields_ = [("Data1", wintypes.DWORD), ("Data2", wintypes.WORD),
+                    ("Data3", wintypes.WORD), ("Data4", ctypes.c_ubyte * 8)]
+
+    class WINTRUST_FILE_INFO(ctypes.Structure):
+        _fields_ = [("cbStruct", wintypes.DWORD), ("pcwszFilePath", wintypes.LPCWSTR),
+                    ("hFile", wintypes.HANDLE), ("pgKnownSubject", ctypes.c_void_p)]
+
+    class WINTRUST_DATA(ctypes.Structure):
+        _fields_ = [
+            ("cbStruct", wintypes.DWORD), ("pPolicyCallbackData", ctypes.c_void_p),
+            ("pSIPClientData", ctypes.c_void_p), ("dwUIChoice", wintypes.DWORD),
+            ("fdwRevocationChecks", wintypes.DWORD), ("dwUnionChoice", wintypes.DWORD),
+            ("pFile", ctypes.POINTER(WINTRUST_FILE_INFO)), ("dwStateAction", wintypes.DWORD),
+            ("hWVTStateData", wintypes.HANDLE), ("pwszURLReference", wintypes.LPCWSTR),
+            ("dwProvFlags", wintypes.DWORD), ("dwUIContext", wintypes.DWORD),
+            ("pSignatureSettings", ctypes.c_void_p),
+        ]
+
+    WTD_UI_NONE = 2
+    WTD_REVOKE_NONE = 0
+    WTD_CHOICE_FILE = 1
+    WTD_STATEACTION_VERIFY = 1
+    WTD_STATEACTION_CLOSE = 2
+    WTD_SAFER_FLAG = 0x100
+    WINTRUST_ACTION_GENERIC_VERIFY_V2 = GUID(
+        0xAAC56B, 0xCD44, 0x11D0, (ctypes.c_ubyte * 8)(0xC2, 0xC9, 0x00, 0xC0, 0x4F, 0xC2, 0x95, 0xEE)
+    )
+
+    file_info = WINTRUST_FILE_INFO()
+    file_info.cbStruct = ctypes.sizeof(file_info)
+    file_info.pcwszFilePath = str(path)
+
+    data = WINTRUST_DATA()
+    data.cbStruct = ctypes.sizeof(data)
+    data.dwUIChoice = WTD_UI_NONE
+    data.fdwRevocationChecks = WTD_REVOKE_NONE
+    data.dwUnionChoice = WTD_CHOICE_FILE
+    data.pFile = ctypes.pointer(file_info)
+    data.dwStateAction = WTD_STATEACTION_VERIFY
+    data.dwProvFlags = WTD_SAFER_FLAG
+
+    status = ctypes.windll.wintrust.WinVerifyTrust(
+        ctypes.c_void_p(-1), ctypes.byref(WINTRUST_ACTION_GENERIC_VERIFY_V2), ctypes.byref(data)
+    )
+    data.dwStateAction = WTD_STATEACTION_CLOSE
+    ctypes.windll.wintrust.WinVerifyTrust(
+        ctypes.c_void_p(-1), ctypes.byref(WINTRUST_ACTION_GENERIC_VERIFY_V2), ctypes.byref(data)
+    )
+
+    TRUST_E_NOSIGNATURE = 0x800B0100
+    TRUST_E_SUBJECT_FORM_UNKNOWN = 0x800B0003
+    TRUST_E_PROVIDER_UNKNOWN = 0x800B0001
+    signed_status = status & 0xFFFFFFFF
+    if signed_status in (TRUST_E_NOSIGNATURE, TRUST_E_SUBJECT_FORM_UNKNOWN, TRUST_E_PROVIDER_UNKNOWN):
+        return "unsigned"
+    if signed_status != 0:
+        raise RuntimeError(
+            "توقيع الملف غير صالح أو تم العبث به — تم إيقاف التثبيت."
+        )
+
+    # Signature is cryptographically valid: check the publisher when asked to.
+    if publisher_contains:
+        ps = (
+            "$s = Get-AuthenticodeSignature -FilePath '{p}'; "
+            "$s.SignerCertificate.Subject"
+        ).format(p=str(path).replace("'", "''"))
+        try:
+            out = subprocess.run(
+                ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", ps],
+                capture_output=True, text=True, timeout=30,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+            subject = (out.stdout or "").strip()
+            if subject and publisher_contains.lower() not in subject.lower():
+                raise RuntimeError(
+                    f"ناشر الملف غير مطابق ({subject}) — تم إيقاف التثبيت."
+                )
+        except subprocess.SubprocessError:
+            pass
+    return "valid"
+
+
+def install_ccx(ccx_path: Path, plugins_root: Path | None = None) -> dict[str, Any]:
+    """Install a UXP `.ccx` package by extracting it into Adobe's external plugin folder.
+
+    A `.ccx` is a ZIP archive holding a UXP plugin (`manifest.json` at the root or
+    inside a single top-level folder). Returns the installed plugin metadata.
+    """
+    import zipfile
+
+    ccx_path = Path(ccx_path)
+    if not zipfile.is_zipfile(ccx_path):
+        raise RuntimeError("حزمة .ccx غير صالحة (ليست أرشيف ZIP).")
+
+    if plugins_root is None:
+        base = os.environ.get("APPDATA") or str(Path.home() / "AppData" / "Roaming")
+        plugins_root = Path(base) / "Adobe" / "UXP" / "Plugins" / "External"
+    plugins_root = Path(plugins_root)
+    plugins_root.mkdir(parents=True, exist_ok=True)
+
+    with zipfile.ZipFile(ccx_path) as zf:
+        names = zf.namelist()
+        manifest_name = ""
+        for candidate in names:
+            parts = [p for p in candidate.split("/") if p]
+            if parts and parts[-1].lower() == "manifest.json" and len(parts) <= 2:
+                manifest_name = candidate
+                break
+        if not manifest_name:
+            raise RuntimeError("حزمة .ccx لا تحتوي manifest.json — تخطّي التثبيت.")
+        try:
+            manifest = json.loads(zf.read(manifest_name).decode("utf-8"))
+        except Exception as exc:
+            raise RuntimeError("تعذّر قراءة manifest.json داخل حزمة .ccx.") from exc
+        plugin_id = str((manifest or {}).get("id") or "").strip()
+        if not plugin_id:
+            raise RuntimeError("حزمة .ccx بدون معرّف إضافة (id).")
+
+        prefix = manifest_name[: len(manifest_name) - len("manifest.json")]
+        target = plugins_root / plugin_id
+        staging = plugins_root / f".{plugin_id}.staging-{os.getpid()}"
+        if staging.exists():
+            shutil.rmtree(staging, ignore_errors=True)
+        staging.mkdir(parents=True, exist_ok=True)
+        root_resolved = staging.resolve()
+        try:
+            for info in zf.infolist():
+                if info.is_dir():
+                    continue
+                rel = info.filename[len(prefix):] if prefix and info.filename.startswith(prefix) else info.filename
+                if not rel:
+                    continue
+                dest = (staging / rel).resolve()
+                if root_resolved not in dest.parents and dest != root_resolved:
+                    raise RuntimeError(f"مدخل غير آمن داخل الحزمة: {info.filename}")
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                with zf.open(info) as src, dest.open("wb") as out:
+                    shutil.copyfileobj(src, out, length=131072)
+            if target.exists():
+                shutil.rmtree(target, ignore_errors=True)
+            os.replace(staging, target)
+        except Exception:
+            shutil.rmtree(staging, ignore_errors=True)
+            raise
+
+    return {
+        "plugin_id": plugin_id,
+        "version": str((manifest or {}).get("version") or "1.0.0"),
+        "path": str(target),
+    }
 
 
 def _run_elevated_and_wait(exe_path: str, params_list: list[str]) -> int:
@@ -148,9 +315,15 @@ class TaskQueue:
         on_finished: Callable[[str, dict[str, Any]], None] | None = None,
         on_self_update_ready: Callable[[Path], None] | None = None,
         on_progress: Callable[[list[dict[str, Any]]], None] | None = None,
+        parallel_connections: int = 4,
+        should_pause: Callable[[], bool] | None = None,
+        cleanup_after_install: Callable[[], bool] | None = None,
     ):
         self.cache_dir = cache_dir
         self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.parallel_connections = max(1, int(parallel_connections))
+        self.should_pause = should_pause
+        self.cleanup_after_install = cleanup_after_install
         self.on_finished = on_finished
         self.on_self_update_ready = on_self_update_ready
         self.on_progress = on_progress
@@ -425,7 +598,10 @@ class TaskQueue:
                             eta_sec=0,
                             message_ar="جارٍ التحقق من سلامة الحزمة (SHA-256)...",
                         )
-                        if expected_sha and self._sha256(part) != expected_sha:
+                        if not expected_sha:
+                            part.unlink(missing_ok=True)
+                            raise RuntimeError("لا يمكن التحقق من سلامة الحزمة (لا يوجد SHA-256 في الكتالوج).")
+                        if self._sha256(part) != expected_sha:
                             part.unlink(missing_ok=True)
                             raise RuntimeError("فشل التحقق من سلامة الملف المحمّل (SHA-256 mismatch).")
                         return True
@@ -443,6 +619,211 @@ class TaskQueue:
                     time.sleep(0.8)
 
         raise RuntimeError(_friendly_download_error(last_err or RuntimeError("رابط التحميل غير متاح.")))
+
+    # --- multi-connection (parallel Range) download ------------------------
+    @staticmethod
+    def _probe_ranges(url: str) -> tuple[bool, int]:
+        """Return (supports_byte_ranges, total_bytes) for a URL."""
+        req = urllib.request.Request(url, headers={"User-Agent": UA, "Range": "bytes=0-0"})
+        try:
+            with urllib.request.urlopen(req, timeout=20, context=ssl_context()) as resp:
+                status = getattr(resp, "status", 200)
+                content_range = resp.headers.get("Content-Range") or ""
+                total = 0
+                if "/" in content_range:
+                    try:
+                        total = int(content_range.rsplit("/", 1)[1])
+                    except ValueError:
+                        total = 0
+                return (status == 206 and total > 0, total)
+        except Exception:
+            return (False, 0)
+
+    def _download_parallel(
+        self,
+        item_id: str,
+        url: str,
+        part: Path,
+        total: int,
+        expected_sha: str,
+        connections: int = 4,
+    ) -> bool:
+        """Download ``url`` over N parallel HTTP Range connections.
+
+        Returns False (after cleaning up) when the server or network refuses, so
+        the caller can fall back to the single-stream downloader.
+        """
+        if total <= 0 or connections < 2:
+            return False
+        span = total // connections
+        segments: list[tuple[int, int, Path]] = []
+        for i in range(connections):
+            start = i * span
+            end = total - 1 if i == connections - 1 else (start + span - 1)
+            segments.append((start, end, part.with_name(f"{part.name}.seg{i}")))
+        for _, _, seg in segments:
+            seg.unlink(missing_ok=True)
+
+        lock = threading.Lock()
+        state = {"done": 0, "failed": False}
+        stop = threading.Event()
+
+        def worker(start: int, end: int, seg: Path) -> None:
+            written = 0
+            for attempt in range(3):
+                if stop.is_set():
+                    return
+                try:
+                    headers = {"User-Agent": UA, "Range": f"bytes={start + written}-{end}"}
+                    req = urllib.request.Request(url, headers=headers)
+                    with urllib.request.urlopen(req, timeout=45, context=ssl_context()) as resp:
+                        if getattr(resp, "status", 200) != 206:
+                            raise RuntimeError("server ignored Range")
+                        mode = "ab" if written else "wb"
+                        with seg.open(mode) as fh:
+                            while True:
+                                if stop.is_set():
+                                    return
+                                if item_id in self._cancel_flags or item_id in self._pause_flags:
+                                    stop.set()
+                                    return
+                                chunk = resp.read(65536)
+                                if not chunk:
+                                    break
+                                fh.write(chunk)
+                                written += len(chunk)
+                                with lock:
+                                    state["done"] += len(chunk)
+                    if written >= (end - start + 1):
+                        return
+                    if attempt == 2:
+                        raise RuntimeError("short segment")
+                except Exception:
+                    if attempt == 2:
+                        with lock:
+                            state["failed"] = True
+                        stop.set()
+                        return
+                    time.sleep(0.6)
+
+        self._update(
+            item_id,
+            status="downloading",
+            stage="downloading",
+            part_name=part.name,
+            total=total,
+            downloaded=0,
+            progress=1,
+            message_ar=f"جارٍ التحميل بأربعة اتصالات متوازية...",
+        )
+
+        threads = [threading.Thread(target=worker, args=seg, daemon=True) for seg in segments]
+        for t in threads:
+            t.start()
+        last_tick = 0.0
+        while any(t.is_alive() for t in threads):
+            time.sleep(0.15)
+            now = time.monotonic()
+            if now - last_tick >= 0.25:
+                last_tick = now
+                with lock:
+                    done = state["done"]
+                    failed = state["failed"]
+                if failed:
+                    stop.set()
+                    break
+                self._update(
+                    item_id,
+                    downloaded=done,
+                    progress=min(96, int(done * 100 / total)) if total else 1,
+                )
+        for t in threads:
+            t.join(timeout=5)
+
+        cancelled = item_id in self._cancel_flags or item_id in self._pause_flags
+        if state["failed"] or cancelled:
+            stop.set()
+            for _, _, seg in segments:
+                seg.unlink(missing_ok=True)
+            part.unlink(missing_ok=True)
+            return False
+
+        try:
+            with part.open("wb") as out:
+                for _, _, seg in segments:
+                    if not seg.is_file():
+                        raise RuntimeError("segment missing")
+                    with seg.open("rb") as fh:
+                        shutil.copyfileobj(fh, out, length=262144)
+            if part.stat().st_size != total:
+                raise RuntimeError("assembled size mismatch")
+            if not expected_sha:
+                raise RuntimeError("no sha256 to verify")
+            if self._sha256(part) != expected_sha:
+                raise RuntimeError("sha256 mismatch")
+        except Exception:
+            part.unlink(missing_ok=True)
+            return False
+        finally:
+            for _, _, seg in segments:
+                seg.unlink(missing_ok=True)
+        self._update(item_id, progress=97, downloaded=total)
+        return True
+
+    # --- Preserve Presets (CEP + UXP settings/templates) -------------------
+    def _backup_presets(self, item: dict[str, Any]) -> tuple[Path | None, list[dict[str, str]]]:
+        """Copy the add-on's settings/presets/templates before an update."""
+        try:
+            from detector import preset_backup_dirs
+        except Exception:
+            return None, []
+        item_id = item["id"]
+        dirs = preset_backup_dirs(item, item.get("state") or {})
+        existing = [d for d in dirs if d.is_dir()]
+        if not existing:
+            return None, []
+        stamp = time.strftime("%Y%m%d-%H%M%S")
+        backup_root = self.cache_dir / ".presets" / item_id / stamp
+        mapping: list[dict[str, str]] = []
+        for idx, src in enumerate(existing):
+            dest = backup_root / f"{idx}-{src.name or 'root'}"
+            try:
+                shutil.copytree(src, dest, dirs_exist_ok=True)
+                mapping.append({"src": str(src), "backup": str(dest)})
+            except Exception:
+                continue
+        if not mapping:
+            return None, []
+        try:
+            (backup_root / "mapping.json").write_text(json.dumps(mapping, ensure_ascii=False), encoding="utf-8")
+        except Exception:
+            pass
+        self._update(item_id, message_ar="جارٍ أخذ نسخة من الإعدادات والقوالب قبل التحديث...")
+        return backup_root, mapping
+
+    def _restore_presets(self, backup_root: Path | None, mapping: list[dict[str, str]]) -> int:
+        """Restore user presets/settings after an update. Returns files restored."""
+        if not backup_root or not mapping:
+            return 0
+        restored = 0
+        for entry in mapping:
+            src = Path(entry["backup"])
+            dest = Path(entry["src"])
+            if not src.is_dir():
+                continue
+            for path in src.rglob("*"):
+                if not path.is_file():
+                    continue
+                rel = path.relative_to(src)
+                target = dest / rel
+                try:
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(path, target)
+                    restored += 1
+                except Exception:
+                    continue
+        shutil.rmtree(backup_root, ignore_errors=True)
+        return restored
 
     def _try_delta_update(self, item: dict[str, Any], silent: bool, self_update: bool) -> tuple[bool, str]:
         """Attempt differential update via DeltaUpdater.
@@ -617,6 +998,28 @@ class TaskQueue:
             pass
         return ""
 
+    def _smart_pause_wait(self, item_id: str) -> None:
+        """Hold the task while the user is editing or the CPU is busy."""
+        gate = self.should_pause
+        if not callable(gate):
+            return
+        waited = 0
+        while waited < 1800:
+            try:
+                blocked = bool(gate())
+            except Exception:
+                return
+            if not blocked:
+                return
+            self._update(
+                item_id,
+                status="paused",
+                stage="smart_pause",
+                message_ar="توقف مؤقت ذكي: برنامج مونتاج يعمل أو المعالج مشغول — سيُستأنف تلقائياً",
+            )
+            time.sleep(3)
+            waited += 3
+
     def _worker(self, item: dict[str, Any], silent: bool, self_update: bool) -> None:
         item_id = item["id"]
         expected_size = int(item.get("setup_size") or 0)
@@ -661,6 +1064,8 @@ class TaskQueue:
                 )
                 return
 
+        self._smart_pause_wait(item_id)
+
         # 1b. Try delta update first when eligible
         handled, fallback_reason = self._try_delta_update(item, silent, self_update)
         if handled:
@@ -685,15 +1090,29 @@ class TaskQueue:
                 fsize = dst.stat().st_size
                 if fsize > 4096 and (not expected_size or fsize == expected_size):
                     self._update(item_id, status="verifying", stage="verifying", progress=97, message_ar="جارٍ التحقق من الحزمة المخزنة...")
-                    if not expected_sha or self._sha256(dst) == expected_sha:
+                    if expected_sha and self._sha256(dst) == expected_sha:
                         need_download = False
                 else:
                     dst.unlink(missing_ok=True)
 
             if need_download:
-                ok = self._download_with_fallback(item_id, urls, part, expected_size, expected_sha)
-                if not ok:
-                    return
+                used_parallel = False
+                if self.parallel_connections > 1 and not part.is_file():
+                    for candidate in urls[:2]:
+                        supports, total = self._probe_ranges(candidate)
+                        if not supports or total < 4 * 1024 * 1024:
+                            continue
+                        if expected_size and total != expected_size:
+                            continue
+                        used_parallel = self._download_parallel(
+                            item_id, candidate, part, total, expected_sha,
+                            connections=self.parallel_connections,
+                        )
+                        break
+                if not used_parallel:
+                    ok = self._download_with_fallback(item_id, urls, part, expected_size, expected_sha)
+                    if not ok:
+                        return
                 part.replace(dst)
 
             # Self-update path for QASSIMZ Hub itself
@@ -725,29 +1144,64 @@ class TaskQueue:
 
             with self._install_lock:
                 inst_cfg = item.get("install") or {}
+                installer_type = str(inst_cfg.get("installer_type") or "").lower()
                 requires_admin = bool(inst_cfg.get("requires_admin", False))
                 args = list(inst_cfg.get("silent_args") or []) if silent else []
-                self._update(
-                    item_id,
-                    status="installing",
-                    stage="installing",
-                    progress=99,
-                    message_ar="يرجى الموافقة على صلاحية المسؤول (UAC) لإتمام التثبيت..." if requires_admin else "جارٍ التثبيت الآن...",
-                )
+                is_ccx = installer_type == "ccx" or dst.suffix.lower() == ".ccx"
 
-                if os.name == "nt":
-                    code = run_windows_installer(dst, args, requires_admin=requires_admin)
-                    if code != 0:
-                        raise RuntimeError(f"انتهى معالج التثبيت بكود خطأ ({code}).")
-                    self._update(item_id, status="completed", stage="completed", progress=100, message_ar="اكتمل التثبيت بنجاح ✓")
-                else:
+                # Preserve Presets: snapshot the add-on's settings/templates first
+                backup_root, preset_map = self._backup_presets(item)
+
+                try:
                     self._update(
                         item_id,
-                        status="completed",
-                        stage="completed",
-                        progress=100,
-                        message_ar=f"تم تنزيل الحزمة بنجاح إلى مجلد التخزين ({dst.name})",
+                        status="installing",
+                        stage="installing",
+                        progress=99,
+                        message_ar="يرجى الموافقة على صلاحية المسؤول (UAC) لإتمام التثبيت..." if (requires_admin and not is_ccx) else "جارٍ التثبيت الآن...",
                     )
+
+                    if is_ccx:
+                        result = install_ccx(dst)
+                        self._update(
+                            item_id,
+                            status="completed",
+                            stage="completed",
+                            progress=100,
+                            message_ar=f"تم تثبيت إضافة UXP ({result.get('version')}) ✓",
+                        )
+                    elif os.name == "nt":
+                        # Signature gate: never run a tampered installer; unsigned
+                        # builds stay allowed until code signing is in place.
+                        try:
+                            sig_state = verify_authenticode(dst)
+                        except RuntimeError:
+                            raise
+                        except Exception:
+                            sig_state = "unknown"
+                        if sig_state == "unsigned" and bool(item.get("require_signature")):
+                            raise RuntimeError("المثبّت غير موقّع وتم رفض تشغيله حسب إعداد الأمان.")
+                        code = run_windows_installer(dst, args, requires_admin=requires_admin)
+                        if code != 0:
+                            raise RuntimeError(f"انتهى معالج التثبيت بكود خطأ ({code}).")
+                        self._update(item_id, status="completed", stage="completed", progress=100, message_ar="اكتمل التثبيت بنجاح ✓")
+                    else:
+                        self._update(
+                            item_id,
+                            status="completed",
+                            stage="completed",
+                            progress=100,
+                            message_ar=f"تم تنزيل الحزمة بنجاح إلى مجلد التخزين ({dst.name})",
+                        )
+                finally:
+                    try:
+                        if callable(self.cleanup_after_install) and self.cleanup_after_install():
+                            dst.unlink(missing_ok=True)
+                    except Exception:
+                        pass
+                    restored = self._restore_presets(backup_root, preset_map)
+                    if restored:
+                        self._update(item_id, presets_restored=restored)
 
             if self.on_finished:
                 self.on_finished(item_id, item)

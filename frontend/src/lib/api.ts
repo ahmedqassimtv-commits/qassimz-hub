@@ -22,6 +22,7 @@ export interface CatalogItem {
   tagline_ar?: string;
   description_ar?: string;
   setup_size?: number;
+  coming_soon?: boolean;
   repo?: string;
   state: AppItemState;
 }
@@ -70,6 +71,13 @@ export interface HubSettingsData {
   auto_update_hub: boolean;
   mechanical_bg_mode?: MechanicalBgMode;
   sound_enabled?: boolean;
+  install_root?: string;
+  smart_pause?: boolean;
+  auto_clean_installers?: boolean;
+  cache_cleanup_days?: 0 | 7 | 30;
+  quiet_mode?: boolean;
+  quiet_auto_obs?: boolean;
+  workspaces?: Record<string, string[]>;
 }
 
 export interface TelemetryData {
@@ -91,6 +99,37 @@ export interface CCUpdaterState {
   method: string;
 }
 
+export interface LibraryItemState {
+  id: string;
+  kind: "model" | "font" | "asset";
+  name: string;
+  name_ar: string;
+  note_ar?: string;
+  note_en?: string;
+  size_bytes: number;
+  installed: boolean;
+  partial?: boolean;
+  installed_bytes?: number;
+  used_by?: string[];
+  license?: string;
+}
+
+export interface LibraryDownload {
+  id: string;
+  status: "queued" | "downloading" | "completed" | "error";
+  progress?: number;
+  error?: string;
+}
+
+export interface LibraryPayload {
+  items: LibraryItemState[];
+  installed_bytes: number;
+  models_dir: string;
+  fonts_dir: string;
+  assets_dir: string;
+  downloads?: Record<string, LibraryDownload>;
+}
+
 export interface HubStatePayload {
   hub_version: string;
   hub_has_update: boolean;
@@ -100,6 +139,9 @@ export interface HubStatePayload {
   cc_updater?: CCUpdaterState;
   feature_flags?: Record<string, boolean>;
   settings: HubSettingsData;
+  library?: LibraryPayload;
+  quiet_active?: boolean;
+  install_root?: string;
   tasks: HubTask[];
   items: CatalogItem[];
   counts: {
@@ -134,12 +176,12 @@ export async function api<T = unknown>(
 export const HubBridge = {
   state: (force = false) => api<HubStatePayload>("state", { force }),
   tasks: () => api<HubTask[]>("tasks"),
-  refreshCatalog: () => api<HubStatePayload>("refresh_catalog"),
+  refreshCatalog: (force = false) => api<HubStatePayload>("refresh_catalog", { force }),
   install: (id: string, silent?: boolean) => api<HubTask>("install", silent === undefined ? { id } : { id, silent }),
   updateAll: () => api<HubTask[]>("update_all"),
   launch: (id: string) => api<{ ok: boolean }>("launch", { id }),
   uninstall: (id: string) => api<{ ok: boolean }>("uninstall", { id }),
-  openFolder: (id: string) => api<{ ok: boolean }>("open_folder", { id }),
+  openFolder: (path: string) => api<{ ok: boolean }>("open_folder", { path }),
   openUrl: (url: string) => api<{ ok: boolean }>("open_url", { url }),
   fixCep: () => api<{ ok: boolean }>("fix_cep"),
   saveSettings: (values: Partial<HubSettingsData>) => api<HubSettingsData>("save_settings", { values }),
@@ -165,6 +207,17 @@ export const HubBridge = {
   winRevealMain: () => api<{ ok: boolean; expanded: boolean; maximized?: boolean }>("win_reveal_main"),
   winClose: () => api<{ ok: boolean }>("win_close"),
   winQuit: () => api<{ ok: boolean }>("win_quit"),
+  removeLibraryItem: (id: string) => api<{ ok: boolean; removed: boolean }>("remove_library_item", { id }),
+  chooseInstallFolder: () => api<{ ok: boolean; path: string }>("choose_install_folder"),
+  exportSettings: () =>
+    api<{ schema: number; app: string; version: string; settings: HubSettingsData }>("export_settings"),
+  importSettings: (payload: unknown) => api<HubSettingsData>("import_settings", { payload }),
+  setWorkspaces: (mode_id: string, app_ids: string[]) =>
+    api<{ ok: boolean; workspaces: Record<string, string[]> }>("set_workspaces", { mode_id, app_ids }),
+  libraryState: () => api<LibraryPayload>("library_state"),
+  installLibraryItem: (id: string) => api<LibraryDownload>("install_library_item", { id }),
+  openLibraryFolder: (kind: "models" | "fonts" | "assets") =>
+    api<{ ok: boolean; path: string }>("open_library_folder", { kind }),
 };
 
 export function humanBytes(n = 0): string {

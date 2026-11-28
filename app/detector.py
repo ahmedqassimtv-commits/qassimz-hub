@@ -109,6 +109,113 @@ def _read_cep_manifest_version(bundle_id: str) -> tuple[str | None, Path | None]
     return None, None
 
 
+# ---------------------------------------------------------------------------
+# UXP (.ccx) plugin support — Adobe's newer extension format (Premiere/After Effects 2022+)
+# ---------------------------------------------------------------------------
+
+def uxp_plugin_roots() -> list[Path]:
+    """Directories Adobe scans for external (non-marketplace) UXP plugins."""
+    roots = [
+        expand_win_path(r"%APPDATA%\Adobe\UXP\Plugins\External"),
+        expand_win_path(r"%APPDATA%\Adobe\UXP\Plugins\Custom"),
+        expand_win_path(r"%PROGRAMDATA%\Adobe\UXP\Plugins\External"),
+    ]
+    return roots
+
+
+def read_uxp_manifest(folder: Path) -> dict[str, Any] | None:
+    """Parse a UXP plugin `manifest.json` (id/name/version/main)."""
+    manifest = Path(folder) / "manifest.json"
+    if not manifest.is_file():
+        return None
+    try:
+        raw = json.loads(manifest.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    if not isinstance(raw, dict):
+        return None
+    plugin_id = str(raw.get("id") or "").strip()
+    if not plugin_id:
+        return None
+    return {
+        "id": plugin_id,
+        "name": str(raw.get("name") or plugin_id),
+        "version": str(raw.get("version") or "1.0.0"),
+        "main": str(raw.get("main") or "index.html"),
+        "host": str(((raw.get("host") or {}) or {}).get("app") or ""),
+    }
+
+
+def list_uxp_plugins() -> list[dict[str, Any]]:
+    """Every external UXP plugin currently visible to Adobe hosts."""
+    found: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for root in uxp_plugin_roots():
+        if not root.is_dir():
+            continue
+        try:
+            children = sorted(root.iterdir())
+        except OSError:
+            continue
+        for child in children:
+            if not child.is_dir():
+                continue
+            info = read_uxp_manifest(child)
+            if not info or info["id"] in seen:
+                continue
+            seen.add(info["id"])
+            info["path"] = str(child)
+            found.append(info)
+    return found
+
+
+def detect_uxp_plugin(plugin_id: str) -> tuple[str | None, Path | None]:
+    """Return (version, folder) for an installed UXP plugin id."""
+    wanted = str(plugin_id or "").strip()
+    if not wanted:
+        return None, None
+    for plugin in list_uxp_plugins():
+        if plugin["id"].lower() == wanted.lower():
+            return plugin["version"], Path(plugin["path"])
+    return None, None
+
+
+def preset_backup_dirs(item: dict[str, Any], state: dict[str, Any]) -> list[Path]:
+    """Directories that must survive an add-on update (settings, presets, templates).
+
+    Explicit `detection.preserve_paths` wins; otherwise the CEP/UXP settings
+    folders that the add-on writes at runtime are used.
+    """
+    det = item.get("detection") or {}
+    out: list[Path] = []
+    for raw in det.get("preserve_paths") or []:
+        try:
+            out.append(expand_win_path(str(raw)))
+        except Exception:
+            continue
+    bundle = det.get("cep_bundle_id") or ""
+    if bundle:
+        out.append(expand_win_path(rf"%APPDATA%\{bundle}"))
+    uxp_id = det.get("uxp_id") or ""
+    if uxp_id:
+        out.append(expand_win_path(rf"%APPDATA%\QASSIMZ\{uxp_id}"))
+        out.append(expand_win_path(rf"%APPDATA%\{uxp_id}"))
+    cep_dir = str(state.get("cep_dir") or "")
+    if cep_dir:
+        for sub in ("presets", "Presets", "templates", "Templates"):
+            candidate = Path(cep_dir) / sub
+            if candidate.is_dir():
+                out.append(candidate)
+    uniq: list[Path] = []
+    seen: set[str] = set()
+    for path in out:
+        key = str(path).lower()
+        if key not in seen:
+            seen.add(key)
+            uniq.append(path)
+    return uniq
+
+
 def detect_adobe_environment() -> dict[str, Any]:
     """Detect installed Adobe Premiere Pro / After Effects executables and CSXS PlayerDebugMode."""
     premiere_exes: list[str] = []
@@ -211,6 +318,18 @@ def detect_item_state(item: dict[str, Any], reg_map: dict[str, dict[str, str]] |
             elif cep_ver and parse_version(cep_ver) > parse_version(installed_ver):
                 installed_ver = cep_ver
 
+    # Check UXP (.ccx) bundle if applicable — Adobe's newer extension format
+    uxp_dir = ""
+    uxp_id = det.get("uxp_id")
+    if uxp_id:
+        uxp_ver, uxp_folder = detect_uxp_plugin(str(uxp_id))
+        if uxp_folder is not None:
+            uxp_dir = str(uxp_folder)
+            if not installed_ver:
+                installed_ver = uxp_ver
+            elif uxp_ver and parse_version(uxp_ver) > parse_version(installed_ver):
+                installed_ver = uxp_ver
+
     # Check candidate executable paths
     candidates: list[Path] = []
     if install_dir:
@@ -228,10 +347,10 @@ def detect_item_state(item: dict[str, Any], reg_map: dict[str, dict[str, str]] |
             break
 
     # Determine whether genuinely installed on disk (avoid stale orphaned registry entries)
-    if bundle_id:
-        is_installed = bool(cep_dir)
-        if cep_dir and not install_dir:
-            install_dir = cep_dir
+    if bundle_id or uxp_id:
+        is_installed = bool(cep_dir or uxp_dir)
+        if (cep_dir or uxp_dir) and not install_dir:
+            install_dir = cep_dir or uxp_dir
     elif det.get("exe_paths"):
         is_installed = bool(exe_path)
     else:
@@ -291,7 +410,9 @@ def detect_item_state(item: dict[str, Any], reg_map: dict[str, dict[str, str]] |
         "has_update": has_update,
         "exe_path": exe_path,
         "cep_dir": cep_dir,
-        "install_dir": install_dir or cep_dir,
+        "uxp_dir": uxp_dir,
+        "addon_type": "uxp" if uxp_dir else ("cep" if cep_dir else ""),
+        "install_dir": install_dir or cep_dir or uxp_dir,
         "uninstall_cmd": uninstall_cmd,
         "ai_applicable": ai_applicable,
         "ai_ready": ai_ready,
@@ -311,7 +432,10 @@ def enrich_catalog(catalog: dict[str, Any]) -> dict[str, Any]:
 
     for item in catalog.get("items") or []:
         state = detect_item_state(item, reg_map)
-        merged = {**item, "state": state}
+        # No setup_url yet (first build not packaged): the tile is listed but
+        # cannot be downloaded, so the UI shows a "coming soon" chip instead.
+        coming_soon = not str(item.get("setup_url") or "").strip()
+        merged = {**item, "state": state, "coming_soon": coming_soon}
         if state["installed"]:
             installed_count += 1
         if state["has_update"]:

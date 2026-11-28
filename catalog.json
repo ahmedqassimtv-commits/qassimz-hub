@@ -76,6 +76,11 @@
     "qassimz-vox-fx": {
       "version": "2.4.0",
       "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/pkg-qassimz-vox-fx-v2.4.0/QASSIMZ_VOX_FX_Setup.exe"
+    },
+    "qassimz-fonts": {
+      "version": "0.1.0",
+      "setup_url": "",
+      "portable_url": ""
     }
   },
   "items": [
@@ -742,6 +747,54 @@
           "/VERYSILENT",
           "/SUPPRESSMSGBOXES",
           "/NORESTART"
+        ]
+      }
+    },
+    {
+      "id": "qassimz-fonts",
+      "code": "Fn",
+      "name": "QASSIMZ FONTs",
+      "name_ar": "خطوط قَاسِمز",
+      "category": "desktop",
+      "badge_ar": "مكتبة الخطوط والمزامنة",
+      "tagline_ar": "مكتبتك الخاصة من الخطوط العربية واللاتينية، بمعاينة حيّة وتثبيت فوري بدون إعادة تشغيل.",
+      "description_ar": "يدير QASSIMZ FONTs خطوط جهازك من مكان واحد: يفحص مجلدات الخطوط، يقرأ اسم كل خط ووزنه ولغته وحقوقه وترخيصه، ويعرضه بمعاينة حيّة بحجم قابل للتحكّم. التثبيت يكتب الخط في مجلد خطوط المستخدم وسجل ويندوز ويبلّغ الأنظمة فوراً ليظهر في Premiere و After Effects و Photoshop بدون إعادة تشغيل، مع مزامنة المكتبة إلى حساب المستخدم.",
+      "features_ar": [
+        "فحص مجلدات الخطوط وقراءة الاسم والوزن واللغة وعدد الأوجه لكل ملف",
+        "معاينة حيّة بثلاثة أحجام مع تحكّم كامل في مقاس النص ودعم RTL سليم",
+        "قراءة الحقوق والترخيص من جدول name داخل ملف الخط (OFL / Apache / MIT / محفوظ)",
+        "تثبيت في خطوط المستخدم وسجل ويندوز مع WM_FONTCHANGE بدون إعادة تشغيل",
+        "مزامنة الخطوط المحلية غير المحفوظة إلى حساب المستخدم بضغطة واحدة"
+      ],
+      "hosts": [
+        "Windows 10/11 x64"
+      ],
+      "accent": "#F59E0B",
+      "version": "0.1.0",
+      "repo": "ahmedqassimtv-commits/qassimz-fonts",
+      "repo_public": true,
+      "setup_filename": "QASSIMZ-FONTs-Setup-0.1.0.exe",
+      "setup_url": "",
+      "setup_size": 0,
+      "setup_sha256": "",
+      "release_notes_ar": "الإصدار الأول: مكتبة خطوط محلية بهوية قاسمز الحبرية، معاينة حيّة، تثبيت فوري على ويندوز، وقراءة الحقوق والترخيص من ملف الخط.",
+      "detection": {
+        "uninstall_ids": [
+          "QASSIMZ.FONTs_is1"
+        ],
+        "exe_paths": [
+          "%LOCALAPPDATA%\\Programs\\QASSIMZ FONTs\\QASSIMZ FONTs.exe"
+        ]
+      },
+      "install": {
+        "installer_type": "inno",
+        "requires_admin": false,
+        "silent_args": [
+          "/VERYSILENT",
+          "/SUPPRESSMSGBOXES",
+          "/NORESTART",
+          "/CLOSEAPPLICATIONS",
+          "/AUTORUN=0"
         ]
       }
     }
