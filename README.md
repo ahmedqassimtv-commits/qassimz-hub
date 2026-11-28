@@ -1,72 +1,88 @@
-<div align="center" dir="rtl">
+<div align="center">
 
-<img src="assets/logo.svg" width="116" height="116" alt="QASSIMZ Hub Logo" />
+<img src="assets/logo.svg" alt="QASSIMZ Hub" width="112" height="112" />
 
-# QASSIMZ Hub — مركز قَاسِمز الرسمي
+# QASSIMZ Hub
+### مركز ومنظومة قَاسِمز الإبداعية
 
-**اللانشر والمركز الرسمي لتصفّح وتثبيت وتشغيل وتحديث جميع برامج وإضافات منظومة QASSIMZ مجاناً وبدون تسجيل دخول.**
+<!-- اللغات المدعومة أسفل اللوجو مباشرة -->
+<p>
+  <img src="https://img.shields.io/badge/Language-العربية%20(RTL)-10B981?style=for-the-badge" alt="العربية (RTL)" /> <img src="https://img.shields.io/badge/Language-English-3B82F6?style=for-the-badge" alt="English" />
+</p>
 
-[![أحدث إصدار](https://img.shields.io/github/v/release/ahmedqassimtv-commits/qassimz-hub?style=for-the-badge&color=38BDF8&label=QASSIMZ%20Hub)](https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/latest)
-[![المنصة](https://img.shields.io/badge/Windows-10%20%2F%2011%20x64-0EA5E9?style=for-the-badge)](https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/latest)
+<p>
+  <a href="https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/latest"><img src="https://img.shields.io/badge/Version-v2.2.0-38BDF8?style=flat-square" alt="Version" /></a>
+  <img src="https://img.shields.io/badge/Platform-Windows%2010%2F11%20x64-18181B?style=flat-square" alt="Platform" />
+  <a href="https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/latest"><img src="https://img.shields.io/badge/QASSIMZ-Creative%20Suite-0EA5E9?style=flat-square" alt="QASSIMZ Suite" /></a>
+</p>
+
+<p><em>The Official Launcher, Store & Delta Updater for QASSIMZ Creative Suite</em></p>
+
+<br />
+
+<img src="docs/preview-4k.png" alt="QASSIMZ Hub — 4K UHD Preview" width="100%" />
 
 </div>
 
 ---
 
-## نظرة عامة
+## 1. نظرة عامة
 
-يوفّر **QASSIMZ Hub** نقطة انطلاق موحّدة لجميع أدوات صناعة المحتوى، المونتاج، الموشن جرافيك، الصوتيات، وتنظيم المشاريع من **قَاسِمز**، مع توزيع عام مباشر لجميع حزم التثبيت (`Setup .exe`) والتحديثات عبر إصدارات هذا المستودع العام ليعمل التحميل والتحديث للجميع بدون الحاجة إلى حساب أو تسجيل دخول.
-
-### أبرز المميزات
-- **تثبيت وتحديث بضغطة زر واحدة (One-Click Silent Install & Update All)**: تحميل متعدد القطع مع شريط تقدّم حي وسرعة التحميل والتحقّق من سلامة الملفات (`SHA-256`).
-- **دعم متكامل لإضافات Adobe CEP**: كشف تلقائي لبرامج **Adobe Premiere Pro** و **Adobe After Effects** المثبّتة، وتفعيل مفتاح `PlayerDebugMode` لإصدارات `CSXS 9–16` بضغطة زر.
-- **خط رسمي موحّد أوفلاين**: تضمين حزمة خطوط **Google Sans & Google Sans Flex** الكاملة (العربية واللاتينية `WOFF2`) محلياً للعمل بدون اتصال إنترنت.
-- **اختصارات لوحة مفاتيح شاملة (`e.code`)**: تعمل جميع الاختصارات بسلاسة مع لوحة المفاتيح العربية والإنجليزية معاً.
+اللانشر الرسمي والمركز الموحّد لتثبيت وتحديث وإدارة جميع تطبيقات وإضافات منظومة **قَاسِمز الإبداعية** بضغطة زر واحدة، مع دعم التحديث التفاضلي الذكي (`.qpkg`) ومزامنة تلقائية للإصدارات.
 
 ---
 
-## البرامج والإضافات المتوفّرة في المركز (13 أداة)
+## 2. المميزات الرئيسية
 
-### 1. تطبيقات سطح المكتب المستقلة (Windows 10/11)
-| الرمز | البرنامج | الوظيفة |
-| :---: | :--- | :--- |
-| **St** | **QASSIMZ Studio** | جناح المونتاج المتعدّد المسارات (Edit) والموشن جرافيك (Motion) ومؤثرات VOX FX |
-| **Pd** | **QASSIMZ Producer** | غرفة تحكّم صناعة المحتوى: كانبان، سبورة أفكار، سكريبت، تلقين، ومساعد AI |
-| **Mu** | **QASSIMZ Music** | مشغّل موسيقى وراديو عالمي حي مع معادل صوتي 10 قنوات ومحلّل طيف |
-| **Qd** | **QDM** | مدير التحميلات الذكي متعدّد الاتصالات مع دعم الفيديو وإضافة المتصفّح |
-| **Th** | **QASSIMZ Thumbs** | عرض مصغّرات PSD و AI و MOGRT و RAW في مستكشف الويندوز + عارض فوري |
-| **Or** | **QASSIMZ Organizer** | تنظيم آلي ذكي للملفات والمجلدات مع كشف التكرار وسجلّ تراجع كامل |
-| **Sd** | **QASSIMZ Study · ذاكِر** | بيئة مذاكرة PDF تفاعلية مع تظليل، بطاقات استذكار، اختبارات، وبودكاست |
-
-### 2. إضافات ومحرّكات Adobe الاحترافية (Premiere Pro & After Effects)
-| الرمز | الإضافة | البرنامج المضيف | الوظيفة |
-| :---: | :--- | :---: | :--- |
-| **Vx** | **QASSIMZ VOX FX** | After Effects | ترسانة الموشن الوثائقي + إضافات `.aex` أصلية + مختبر ذكاء اصطناعي |
-| **Cc** | **QASSIMZ Captions** | Premiere Pro | تفريغ صوتي عربي/إنجليزي دقيق، مونتاج من النص، وكابشن متحرّك |
-| **Ft** | **QASSIMZ Footage** | Premiere & AE | باحث اللقطات والأرشيف بالوصف العربي أو الصورة عبر الذكاء الاصطناعي |
-| **Mh** | **QASSIMZ MOGRT Hub** | Premiere Pro | مكتبة قوالب `.mogrt` بمعاينة حية ودمج جداول CSV وتعديل فوري |
-| **Mm** | **QASSIMZ MOGRT Maker** | After Effects | بناء وتجهيز وتصدير قوالب الموشن جرافيك المتجاوبة (Auto-Rig) |
-| **Ex** | **QASSIMZ Export** | After Effects | تصدير سريع MP4 / ProRes / GIF / Alpha مع إعادة تأطير ذكي 9:16 |
+1. **تثبيت وتحديث بضغطة زر:** تثبيت صامت وسريع لكل برامج وإضافات المنظومة بدون إعدادات معقّدة.
+2. **تحديثات تفاضلية ذكية (Delta `.qpkg`):** تحميل التغييرات فقط لتسريع التحديث وتوفير الإنترنت.
+3. **كشف تلقائي للبرامج المثبتة:** يقرأ الإصدارات المثبتة فعلياً على جهازك وينبّهك فور صدور تحديث.
+4. **مسرح التثبيت التفاعلي (Install Theater):** متابعة حية لتقدم التحميل والتثبيت مع شريط مصغّر.
+5. **لوحة أوامر سريعة (`Ctrl+K`):** بحث فوري وتنقل وتشغيل أي تطبيق من لوحة المفاتيح.
+6. **دعم كامل للعربية (RTL) والإنجليزية:** مع وضع داكن وفاتح وهوية موحّدة لمنظومة قاسمز.
 
 ---
 
-## التشغيل التطويري المحلي
+## 3. التحميل والتثبيت
 
-```bash
-pip install -r requirements.txt
-python app/main.py
-```
+1. **الطريقة الموصى بها (عبر QASSIMZ Hub):**
+   - حمّل وافتح [**QASSIMZ Hub**](https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/latest) لتثبيت **QASSIMZ Hub** وتلقي جميع التحديثات التفاضلية (`.qpkg`) تلقائياً بضغطة زر.
+2. **التحميل المباشر من GitHub Releases:**
+   - افتح صفحة [**أحدث إصدار (v2.2.0)**](https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/latest).
+   - حمّل ملف المثبّت (`Setup.exe`) للتثبيت العادي بدون صلاحيات مسؤول، أو النسخة المحمولة (`Portable.zip`) إن وجدت.
 
-جميع الحقوق محفوظة © **Ahmed Qassim — QASSIMZ**
-
-<!-- QASSIMZ-LIQUID-GLASS-RELEASE -->
 ---
 
-## ✨ الجديد في الإصدار `v1.4.0` — إعادة تصميم Adobe Creative Cloud (Spectrum 2)
+## 4. متطلبات التشغيل
 
-- إعادة تصميم شاملة مستوحاة من **Adobe Creative Cloud Desktop (Spectrum 2)** بواجهة داكنة متسقة (`#1D1D1D` / `#222222` / `#2A2A2A`) ووضع فاتح كامل مع شريط جانبي ثابت ودعم RTL متكامل.
-- شريط عنوان وأزرار تحكم بالنافذة قياسية لنظام Windows 11 (تصغير، تكبير/استعادة تلقائية، إغلاق `#C42B1C`) + زر خروج فعلي (`Quit`) ينهي التطبيق وأيقونة شريط المهام بسلاسة.
-- شاشة إقلاع وترحيب جديدة عند فتح البرنامج مع تثبيت وإصلاح أنيميشن شعار **قَاسِـمز** الكاليغرافي المكون من 6 أجزاء.
-- إعادة تصميم واجهة التثبيت داخل التطبيق ومثبّت ويندوز (`Inno Setup`) بـ 74 إطارًا جديدًا متسقًا مع أيقونات **v2 · Adobe 2022 Style**.
+1. نظام التشغيل: Windows 10 / 11 (64-bit).
+2. بيئة العرض: Microsoft Edge WebView2 (مثبتة افتراضياً على Windows 11).
+3. اتصال بالإنترنت لتحميل التطبيقات والتحديثات التفاضلية.
 
-<!-- /QASSIMZ-LIQUID-GLASS-RELEASE -->
+---
+
+## 5. منظومة قَاسِمز الإبداعية (QASSIMZ Creative Suite)
+
+| # | التطبيق | الوصف | المستودع |
+|---:|---|---|---|
+| 1 | **QASSIMZ Hub** **(الحالي)** | مركز ومنظومة قَاسِمز الإبداعية | [GitHub](https://github.com/ahmedqassimtv-commits/qassimz-hub) |
+| 2 | **QASSIMZ Thumbs** | محرك مصغّرات ويندوز والعارض الفوري | [GitHub](https://github.com/ahmedqassimtv-commits/qassimz-thumbs) |
+| 3 | **QASSIMZ FONTs** | مدير الخطوط الاحترافي والمزامنة السحابية | [GitHub](https://github.com/ahmedqassimtv-commits/qassimz-fonts) |
+| 4 | **QASSIMZ Studio** | استوديو المونتاج والتحرير الاحترافي | [GitHub](https://github.com/ahmedqassimtv-commits/qassimz-studio) |
+| 5 | **QASSIMZ Producer** | مساحة إدارة الإنتاج وصناعة المحتوى | [GitHub](https://github.com/ahmedqassimtv-commits/qassimz-producer) |
+| 6 | **QASSIMZ Music** | مشغّل الموسيقى ومكتبة الصوتيات للمونتاج | [GitHub](https://github.com/ahmedqassimtv-commits/qassimz-music) |
+| 7 | **QDM — QASSIMZ Download Manager** | مدير التحميل السريع متعدد المسارات | [GitHub](https://github.com/ahmedqassimtv-commits/qdm) |
+| 8 | **QASSIMZ Organizer** | منظّم مجلدات المشاريع والملفات الإبداعية | [GitHub](https://github.com/ahmedqassimtv-commits/qassimz-organizer) |
+| 9 | **QASSIMZ Study** | منصة المذاكرة والتركيز وإدارة الدروس | [GitHub](https://github.com/ahmedqassimtv-commits/qassimz-study) |
+| 10 | **QASSIMZ VOX FX** | إضافة المؤثرات البصرية والصوتية لـ Premiere Pro | [GitHub](https://github.com/ahmedqassimtv-commits/qassimz-vox-fx) |
+| 11 | **QASSIMZ Captions** | إضافة الترجمة والكتابة التلقائية لـ Premiere Pro | [GitHub](https://github.com/ahmedqassimtv-commits/qassimz-captions) |
+| 12 | **QASSIMZ Footage** | إضافة البحث واستيراد اللقطات لـ Premiere Pro | [GitHub](https://github.com/ahmedqassimtv-commits/qassimz-footage) |
+| 13 | **QASSIMZ MOGRT Hub** | مكتبة ومدير قوالب MOGRT لـ Premiere Pro | [GitHub](https://github.com/ahmedqassimtv-commits/qassimz-mogrt-hub) |
+| 14 | **QASSIMZ MOGRT Maker** | صانع قوالب MOGRT الاحترافي لـ Premiere Pro | [GitHub](https://github.com/ahmedqassimtv-commits/qassimz-mogrt-maker) |
+| 15 | **QASSIMZ Export** | إضافة التصدير الذكي السريع لـ Premiere Pro | [GitHub](https://github.com/ahmedqassimtv-commits/qassimz-export) |
+
+---
+
+<div align="center">
+  <sub>© 2026 <strong>QASSIMZ Creative Suite</strong> — Ahmed Qassim. جميع الحقوق محفوظة.</sub>
+</div>
