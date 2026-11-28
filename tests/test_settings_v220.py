@@ -37,7 +37,8 @@ class TestSettingsV220(unittest.TestCase):
         self.assertEqual(server._clean_dir_setting(""), "")
         self.assertEqual(server._clean_dir_setting("relative/path"), "")
         self.assertEqual(server._clean_dir_setting("C:\\QASSIMZ Hub\\Apps"), "C:\\QASSIMZ Hub\\Apps")
-        self.assertTrue(server._clean_dir_setting("/tmp/qassimz").startswith("/tmp"))
+        abs_sample = str(self.tmp / "qassimz")
+        self.assertEqual(server._clean_dir_setting(abs_sample), abs_sample)
         self.assertEqual(server._clean_dir_setting("x" * 400), "")
 
     def test_invalid_values_are_ignored(self):
@@ -47,9 +48,10 @@ class TestSettingsV220(unittest.TestCase):
         self.assertEqual(out["cache_cleanup_days"], 7)
         self.assertEqual(out["mechanical_bg_mode"], "balanced")
         self.assertEqual(out["install_root"], "")
-        cfg.update({"cache_cleanup_days": 30, "install_root": "/tmp/qassimz-install"})
+        abs_install = str(self.tmp / "qassimz-install")
+        cfg.update({"cache_cleanup_days": 30, "install_root": abs_install})
         self.assertEqual(cfg.all()["cache_cleanup_days"], 30)
-        self.assertEqual(cfg.all()["install_root"], "/tmp/qassimz-install")
+        self.assertEqual(cfg.all()["install_root"], abs_install)
 
     def test_workspace_map_validation(self):
         clean = server._clean_workspaces(
@@ -67,7 +69,8 @@ class TestSettingsV220(unittest.TestCase):
     # --- import / export -------------------------------------------------
     def test_export_import_roundtrip(self):
         api = server.HubApi(self.tmp)
-        api.settings.update({"quiet_mode": True, "cache_cleanup_days": 30, "install_root": "/tmp/qh"})
+        abs_qh = str(self.tmp / "qh")
+        api.settings.update({"quiet_mode": True, "cache_cleanup_days": 30, "install_root": abs_qh})
         bundle = api.export_settings()
         self.assertEqual(bundle["app"], "qassimz-hub")
         self.assertEqual(bundle["settings"]["quiet_mode"], True)
@@ -76,7 +79,7 @@ class TestSettingsV220(unittest.TestCase):
         applied = other.import_settings(payload=bundle)
         self.assertIs(applied["quiet_mode"], True)
         self.assertEqual(applied["cache_cleanup_days"], 30)
-        self.assertEqual(applied["install_root"], "/tmp/qh")
+        self.assertEqual(applied["install_root"], abs_qh)
 
     def test_import_rejects_garbage(self):
         api = server.HubApi(self.tmp)
