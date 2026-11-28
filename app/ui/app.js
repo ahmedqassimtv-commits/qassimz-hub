@@ -2389,6 +2389,10 @@
           void grid.offsetWidth;
           grid.classList.add("view-enter");
         }
+        if (window.QMotion) {
+          window.QMotion.choreographView();
+          window.QMotion.syncSidebarPill();
+        }
       };
     });
 

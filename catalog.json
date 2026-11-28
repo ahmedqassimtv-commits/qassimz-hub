@@ -1,20 +1,20 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-11-27T17:40:00Z",
+  "updated_at": "2026-11-27T17:45:00Z",
   "hub_repo": "ahmedqassimtv-commits/qassimz-hub",
   "hub": {
     "id": "qassimz-hub",
     "code": "Qh",
     "name": "QASSIMZ Hub",
     "name_ar": "مركز قَاسِمز الرسمي",
-    "version": "1.6.1",
+    "version": "1.6.2",
     "accent": "#3B63FB",
-    "setup_filename": "QASSIMZ-Hub-Setup-1.6.1.exe",
-    "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.6.1/QASSIMZ-Hub-Setup-1.6.1.exe",
-    "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.6.1/QASSIMZ-Hub-Portable.zip",
-    "delta_manifest_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.6.1/manifest.json",
-    "delta_qpkg_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.6.1/qassimz-hub-v1.6.1.qpkg",
-    "release_notes_ar": "الإصدار 1.6.1: دمج بصري شامل على كامل الواجهة (الشريط العلوي والقائمة الجانبية والبطاقات والنوافذ)، إعادة تصميم حركات شعار قَاسِـمز وQh بأسلوب Apple Keynote، وحركة انعكاس زجاجي فخمة لأيقونات البرامج."
+    "setup_filename": "QASSIMZ-Hub-Setup-1.6.2.exe",
+    "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.6.2/QASSIMZ-Hub-Setup-1.6.2.exe",
+    "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.6.2/QASSIMZ-Hub-Portable.zip",
+    "delta_manifest_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.6.2/manifest.json",
+    "delta_qpkg_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.6.2/qassimz-hub-v1.6.2.qpkg",
+    "release_notes_ar": "الإصدار 1.6.2: نظام حركة فيزيائي متكامل (RK4 Spring Physics) مستوحى من Linear وRaycast وApple مع مؤشر قائمة جانبية زنبركي منزلق، سحب مغناطيسي ولمعة أزرار CTA، حدود ضوئية متتبعة للمؤشر، وكشف blur-to-sharp سينمائي بسرعة 60 FPS."
   },
   "apps": {
     "qassimz-music": {

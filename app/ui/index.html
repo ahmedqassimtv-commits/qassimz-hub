@@ -38,6 +38,11 @@
 
   <!-- Adobe Creative Cloud Desktop 2-Region App Frame -->
   <div class="cc-shell">
+    <!-- Slow-Breathing GPU Ambient Aurora Layer (Zero Layout Impact) -->
+    <div class="cc-aurora" aria-hidden="true">
+      <span class="aurora-orb orb-a"></span>
+      <span class="aurora-orb orb-b"></span>
+    </div>
     <!-- Region 1: Full-Bleed 48px Draggable Titlebar -->
     <header class="cc-titlebar pywebview-drag-region" id="app-titlebar">
       <div class="tb-brand-group">
@@ -488,5 +493,6 @@
   <div class="cc-toast-stack" id="toasts"></div>
 
   <script src="./app.js"></script>
+  <script src="./motion-system.js"></script>
 </body>
 </html>
