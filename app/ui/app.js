@@ -1212,7 +1212,22 @@
     ws.innerHTML = `<div class="cc-list">${rows}</div>`;
   }
 
-  // App Details Dialog (100% Localized EN & AR)
+  // Close standalone App Detail Page with smooth exit animation
+  function closeDetailsPage() {
+    const backdrop = $("#detail-backdrop");
+    if (!backdrop || backdrop.hidden) {
+      UI.selectedId = null;
+      return;
+    }
+    backdrop.classList.add("is-leaving");
+    setTimeout(() => {
+      backdrop.classList.remove("is-leaving");
+      UI.selectedId = null;
+      backdrop.hidden = true;
+    }, 185);
+  }
+
+  // Standalone Full-Page App Store / Creative Cloud Detail Page (100% Localized EN & AR)
   function renderDetailsSheet() {
     const backdrop = $("#detail-backdrop");
     const sheet = $("#detail-drawer");
@@ -1228,10 +1243,12 @@
       return;
     }
 
+    backdrop.classList.remove("is-leaving");
     backdrop.hidden = false;
     const st = it.state || {};
     const m = appMeta(it);
     const t = tr();
+    const isAr = UI.lang === "ar";
     const navPool = items.length ? items : allItems;
     const idx = navPool.findIndex((x) => x.id === it.id);
     const prevId = navPool.length > 1 ? navPool[(idx - 1 + navPool.length) % navPool.length].id : null;
@@ -1240,6 +1257,8 @@
     const repoUrl = `https://github.com/${it.repo || "ahmedqassimtv-commits/qassimz-hub"}`;
     const releasesUrl = `${repoUrl}/releases`;
     const updatedStr = fmtDate(UI.state.updated_at);
+    const catLabel = it.category === "adobe" ? t.catAdobe : t.catDesktop;
+    const hostsTxt = (it.hosts || []).join(" · ");
 
     const primaryBtn = st.has_update
       ? `<button class="cc-btn accent" id="dt-install">${esc(t.update)} v${esc(it.version)}</button>
@@ -1250,22 +1269,24 @@
       : `<button class="cc-btn accent" id="dt-install">${esc(t.install)} v${esc(it.version)}</button>
          <button class="cc-btn secondary" id="dt-wizard">${esc(t.interactiveInstaller)}</button>`;
 
-    const overviewText = UI.lang === "ar" ? it.description_ar || it.tagline_ar : m.blurbEn;
+    const overviewText = isAr ? (it.description_ar || it.tagline_ar) : (m.blurbEn || it.tagline_ar);
+    const subTitleText = isAr ? (it.name_ar || it.tagline_ar) : m.taglineEn;
+    const backLabel = isAr ? "← العودة لكل التطبيقات" : "← Back to All Apps";
+    const previewCaption = isAr
+      ? `معاينة حقيقية من داخل ${it.name} · v${it.version}`
+      : `Live Interface Preview · ${it.name} v${it.version}`;
+    const featuresList = isAr
+      ? (it.features_ar || [])
+      : [
+          m.taglineEn,
+          hostsTxt ? `Compatible with ${hostsTxt}` : "Native Windows 10/11 Desktop Experience",
+          "Supports Smart Delta Updates (HTTP Range) via QASSIMZ Hub",
+          "Offline Google Sans Typography & Full Arabic RTL / English Support",
+        ].filter(Boolean);
 
     sheet.innerHTML = `
-      <div class="dialog-head">
-        <div class="dialog-head-left">
-          <img class="dialog-app-icon" src="./icons/${esc(it.id)}.svg" alt="${esc(it.name)}" />
-          <div>
-            <h2 class="dialog-title" id="drawer-title">${esc(it.name)}</h2>
-            <p class="dialog-sub">${esc(UI.lang === "ar" ? it.name_ar : m.taglineEn)}</p>
-            <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
-              <button class="cc-link-btn" data-ext-url="${esc(repoUrl)}">${esc(t.github)}</button>
-              <button class="cc-link-btn" data-ext-url="${esc(releasesUrl)}">${esc(t.releases)}</button>
-              ${it.portable_url ? `<button class="cc-link-btn" data-ext-url="${esc(it.portable_url)}">${esc(t.portableZip)}</button>` : ""}
-            </div>
-          </div>
-        </div>
+      <div class="app-page-bar">
+        <button class="app-page-back" id="dt-back">${esc(backLabel)}</button>
         <div class="dialog-head-actions">
           ${prevId ? `<button class="cc-icon-btn" id="dt-prev" title="${esc(t.prev)}">‹</button>` : ""}
           ${nextId ? `<button class="cc-icon-btn" id="dt-next" title="${esc(t.next)}">›</button>` : ""}
@@ -1273,48 +1294,74 @@
         </div>
       </div>
 
-      <div class="dialog-body">
-        <div class="dialog-cols">
-          <div>
-            <h3 class="dialog-section-label">${esc(t.overview)}</h3>
-            <div class="dialog-panel">
-              <p style="margin:0;font-size:13.5px;line-height:1.65;color:var(--text-primary);">${esc(overviewText)}</p>
+      <div class="app-page-scroll">
+        <div class="app-page-inner">
+          <div class="app-page-hero">
+            <div class="app-page-hero-left">
+              <img class="app-page-icon" src="./icons/${esc(it.id)}.svg" alt="${esc(it.name)}" />
+              <div style="min-width:0;">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                  <h2 class="dialog-title" id="drawer-title" style="margin:0;">${esc(it.name)}</h2>
+                  <span class="card-ver-pill">v${esc(it.version)}</span>
+                  <span class="card-cat-tag">${esc(catLabel)}</span>
+                  ${st.installed ? `<span class="card-status-tag positive">${esc(t.installedTag)}</span>` : ""}
+                </div>
+                <p class="dialog-sub" style="margin:6px 0 0;">${esc(subTitleText)}</p>
+                <div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap;">
+                  <button class="cc-link-btn" data-ext-url="${esc(repoUrl)}">${esc(t.github)}</button>
+                  <button class="cc-link-btn" data-ext-url="${esc(releasesUrl)}">${esc(t.releases)}</button>
+                  ${it.portable_url ? `<button class="cc-link-btn" data-ext-url="${esc(it.portable_url)}">${esc(t.portableZip)}</button>` : ""}
+                  ${st.install_dir ? `<button class="cc-link-btn" id="dt-folder">${esc(t.openFolder)}</button>` : ""}
+                  ${st.installed && st.uninstall_cmd ? `<button class="cc-link-btn" id="dt-uninstall" style="color:var(--danger,#E34850);">${esc(t.uninstall)}</button>` : ""}
+                </div>
+              </div>
             </div>
-            ${
-              it.release_notes_ar
-                ? `<h3 class="dialog-section-label" style="margin-top:16px;">${esc(t.whatsNew(it.version))}</h3>
-                   <div class="dialog-panel" dir="rtl">
-                     <p style="margin:0;font-size:13px;line-height:1.65;color:var(--text-secondary);">${esc(it.release_notes_ar)}</p>
-                   </div>`
-                : ""
-            }
+            <div class="app-page-cta">
+              ${primaryBtn}
+            </div>
+          </div>
+
+          <div class="app-preview-stage" id="dt-preview-stage">
+            <img class="app-preview-img" src="./previews/${esc(it.id)}.jpg" alt="${esc(it.name)} Preview" onerror="this.parentElement.hidden=true" />
+            <div class="app-preview-caption">
+              <span>${esc(previewCaption)}</span>
+              <span>${esc(humanBytes(it.setup_size))}</span>
+            </div>
+          </div>
+
+          <div class="dialog-cols">
+            <div>
+              <h3 class="dialog-section-label">${esc(t.overview)}</h3>
+              <div class="dialog-panel">
+                <p style="margin:0;font-size:13.5px;line-height:1.7;color:var(--text-primary);">${esc(overviewText)}</p>
+              </div>
+              ${
+                it.release_notes_ar
+                  ? `<h3 class="dialog-section-label" style="margin-top:16px;">${esc(t.whatsNew(it.version))}</h3>
+                     <div class="dialog-panel" dir="rtl">
+                       <p style="margin:0;font-size:13px;line-height:1.65;color:var(--text-secondary);">${esc(it.release_notes_ar)}</p>
+                     </div>`
+                  : ""
+              }
+            </div>
+
+            <div>
+              <h3 class="dialog-section-label">${esc(t.keyFeatures)}</h3>
+              <div class="dialog-panel" dir="${isAr ? "rtl" : "ltr"}">
+                ${featuresList.map((f) => `<div class="feature-item">✓ ${esc(f)}</div>`).join("")}
+              </div>
+            </div>
           </div>
 
           <div>
-            <h3 class="dialog-section-label">${esc(t.keyFeatures)}</h3>
-            <div class="dialog-panel" dir="rtl">
-              ${(it.features_ar || []).map((f) => `<div class="feature-item">✓ ${esc(f)}</div>`).join("")}
+            <h3 class="dialog-section-label">${esc(t.releaseFacts)}</h3>
+            <div class="facts-grid">
+              <div class="fact-box"><span>${esc(t.latestVersion)}</span><strong>v${esc(it.version)}</strong></div>
+              <div class="fact-box"><span>${esc(t.installedLabel)}</span><strong>${st.installed ? `v${esc(st.installed_version || it.version)}` : esc(t.notInstalled)}</strong></div>
+              <div class="fact-box"><span>${esc(t.downloadSize)}</span><strong>${esc(humanBytes(it.setup_size))}</strong></div>
+              <div class="fact-box"><span>${esc(t.releasedLabel)}</span><strong>${esc(updatedStr)}</strong></div>
             </div>
           </div>
-        </div>
-
-        <h3 class="dialog-section-label" style="margin-top:18px;">${esc(t.releaseFacts)}</h3>
-        <div class="facts-grid">
-          <div class="fact-box"><span>${esc(t.latestVersion)}</span><strong>v${esc(it.version)}</strong></div>
-          <div class="fact-box"><span>${esc(t.installedLabel)}</span><strong>${st.installed ? `v${esc(st.installed_version || it.version)}` : esc(t.notInstalled)}</strong></div>
-          <div class="fact-box"><span>${esc(t.downloadSize)}</span><strong>${esc(humanBytes(it.setup_size))}</strong></div>
-          <div class="fact-box"><span>${esc(t.releasedLabel)}</span><strong>${esc(updatedStr)}</strong></div>
-        </div>
-      </div>
-
-      <div class="dialog-foot">
-        <div class="dialog-foot-group">
-          ${primaryBtn}
-          ${st.install_dir ? `<button class="cc-btn secondary" id="dt-folder">${esc(t.openFolder)}</button>` : ""}
-        </div>
-        <div class="dialog-foot-group">
-          ${st.installed && st.uninstall_cmd ? `<button class="cc-btn danger" id="dt-uninstall">${esc(t.uninstall)}</button>` : ""}
-          <button class="cc-btn secondary" id="dt-done">${esc(t.done)}</button>
         </div>
       </div>
     `;
@@ -1323,21 +1370,20 @@
       const el = $(sel, sheet);
       if (el) el.onclick = fn;
     };
-    on("#dt-close", () => { UI.selectedId = null; renderDetailsSheet(); });
-    on("#dt-done", () => { UI.selectedId = null; renderDetailsSheet(); });
+    on("#dt-back", closeDetailsPage);
+    on("#dt-close", closeDetailsPage);
     on("#dt-prev", () => { UI.selectedId = prevId; renderDetailsSheet(); });
     on("#dt-next", () => { UI.selectedId = nextId; renderDetailsSheet(); });
-    on("#dt-install", () => { UI.selectedId = null; renderDetailsSheet(); triggerInstall(it.id, true); });
-    on("#dt-wizard", () => { UI.selectedId = null; renderDetailsSheet(); triggerInstall(it.id, false); });
-    on("#dt-reinstall", () => { UI.selectedId = null; renderDetailsSheet(); triggerInstall(it.id, false); });
+    on("#dt-install", () => { UI.selectedId = null; backdrop.hidden = true; triggerInstall(it.id, true); });
+    on("#dt-wizard", () => { UI.selectedId = null; backdrop.hidden = true; triggerInstall(it.id, false); });
+    on("#dt-reinstall", () => { UI.selectedId = null; backdrop.hidden = true; triggerInstall(it.id, false); });
     on("#dt-launch", () => triggerLaunch(it.id));
     on("#dt-folder", () => api("open_folder", { path: st.install_dir }));
     on("#dt-uninstall", async () => {
       try {
         await api("uninstall", { id: it.id });
         toast(tr().toastUninstallStarted(it.name));
-        UI.selectedId = null;
-        renderDetailsSheet();
+        closeDetailsPage();
       } catch (e) {
         toast(e.message, "error");
       }
