@@ -45,7 +45,7 @@ jobs:
 
       - name: Build React + TypeScript + Tailwind frontend
         run: |
-          npm --prefix frontend ci
+          npm --prefix frontend install --no-audit --no-fund
           npm --prefix frontend run build
 
       - uses: actions/setup-python@v5
