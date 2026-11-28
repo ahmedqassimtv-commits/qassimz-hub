@@ -93,17 +93,20 @@ class TestPhase1DesktopArchitecture(unittest.TestCase):
             self.assertFalse(reloaded.is_enabled("command_palette"))
 
     def test_atomic_write_json_and_crash_logger_initialization(self):
-        with tempfile.TemporaryDirectory() as tmp:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
             root = Path(tmp)
             target = root / "state.json"
             atomic_write_json(target, {"ok": True, "lang": "العربية"})
             self.assertEqual(json.loads(target.read_text(encoding="utf-8"))["lang"], "العربية")
 
-            logger = init_crash_logging(root, "1.6.3")
+            logger = init_crash_logging(root, "2.1.0")
             logger.info("Phase 1 test entry")
             log_file = root / "logs" / "qassimz-hub.log"
             self.assertTrue(log_file.is_file())
             self.assertIn("Phase 1 test entry", log_file.read_text(encoding="utf-8"))
+            for h in list(logger.handlers):
+                h.close()
+                logger.removeHandler(h)
 
 
 if __name__ == "__main__":
