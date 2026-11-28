@@ -148,19 +148,20 @@ class TestQassimzHub(unittest.TestCase):
             self.assertIs(persisted["auto_check_updates"], False)
 
     def test_frontend_backend_api_parity_and_no_stale_version(self):
-        app_js = (ROOT / "app" / "ui" / "app.js").read_text(encoding="utf-8")
+        api_ts = ROOT / "frontend" / "src" / "lib" / "api.ts"
+        frontend_src = api_ts.read_text(encoding="utf-8") if api_ts.is_file() else (ROOT / "app" / "ui" / "app.js").read_text(encoding="utf-8")
         index_html = (ROOT / "app" / "ui" / "index.html").read_text(encoding="utf-8")
         setup_iss = (ROOT / "installer" / "setup.iss").read_text(encoding="utf-8-sig")
 
-        # Every api("...") call in app.js must match a public callable method on HubApi
-        called_methods = set(re.findall(r'\bapi\(\s*["\']([a-zA-Z0-9_]+)["\']', app_js))
+        # Every api("...") call in frontend must match a public callable method on HubApi
+        called_methods = set(re.findall(r'\bapi(?:<[^>]+>)?\(\s*["\']([a-zA-Z0-9_]+)["\']', frontend_src))
         self.assertGreater(len(called_methods), 8)
         for method in sorted(called_methods):
             self.assertFalse(method.startswith("_"), f"Private method called from UI: {method}")
             fn = getattr(server.HubApi, method, None)
             self.assertTrue(callable(fn), f"Frontend calls unknown HubApi endpoint: {method}")
 
-        self.assertNotIn("1.2.0", app_js)
+        self.assertNotIn("1.2.0", frontend_src)
         self.assertNotIn("1.2.0", index_html)
         self.assertNotIn("1.2.0", setup_iss)
 

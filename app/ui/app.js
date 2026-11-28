@@ -487,12 +487,42 @@
     });
   }
 
+  // next-themes style disableTransitionOnChange: prevents sluggish partial color transitions on theme switch
+  function withoutTransitions(fn) {
+    const style = document.createElement("style");
+    style.appendChild(
+      document.createTextNode(
+        "*,*::before,*::after{-webkit-transition:none!important;-moz-transition:none!important;-o-transition:none!important;transition:none!important}"
+      )
+    );
+    document.head.appendChild(style);
+    try {
+      fn();
+      window.getComputedStyle(document.body).opacity;
+    } finally {
+      setTimeout(() => style.remove(), 1);
+    }
+  }
+
+  function setTheme(nextPref) {
+    UI.themePref = nextPref;
+    localStorage.setItem("qhub_theme", nextPref);
+    withoutTransitions(() => {
+      applyThemeAndLang();
+    });
+  }
+
   function applyThemeAndLang() {
     const dark = isDarkActive();
+    const mode = dark ? "dark" : "light";
     const t = tr();
-    document.documentElement.dataset.theme = dark ? "dark" : "light";
-    document.documentElement.lang = UI.lang;
-    document.documentElement.dir = UI.lang === "ar" ? "rtl" : "ltr";
+    const root = document.documentElement;
+    root.dataset.theme = mode;
+    root.classList.remove("dark", "light");
+    root.classList.add(mode);
+    root.style.colorScheme = mode;
+    root.lang = UI.lang;
+    root.dir = UI.lang === "ar" ? "rtl" : "ltr";
 
     const moon = $("#ico-theme-moon");
     const sun = $("#ico-theme-sun");
@@ -1986,8 +2016,7 @@
 
     $$("[data-theme-pick]", sheet).forEach((b) => {
       b.onclick = () => {
-        UI.themePref = b.dataset.themePick;
-        localStorage.setItem("qhub_theme", UI.themePref);
+        setTheme(b.dataset.themePick);
         render();
         renderSettingsSheet();
       };
@@ -2363,10 +2392,19 @@
       render();
     };
     $("#btn-theme-toggle").onclick = () => {
-      UI.themePref = isDarkActive() ? "light" : "dark";
-      localStorage.setItem("qhub_theme", UI.themePref);
+      setTheme(isDarkActive() ? "light" : "dark");
       render();
     };
+    if (window.matchMedia) {
+      const sysMq = window.matchMedia("(prefers-color-scheme: dark)");
+      const onSysChange = () => {
+        if (UI.themePref === "system") {
+          withoutTransitions(() => applyThemeAndLang());
+        }
+      };
+      if (sysMq.addEventListener) sysMq.addEventListener("change", onSysChange);
+      else if (sysMq.addListener) sysMq.addListener(onSysChange);
+    }
 
     // Activity button toggles Adobe CC top-header Updates & Downloads dropdown
     $("#btn-activity").onclick = (e) => {
@@ -2622,6 +2660,22 @@
   }
 
   async function boot() {
+    window.addEventListener("error", (ev) => {
+      api("report_ui_error", {
+        kind: "error",
+        message: String(ev.message || "Unknown UI error"),
+        source: `${ev.filename || ""}:${ev.lineno || 0}:${ev.colno || 0}`,
+        stack: String(ev.error?.stack || ""),
+      }).catch(() => {});
+    });
+    window.addEventListener("unhandledrejection", (ev) => {
+      const r = ev.reason;
+      api("report_ui_error", {
+        kind: "unhandledrejection",
+        message: String(r?.message || r || "Unhandled promise rejection"),
+        stack: String(r?.stack || ""),
+      }).catch(() => {});
+    });
     window.__qhubOnHotPatched = () => {
       reloadState().catch(() => {});
     };

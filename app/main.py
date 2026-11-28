@@ -15,7 +15,8 @@ if sys.stderr is None:
 
 import webview  # type: ignore
 
-from server import HubApi, data_dir, resource, start_server
+from crash_logger import init_crash_logging
+from server import VERSION, HubApi, data_dir, resource, start_server
 
 SINGLE_INSTANCE_PORT = 49617
 
@@ -95,8 +96,10 @@ def main() -> None:
             except Exception:
                 pass
 
+    app_root = data_dir()
+    init_crash_logging(app_root, VERSION)
     minimized = "--minimized" in sys.argv
-    api = HubApi(data_dir())
+    api = HubApi(app_root)
     quitting = {"flag": False}
     tray_ref = {"icon": None}
 
@@ -169,6 +172,10 @@ def main() -> None:
     def quit_app():
         quitting["flag"] = True
         try:
+            api.save_window_state()
+        except Exception:
+            pass
+        try:
             if tray_ref["icon"] is not None:
                 tray_ref["icon"].stop()
         except Exception:
@@ -184,6 +191,10 @@ def main() -> None:
         os._exit(0)
 
     def on_closing():
+        try:
+            api.save_window_state()
+        except Exception:
+            pass
         if quitting["flag"]:
             return True
         if api.settings.all().get("minimize_to_tray", True):
@@ -195,6 +206,10 @@ def main() -> None:
         return True
 
     def _handle_close_request():
+        try:
+            api.save_window_state()
+        except Exception:
+            pass
         if api.settings.all().get("minimize_to_tray", True):
             if api.cc_updater.has_pending_core_update():
                 api.cc_updater.apply_pending_core_swap(relaunch_minimized=True)
@@ -209,6 +224,10 @@ def main() -> None:
     def _release_lock():
         quitting["flag"] = True
         try:
+            api.save_window_state()
+        except Exception:
+            pass
+        try:
             if tray_ref["icon"] is not None:
                 tray_ref["icon"].stop()
         except Exception:
@@ -221,7 +240,7 @@ def main() -> None:
     api._on_release_lock = _release_lock
 
     def _enable_win11_frameless_animations() -> None:
-        """Restore native Windows 11 DWM minimize/maximize/restore transitions & rounded corners on frameless HWND."""
+        """Restore native Windows 11 DWM transitions, rounded corners, dark frame, and Mica backdrop."""
         if os.name != "nt":
             return
         try:
@@ -246,12 +265,19 @@ def main() -> None:
             if new_style != style:
                 user32.SetWindowLongW(hwnd, GWL_STYLE, new_style)
 
-            # Enable native DWM transitions (DWMWA_TRANSITIONS_FORCEDISABLED = 3 -> 0)
-            # and Windows 11 native rounded corners (DWMWA_WINDOW_CORNER_PREFERENCE = 33 -> DWMWCP_ROUND = 2)
+            # DWMWA_TRANSITIONS_FORCEDISABLED (3) -> 0 (native Win11 transitions enabled)
             disable_transitions = ctypes.c_int(0)
             dwmapi.DwmSetWindowAttribute(hwnd, 3, ctypes.byref(disable_transitions), ctypes.sizeof(disable_transitions))
+            # DWMWA_USE_IMMERSIVE_DARK_MODE (20) -> 1
+            dark_mode = ctypes.c_int(1)
+            dwmapi.DwmSetWindowAttribute(hwnd, 20, ctypes.byref(dark_mode), ctypes.sizeof(dark_mode))
+            # DWMWA_WINDOW_CORNER_PREFERENCE (33) -> DWMWCP_ROUND (2)
             corner_pref = ctypes.c_int(2)
             dwmapi.DwmSetWindowAttribute(hwnd, 33, ctypes.byref(corner_pref), ctypes.sizeof(corner_pref))
+            # DWMWA_SYSTEMBACKDROP_TYPE (38) -> DWMSBT_MAINWINDOW (2 = Windows 11 Native Mica)
+            if api.feature_flags.is_enabled("win11_mica_material", True):
+                mica = ctypes.c_int(2)
+                dwmapi.DwmSetWindowAttribute(hwnd, 38, ctypes.byref(mica), ctypes.sizeof(mica))
 
             class MARGINS(ctypes.Structure):
                 _fields_ = [("cxLeftWidth", ctypes.c_int), ("cxRightWidth", ctypes.c_int),

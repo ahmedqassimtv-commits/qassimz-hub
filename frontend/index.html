@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" data-theme="dark" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="QASSIMZ Hub — Official Creative App Suite Launcher &amp; Auto-Updater" />
+    <title>QASSIMZ Hub — Creative App Suite</title>
+    <link rel="icon" href="./logo.png" />
+    <link rel="stylesheet" href="./fonts.css" />
+    <script>
+      (function () {
+        try {
+          var pref = localStorage.getItem("qhub_theme") || "dark";
+          var sysDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+          var mode = pref === "system" ? (sysDark ? "dark" : "light") : pref === "light" ? "light" : "dark";
+          var root = document.documentElement;
+          root.dataset.theme = mode;
+          root.classList.remove("dark", "light");
+          root.classList.add(mode);
+          root.style.colorScheme = mode;
+        } catch (_) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

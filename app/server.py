@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import mimetypes
 import os
 import secrets
@@ -18,15 +19,22 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
+from cc_updater import CreativeCloudUpdater
+from crash_logger import atomic_write_json
 from detector import (
     enable_cep_player_debug_mode,
     enrich_catalog,
     parse_version,
 )
-from cc_updater import CreativeCloudUpdater
+from feature_flags import FeatureFlagStore
 from installer_runner import UA, TaskQueue, run_uninstall_command, ssl_context
+from window_state import (
+    WindowStateStore,
+    enumerate_windows_monitors,
+    validate_window_rect,
+)
 
-VERSION = "1.6.3"
+VERSION = "2.0.0"
 HUB_REPO = "ahmedqassimtv-commits/qassimz-hub"
 REMOTE_CATALOG_URL = f"https://raw.githubusercontent.com/{HUB_REPO}/main/catalog.json"
 STATE_CACHE_TTL = 3.0
@@ -71,7 +79,7 @@ class HubSettings:
                         self._data["auto_update_hub"] = False
                         out = dict(self._data)
                         out["_schema"] = 2
-                        self.file.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
+                        atomic_write_json(self.file, out)
             except Exception:
                 pass
 
@@ -86,7 +94,7 @@ class HubSettings:
                     self._data[k] = bool(v)
             out = dict(self._data)
             out["_schema"] = 2
-            self.file.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
+            atomic_write_json(self.file, out)
             snap = dict(self._data)
         if "start_with_windows" in (values or {}):
             self._apply_startup(snap["start_with_windows"])
@@ -117,6 +125,8 @@ class HubApi:
         self.cache_dir = self.root / "downloads"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.settings = HubSettings(self.root)
+        self.feature_flags = FeatureFlagStore(self.root)
+        self.window_state = WindowStateStore(self.root)
         self.window: Any = None
         self._is_maximized = False
         self._on_close_request: Any = None
@@ -364,9 +374,7 @@ class HubApi:
                     self._catalog = parsed
                     self._last_sync = time.time()
                     self._sync_error = ""
-                (self.root / "cached_catalog.json").write_text(
-                    json.dumps(parsed, ensure_ascii=False, indent=2), encoding="utf-8"
-                )
+                atomic_write_json(self.root / "cached_catalog.json", parsed)
         except Exception as e:
             self._sync_error = str(e)
         self._invalidate_state_cache()
@@ -420,6 +428,7 @@ class HubApi:
             "hub_release_notes": hub_meta.get("release_notes_ar") or "",
             "hub_repo_url": f"https://github.com/{HUB_REPO}",
             "cc_updater": self.cc_updater.snapshot(),
+            "feature_flags": self.feature_flags.all(),
             "last_sync": self._last_sync,
             "sync_error": self._sync_error,
             "settings": self.settings.all(),
@@ -428,6 +437,18 @@ class HubApi:
             "cache_size_bytes": cache_bytes,
             "platform": os.name,
         }
+
+    def report_ui_error(
+        self,
+        message: str = "",
+        source: str = "",
+        stack: str = "",
+        kind: str = "error",
+    ) -> dict[str, Any]:
+        """Record frontend uncaught errors into the rotating backend crash log."""
+        logger = logging.getLogger("qassimz_hub")
+        logger.error("UI [%s] %s (%s)\n%s", kind, message, source, stack)
+        return {"ok": True}
 
     def tasks(self) -> list[dict[str, Any]]:
         return self.queue.snapshot()
@@ -674,7 +695,7 @@ class HubApi:
                 time.sleep(step_sleep)
 
     def win_reveal_main(self) -> dict[str, Any]:
-        """Smoothly expand compact Adobe splash window (480x310) into full 1360x860 workspace."""
+        """Smoothly expand compact Adobe splash window (480x310) into validated saved or default workspace bounds."""
         if self.window is None or getattr(self, "_splash_expanded", True):
             self._splash_expanded = True
             return {"ok": True, "expanded": True}
@@ -685,6 +706,22 @@ class HubApi:
                 cy = int(getattr(self.window, "y", 250) or 250)
                 cw = int(getattr(self.window, "width", 480) or 480)
                 ch = int(getattr(self.window, "height", 310) or 310)
+
+                saved = self.window_state.load() if self.feature_flags.is_enabled("window_state_persistence", True) else None
+                monitors = enumerate_windows_monitors()
+                if saved and monitors:
+                    tx, ty, target_w, target_h, want_max, _mon = validate_window_rect(saved, monitors)
+                    if want_max:
+                        self._restore_bounds = (tx, ty, target_w, target_h)
+                        work = self._get_windows_work_area(tx, ty)
+                        if work is not None:
+                            wx, wy, ww, wh = work
+                            self._animate_window_bounds(self.window, cx, cy, cw, ch, wx, wy, ww, wh, steps=9, duration=0.16)
+                            self._is_maximized = True
+                            return {"ok": True, "expanded": True, "maximized": True}
+                    self._animate_window_bounds(self.window, cx, cy, cw, ch, tx, ty, target_w, target_h, steps=9, duration=0.16)
+                    return {"ok": True, "expanded": True, "maximized": False}
+
                 work = self._get_windows_work_area(cx, cy)
                 target_w, target_h = 1360, 860
                 if work is not None:
@@ -700,6 +737,16 @@ class HubApi:
             except Exception:
                 pass
         return {"ok": True, "expanded": True}
+
+    def save_window_state(self) -> None:
+        """Persist current logical window position, dimensions, monitor name, and maximized state."""
+        if not self.feature_flags.is_enabled("window_state_persistence", True):
+            return
+        self.window_state.capture_from_window(
+            self.window,
+            is_maximized=bool(getattr(self, "_is_maximized", False)),
+            restore_bounds=getattr(self, "_restore_bounds", None),
+        )
 
     def win_toggle_maximize(self) -> dict[str, Any]:
         if self.window is not None:
