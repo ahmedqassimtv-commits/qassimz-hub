@@ -2794,6 +2794,224 @@ img[src$=".svg"] {
 }
 
 /* ==========================================================================
+   Custom Animated Sort Dropdown (Replaces Native OS Select Popup)
+   ========================================================================== */
+.custom-sort-wrap {
+  position: relative;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+}
+.cc-sort-trigger {
+  height: 34px;
+  padding: 0 12px 0 14px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-elevated, #2A2A2A);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.10));
+  color: var(--text-primary);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 180ms ease, border-color 180ms ease, transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 180ms ease;
+}
+.cc-sort-trigger:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.12));
+  border-color: rgba(255, 255, 255, 0.22);
+}
+.cc-sort-trigger:active {
+  transform: scale(0.96);
+}
+.custom-sort-wrap.open .cc-sort-trigger {
+  border-color: var(--accent, #3B63FB);
+  box-shadow: 0 0 0 3px rgba(59, 99, 251, 0.22);
+}
+.cc-sort-trigger .cc-select-chevron {
+  position: static !important;
+  width: 12px;
+  height: 12px;
+  transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.custom-sort-wrap.open .cc-select-chevron {
+  transform: rotate(180deg);
+}
+.cc-sort-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  inset-inline-end: 0;
+  min-width: 196px;
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--bg-surface, #242424);
+  border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.14));
+  box-shadow: 0 20px 46px rgba(0, 0, 0, 0.48), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  z-index: 220;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transform-origin: top right;
+  animation: ccMenuPop 210ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+[dir="rtl"] .cc-sort-menu {
+  transform-origin: top left;
+}
+@keyframes ccMenuPop {
+  from { opacity: 0; transform: translateY(-6px) scale(0.94); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.cc-sort-opt {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 9px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  text-align: start;
+  transition: background-color 140ms ease, color 140ms ease, transform 140ms ease;
+}
+.cc-sort-opt:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.09));
+}
+.cc-sort-opt:active {
+  transform: scale(0.97);
+}
+.cc-sort-opt.active {
+  background: rgba(59, 99, 251, 0.18);
+  color: #7AA2FF;
+  font-weight: 600;
+}
+[data-theme="light"] .cc-sort-opt.active {
+  background: rgba(59, 99, 251, 0.12);
+  color: #254EDB;
+}
+.cc-sort-check {
+  font-size: 12px;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 160ms ease, transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.cc-sort-opt.active .cc-sort-check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* ==========================================================================
+   Brand-Colored Cursor-Tracking Card Hover Motion & Pro Micro-Animations
+   ========================================================================== */
+.craft-card {
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 240ms ease,
+    box-shadow 260ms ease,
+    background-color 220ms ease !important;
+  animation: ccCardRise 320ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: var(--card-delay, 0ms);
+}
+@keyframes ccCardRise {
+  from { opacity: 0; transform: translateY(10px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.craft-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    280px circle at var(--mx, 50%) var(--my, 30%),
+    color-mix(in srgb, var(--app-color, #3B63FB) 19%, transparent),
+    transparent 68%
+  );
+  transition: opacity 260ms ease;
+  z-index: 0;
+}
+.craft-card::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  inset-inline-start: 0;
+  width: 100%;
+  height: 2.5px;
+  pointer-events: none;
+  background: linear-gradient(90deg, var(--app-color, #3B63FB), color-mix(in srgb, var(--app-color, #3B63FB) 45%, #ffffff));
+  transform: scaleX(0);
+  transform-origin: inline-start center;
+  transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 2;
+}
+.craft-card > * {
+  position: relative;
+  z-index: 1;
+}
+.craft-card:hover {
+  transform: translateY(-4px);
+  border-color: color-mix(in srgb, var(--app-color, #3B63FB) 48%, rgba(255, 255, 255, 0.14)) !important;
+  box-shadow:
+    0 16px 36px rgba(0, 0, 0, 0.34),
+    0 0 0 1px color-mix(in srgb, var(--app-color, #3B63FB) 22%, transparent) !important;
+}
+.craft-card:hover::before {
+  opacity: 1;
+}
+.craft-card:hover::after {
+  transform: scaleX(1);
+}
+.craft-card .card-icon {
+  transition: transform 280ms cubic-bezier(0.34, 1.56, 0.64, 1), filter 260ms ease;
+}
+.craft-card:hover .card-icon {
+  transform: translateY(-2px) scale(1.08) rotate(-2.5deg);
+  filter: drop-shadow(0 8px 16px color-mix(in srgb, var(--app-color, #3B63FB) 38%, transparent));
+}
+
+/* Global Pro Micro-Animations on Buttons, Menus, Lists & Dialogs */
+.cc-btn {
+  transition: background-color 160ms ease, border-color 160ms ease, transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 180ms ease;
+}
+.cc-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.cc-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+.cc-icon-btn, .hdr-icon-btn {
+  transition: background-color 160ms ease, color 160ms ease, transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.cc-icon-btn:active, .hdr-icon-btn:active {
+  transform: scale(0.90);
+}
+.cc-menu, .bell-popup {
+  animation: ccMenuPop 190ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.cc-dialog:not(.details-dialog) {
+  animation: ccDialogPop 230ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes ccDialogPop {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.app-list-row {
+  transition: background-color 160ms ease, border-color 180ms ease, transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.app-list-row:hover {
+  transform: translateX(3px);
+}
+[dir="rtl"] .app-list-row:hover {
+  transform: translateX(-3px);
+}
+
+/* ==========================================================================
    Reduced Motion Preference
    ========================================================================== */
 @media (prefers-reduced-motion: reduce) {

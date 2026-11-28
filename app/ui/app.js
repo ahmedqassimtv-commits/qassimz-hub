@@ -449,6 +449,42 @@
     }
   }
 
+  function syncSortDropdown() {
+    const sortSel = $("#q-sort");
+    const curLbl = $("#sort-current-label");
+    const menu = $("#sort-menu");
+    const wrap = $("#sort-wrap");
+    const trigger = $("#sort-trigger");
+    if (!sortSel) return;
+    sortSel.value = UI.sort;
+    const opts = Array.from(sortSel.options);
+    const activeOpt = opts.find((o) => o.value === UI.sort) || opts[0];
+    if (curLbl && activeOpt) curLbl.textContent = activeOpt.textContent;
+    if (!menu) return;
+    menu.innerHTML = opts
+      .map(
+        (o) => `
+          <button type="button" class="cc-sort-opt ${o.value === UI.sort ? "active" : ""}" role="option" aria-selected="${o.value === UI.sort ? "true" : "false"}" data-sort-val="${esc(o.value)}">
+            <span>${esc(o.textContent)}</span>
+            <span class="cc-sort-check">✓</span>
+          </button>`
+      )
+      .join("");
+    $$("[data-sort-val]", menu).forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        UI.sort = btn.dataset.sortVal;
+        localStorage.setItem("qhub_sort", UI.sort);
+        sortSel.value = UI.sort;
+        menu.hidden = true;
+        if (wrap) wrap.classList.remove("open");
+        if (trigger) trigger.setAttribute("aria-expanded", "false");
+        syncSortDropdown();
+        render();
+      };
+    });
+  }
+
   function applyThemeAndLang() {
     const dark = isDarkActive();
     const t = tr();
@@ -480,7 +516,7 @@
     $("#lbl-github-releases").textContent = t.githubReleases;
     $("#lbl-sidebar-quit").textContent = t.quitShort;
 
-    // Toolbar sort labels
+    // Toolbar sort labels + custom animated dropdown sync
     $("#lbl-sort").textContent = t.sort;
     const sortSel = $("#q-sort");
     if (sortSel && sortSel.options.length >= 5) {
@@ -490,6 +526,7 @@
       sortSel.options[3].textContent = t.sortStatus;
       sortSel.options[4].textContent = t.sortSize;
     }
+    syncSortDropdown();
 
     // Banner & strip labels
     $("#lbl-ub-pill").textContent = t.updatePill;
@@ -1091,7 +1128,7 @@
   }
 
   // Disciplined Spectrum 2 App Card (Grid View)
-  function cardHTML(it, tmap) {
+  function cardHTML(it, tmap, idx = 0) {
     const st = it.state || {};
     const m = appMeta(it);
     const t = tr();
@@ -1148,6 +1185,7 @@
 
     return `
       <article class="craft-card ${installed ? "installed" : "uninstalled"}"
+               style="--app-color:${esc(m.color)};--card-delay:${Math.min(idx * 24, 220)}ms;"
                tabindex="0"
                data-card-id="${esc(it.id)}">
         <div>
@@ -1222,7 +1260,7 @@
         html += `
           <section class="cc-section">
             <h2 class="cc-section-head">${esc(t.secPinned)}</h2>
-            <div class="cc-grid">${pinnedList.map((it) => cardHTML(it, tmap)).join("")}</div>
+            <div class="cc-grid">${pinnedList.map((it, i) => cardHTML(it, tmap, i)).join("")}</div>
           </section>
         `;
       }
@@ -1230,7 +1268,7 @@
         html += `
           <section class="cc-section">
             <h2 class="cc-section-head">${esc(t.secInstalled)}</h2>
-            <div class="cc-grid">${installedList.map((it) => cardHTML(it, tmap)).join("")}</div>
+            <div class="cc-grid">${installedList.map((it, i) => cardHTML(it, tmap, i)).join("")}</div>
           </section>
         `;
       }
@@ -1238,7 +1276,7 @@
         html += `
           <section class="cc-section">
             ${installedList.length || pinnedList.length ? `<h2 class="cc-section-head">${esc(t.secAvailable)}</h2>` : ""}
-            <div class="cc-grid">${availableList.map((it) => cardHTML(it, tmap)).join("")}</div>
+            <div class="cc-grid">${availableList.map((it, i) => cardHTML(it, tmap, i)).join("")}</div>
           </section>
         `;
       }
@@ -1246,7 +1284,7 @@
     } else {
       ws.innerHTML = `
         <section class="cc-section">
-          <div class="cc-grid">${list.map((it) => cardHTML(it, tmap)).join("")}</div>
+          <div class="cc-grid">${list.map((it, i) => cardHTML(it, tmap, i)).join("")}</div>
         </section>
       `;
     }
@@ -2017,8 +2055,42 @@
     $("#q-sort").onchange = (e) => {
       UI.sort = e.target.value;
       localStorage.setItem("qhub_sort", UI.sort);
+      syncSortDropdown();
       render();
     };
+
+    const sortWrap = $("#sort-wrap");
+    const sortTrigger = $("#sort-trigger");
+    const sortMenu = $("#sort-menu");
+    if (sortTrigger && sortMenu && sortWrap) {
+      sortTrigger.onclick = (e) => {
+        e.stopPropagation();
+        const willOpen = sortMenu.hidden;
+        if (willOpen) syncSortDropdown();
+        sortMenu.hidden = !willOpen;
+        sortWrap.classList.toggle("open", willOpen);
+        sortTrigger.setAttribute("aria-expanded", willOpen ? "true" : "false");
+      };
+      document.addEventListener("click", (e) => {
+        if (!sortMenu.hidden && !sortWrap.contains(e.target)) {
+          sortMenu.hidden = true;
+          sortWrap.classList.remove("open");
+          sortTrigger.setAttribute("aria-expanded", "false");
+        }
+      });
+    }
+
+    // Cursor-tracking brand-colored spotlight on app cards
+    const wsEl = $("#workspace");
+    if (wsEl) {
+      wsEl.addEventListener("pointermove", (e) => {
+        const card = e.target.closest(".craft-card");
+        if (!card) return;
+        const rect = card.getBoundingClientRect();
+        card.style.setProperty("--mx", `${Math.round(e.clientX - rect.left)}px`);
+        card.style.setProperty("--my", `${Math.round(e.clientY - rect.top)}px`);
+      });
+    }
 
     $("#q-search").oninput = (e) => {
       clearTimeout(UI.searchTimer);

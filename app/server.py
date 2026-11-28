@@ -25,7 +25,7 @@ from detector import (
 )
 from installer_runner import UA, TaskQueue, run_uninstall_command, ssl_context
 
-VERSION = "1.5.3"
+VERSION = "1.5.4"
 HUB_REPO = "ahmedqassimtv-commits/qassimz-hub"
 REMOTE_CATALOG_URL = f"https://raw.githubusercontent.com/{HUB_REPO}/main/catalog.json"
 STATE_CACHE_TTL = 3.0
@@ -195,6 +195,34 @@ class HubApi:
                 raw = r.read().decode("utf-8")
             parsed = json.loads(raw)
             if isinstance(parsed, dict) and isinstance(parsed.get("items"), list) and parsed["items"]:
+                # Also check live GitHub releases/latest for Hub itself so Hub updates are detected immediately
+                try:
+                    rel_req = urllib.request.Request(
+                        f"https://api.github.com/repos/{HUB_REPO}/releases/latest",
+                        headers={"User-Agent": UA, "Accept": "application/vnd.github+json"},
+                    )
+                    with urllib.request.urlopen(rel_req, timeout=8, context=ssl_context()) as rr:
+                        rel_data = json.loads(rr.read().decode("utf-8"))
+                    rel_tag = str(rel_data.get("tag_name") or "").strip()
+                    rel_ver = rel_tag.lstrip("vV")
+                    hub_obj = dict(parsed.get("hub") or {})
+                    if rel_ver and parse_version(rel_ver) > parse_version(hub_obj.get("version") or "0"):
+                        assets = rel_data.get("assets") or []
+                        setup_a = next((a for a in assets if str(a.get("name", "")).lower().endswith(".exe")), None)
+                        man_a = next((a for a in assets if str(a.get("name", "")).lower() == "manifest.json"), None)
+                        qpkg_a = next((a for a in assets if str(a.get("name", "")).lower().endswith(".qpkg")), None)
+                        hub_obj["version"] = rel_ver
+                        if setup_a:
+                            hub_obj["setup_filename"] = setup_a["name"]
+                            hub_obj["setup_url"] = setup_a["browser_download_url"]
+                            hub_obj["setup_size"] = int(setup_a.get("size") or 0)
+                        if man_a and qpkg_a:
+                            hub_obj["delta_manifest_url"] = man_a["browser_download_url"]
+                            hub_obj["delta_qpkg_url"] = qpkg_a["browser_download_url"]
+                            hub_obj["delta_qpkg_size"] = int(qpkg_a.get("size") or 0)
+                        parsed["hub"] = hub_obj
+                except Exception:
+                    pass
                 with self._catalog_lock:
                     self._catalog = parsed
                     self._last_sync = time.time()

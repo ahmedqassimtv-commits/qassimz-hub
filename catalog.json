@@ -7,12 +7,14 @@
     "code": "Qh",
     "name": "QASSIMZ Hub",
     "name_ar": "مركز قَاسِمز الرسمي",
-    "version": "1.2.0",
-    "accent": "#38BDF8",
-    "setup_filename": "QASSIMZ-Hub-Setup-1.2.0.exe",
-    "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.2.0/QASSIMZ-Hub-Setup-1.2.0.exe",
-    "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.2.0/QASSIMZ-Hub-Portable.zip",
-    "release_notes_ar": "الإصدار 1.2.0: تصميم ArtCraft الهندسي المعماري الكامل مع شعار قَاسِـمز الرسمي المتحرك، مرحلة التثبيت الداكنة المتحركة، توحيد أيقونات Adobe المتكاملة بصرياً، وحل جذري للتنزيل والتحديث التلقائي."
+    "version": "1.5.4",
+    "accent": "#3B63FB",
+    "setup_filename": "QASSIMZ-Hub-Setup-1.5.4.exe",
+    "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.4/QASSIMZ-Hub-Setup-1.5.4.exe",
+    "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.4/QASSIMZ-Hub-Portable.zip",
+    "delta_manifest_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.4/manifest.json",
+    "delta_qpkg_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v1.5.4/qassimz-hub-v1.5.4.qpkg",
+    "release_notes_ar": "الإصدار 1.5.4: محرك التحديث التفاضلي الذكي (Delta Updates)، دقة HiDPI V2 للوجوهات، إصلاح تكبير الشاشة بدون ظهور تسجيل كرت الشاشة، صفحة مستقلة متحركة لكل تطبيق، قائمة ترتيب مخصصة، وتأثيرات حركة احترافية بألوان كل تطبيق."
   },
   "apps": {
     "qassimz-music": {

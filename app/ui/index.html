@@ -303,18 +303,22 @@
             </div>
 
             <div class="toolbar-right">
-              <div class="cc-select-wrap" id="sort-wrap">
-                <span class="cc-select-prefix" id="lbl-sort">Sort</span>
-                <select id="q-sort" class="cc-select" aria-label="Sort">
+              <div class="cc-select-wrap custom-sort-wrap" id="sort-wrap">
+                <button type="button" class="cc-sort-trigger" id="sort-trigger" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="cc-select-prefix" id="lbl-sort">Sort</span>
+                  <span class="cc-sort-value" id="sort-current-label">Suite Order</span>
+                  <svg class="cc-select-chevron" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="2.5 4.5 6 8 9.5 4.5"/>
+                  </svg>
+                </button>
+                <div class="cc-sort-menu" id="sort-menu" role="listbox" hidden></div>
+                <select id="q-sort" class="cc-select" aria-label="Sort" hidden>
                   <option value="default">Suite Order</option>
                   <option value="name-asc">Name (A–Z)</option>
                   <option value="name-desc">Name (Z–A)</option>
                   <option value="status">Status</option>
                   <option value="size">Download Size</option>
                 </select>
-                <svg class="cc-select-chevron" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <polyline points="2.5 4.5 6 8 9.5 4.5"/>
-                </svg>
               </div>
 
               <div class="cc-segmented" role="group" aria-label="View Mode">
