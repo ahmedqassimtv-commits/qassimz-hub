@@ -1,20 +1,20 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-11-27T19:08:00Z",
+  "updated_at": "2026-11-27T19:22:00Z",
   "hub_repo": "ahmedqassimtv-commits/qassimz-hub",
   "hub": {
     "id": "qassimz-hub",
     "code": "Qh",
     "name": "QASSIMZ Hub",
     "name_ar": "مركز قَاسِمز الرسمي",
-    "version": "2.0.0",
+    "version": "2.0.1",
     "accent": "#3B63FB",
-    "setup_filename": "QASSIMZ-Hub-Setup-2.0.0.exe",
-    "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v2.0.0/QASSIMZ-Hub-Setup-2.0.0.exe",
-    "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v2.0.0/QASSIMZ-Hub-Portable.zip",
-    "delta_manifest_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v2.0.0/manifest.json",
-    "delta_qpkg_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v2.0.0/qassimz-hub-v2.0.0.qpkg",
-    "release_notes_ar": "الإصدار الرئيسي 2.0.0: إعادة بناء كاملة للواجهة بـ React 19 + TypeScript + Tailwind CSS v4 + Motion (4 إعدادات نوابض موحّدة) + لوحة أوامر Ctrl+K (cmdk ببحث ضبابي وFrecency) + قوائم Floating UI + قوائم TanStack Virtual + جولة ترحيبية Driver.js + تبديل دائري للسمة + حفظ حالة النافذة عبر الشاشات المتعددة وWindows 11 Mica."
+    "setup_filename": "QASSIMZ-Hub-Setup-2.0.1.exe",
+    "setup_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v2.0.1/QASSIMZ-Hub-Setup-2.0.1.exe",
+    "portable_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v2.0.1/QASSIMZ-Hub-Portable.zip",
+    "delta_manifest_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v2.0.1/manifest.json",
+    "delta_qpkg_url": "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases/download/v2.0.1/qassimz-hub-v2.0.1.qpkg",
+    "release_notes_ar": "الإصدار 2.0.1: تحسين تناسق البطاقات (3 أعمدة بدون قصّ أسماء)، إصلاح عرض الأسماء والأحجام في RTL، شارة Ctrl+K، زر الإغلاق بالزاوية الخارجية، مفاتيح تبديل متحركة Motion في الإعدادات، فصل المثبّتة عن المتوفرة في الحزمة، وقائمة النقاط الثلاث المحدّثة."
   },
   "apps": {
     "qassimz-music": {

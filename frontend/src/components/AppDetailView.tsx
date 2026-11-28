@@ -107,15 +107,15 @@ export const AppDetailView: React.FC<Props> = ({
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-[12.5px]">
                 <div className="p-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-hover)]">
                   <div className="text-[var(--color-text-muted)] text-[11px]">{isAr ? "الإصدار" : "Version"}</div>
-                  <div className="font-bold mt-0.5">v{item.version}</div>
+                  <div dir="ltr" className={`font-bold mt-0.5 ${isAr ? "text-right" : "text-left"}`}>v{item.version}</div>
                 </div>
                 <div className="p-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-hover)]">
                   <div className="text-[var(--color-text-muted)] text-[11px]">{isAr ? "الحجم" : "Package Size"}</div>
-                  <div className="font-bold mt-0.5">{humanBytes(item.setup_size)}</div>
+                  <div dir="ltr" className={`font-bold mt-0.5 ${isAr ? "text-right" : "text-left"}`}>{humanBytes(item.setup_size)}</div>
                 </div>
                 <div className="p-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-hover)]">
                   <div className="text-[var(--color-text-muted)] text-[11px]">{isAr ? "الفئة" : "Category"}</div>
-                  <div className="font-bold mt-0.5">{item.category === "adobe" ? "Adobe CEP" : "Windows Desktop"}</div>
+                  <div dir="ltr" className={`font-bold mt-0.5 ${isAr ? "text-right" : "text-left"}`}>{item.category === "adobe" ? "Adobe CEP" : "Windows Desktop"}</div>
                 </div>
               </div>
 

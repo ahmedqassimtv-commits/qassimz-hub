@@ -16,10 +16,16 @@ export const APP_BLURBS: Record<string, { en: string; color: string }> = {
   "qassimz-vox-fx": { en: "Broadcast-grade vocal clarity, de-reverb, and one-click podcast mastering for Adobe.", color: "#22C55E" },
 };
 
+export function shortAppName(name: string): string {
+  const cleaned = name.replace(/^QASSIMZ\s+/i, "").trim();
+  return cleaned || name;
+}
+
 export const I18N = {
   en: {
     allApps: "All Apps",
     installed: "Installed",
+    availableInSuite: "Available in Suite",
     updates: "Updates",
     desktopApps: "Desktop Apps",
     adobeCep: "Adobe CEP",
@@ -71,6 +77,8 @@ export const I18N = {
     continueBg: "Continue in Background",
     showInstaller: "Show Installer",
     openFolder: "Open Install Folder",
+    otherVersions: "Other Versions",
+    repairReinstall: "Repair / Reinstall",
     uninstall: "Uninstall",
     whatsNewTitle: "What's New in QASSIMZ Hub",
     commandPlaceholder: "Type a command or search QASSIMZ apps…",
@@ -83,6 +91,7 @@ export const I18N = {
   ar: {
     allApps: "كل التطبيقات",
     installed: "المثبّتة",
+    availableInSuite: "متوفرة في الحزمة",
     updates: "التحديثات",
     desktopApps: "تطبيقات سطح المكتب",
     adobeCep: "إضافات أدوبي CEP",
@@ -134,6 +143,8 @@ export const I18N = {
     continueBg: "متابعة في الخلفية",
     showInstaller: "عرض المثبّت",
     openFolder: "فتح مجلد التثبيت",
+    otherVersions: "إصدارات أخرى",
+    repairReinstall: "إصلاح / إعادة تثبيت",
     uninstall: "إلغاء التثبيت",
     whatsNewTitle: "ما الجديد في QASSIMZ Hub",
     commandPlaceholder: "اكتب أمراً أو ابحث في برامج قَاسِمز…",

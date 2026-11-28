@@ -555,13 +555,14 @@ export const App: React.FC = () => {
                 </div>
               </div>
 
-              {/* Apps Grid or TanStack Virtual List */}
+              {/* Apps Grid (Auto-Split Installed vs Available in Suite in All Apps) or TanStack Virtual List */}
               {layout === "grid" ? (
-                <div
-                  id="apps-grid"
-                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-                >
-                  {visibleItems.map((item) => (
+                (() => {
+                  const installedList = visibleItems.filter((it) => it.state?.installed);
+                  const availableList = visibleItems.filter((it) => !it.state?.installed);
+                  const shouldSplit = view === "all" && installedList.length > 0 && availableList.length > 0;
+                  const gridCls = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4";
+                  const renderCard = (item: CatalogItem) => (
                     <AppCard
                       key={item.id}
                       item={item}
@@ -572,8 +573,44 @@ export const App: React.FC = () => {
                       onLaunch={handleLaunch}
                       onContextMenu={(it, x, y) => setContextMenu({ item: it, x, y })}
                     />
-                  ))}
-                </div>
+                  );
+
+                  if (shouldSplit) {
+                    return (
+                      <div id="apps-grid" className="flex flex-col gap-6">
+                        <section className="flex flex-col gap-3">
+                          <div className="flex items-center gap-2">
+                            <h2 className="m-0 text-[13px] font-bold uppercase tracking-wider text-[var(--color-text-secondary)]">
+                              {t.installed}
+                            </h2>
+                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#10b981]/15 text-[#34d399] tabular-nums">
+                              {installedList.length}
+                            </span>
+                          </div>
+                          <div className={gridCls}>{installedList.map(renderCard)}</div>
+                        </section>
+
+                        <section className="flex flex-col gap-3">
+                          <div className="flex items-center gap-2">
+                            <h2 className="m-0 text-[13px] font-bold uppercase tracking-wider text-[var(--color-text-secondary)]">
+                              {t.availableInSuite}
+                            </h2>
+                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)] tabular-nums">
+                              {availableList.length}
+                            </span>
+                          </div>
+                          <div className={gridCls}>{availableList.map(renderCard)}</div>
+                        </section>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div id="apps-grid" className={gridCls}>
+                      {visibleItems.map(renderCard)}
+                    </div>
+                  );
+                })()
               ) : (
                 <VirtualAppList
                   items={visibleItems}
@@ -598,6 +635,12 @@ export const App: React.FC = () => {
         onInstall={handleInstall}
         onLaunch={handleLaunch}
         onOpenFolder={(id) => HubBridge.openFolder(id).catch(() => {})}
+        onOtherVersions={(it) => {
+          const url = it.repo
+            ? `https://github.com/${it.repo}/releases`
+            : "https://github.com/ahmedqassimtv-commits/qassimz-hub/releases";
+          HubBridge.openUrl(url).catch(() => {});
+        }}
         onUninstall={handleUninstall}
         onOpenDetails={setSelectedItem}
       />

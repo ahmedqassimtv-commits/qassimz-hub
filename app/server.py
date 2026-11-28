@@ -34,7 +34,7 @@ from window_state import (
     validate_window_rect,
 )
 
-VERSION = "2.0.0"
+VERSION = "2.0.1"
 HUB_REPO = "ahmedqassimtv-commits/qassimz-hub"
 REMOTE_CATALOG_URL = f"https://raw.githubusercontent.com/{HUB_REPO}/main/catalog.json"
 STATE_CACHE_TTL = 3.0

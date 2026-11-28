@@ -2,7 +2,7 @@ import React, { useRef } from "react";
 import { m } from "motion/react";
 import { MoreHorizontal } from "lucide-react";
 import { CatalogItem, HubTask, humanBytes } from "../lib/api";
-import { APP_BLURBS, I18N, Lang } from "../lib/i18n";
+import { APP_BLURBS, I18N, Lang, shortAppName } from "../lib/i18n";
 import { SPRINGS } from "../lib/motion";
 
 interface Props {
@@ -32,6 +32,7 @@ export const AppCard: React.FC<Props> = ({
   const desc = lang === "ar" ? item.tagline_ar || item.description_ar || meta.en : meta.en;
   const st = item.state || { installed: false };
   const isBusy = Boolean(task && ["queued", "downloading", "installing"].includes(task.status));
+  const displayName = shortAppName(item.name);
 
   const handlePointerMove = (e: React.PointerEvent<HTMLElement>) => {
     const x = e.clientX;
@@ -77,18 +78,30 @@ export const AppCard: React.FC<Props> = ({
           </span>
 
           <div className="flex-1 min-w-0">
-            <div className="text-[14.5px] font-bold text-[var(--color-text-primary)] truncate">
-              {item.name}
+            <div
+              dir="ltr"
+              title={item.name}
+              className={`text-[15px] font-bold text-[var(--color-text-primary)] truncate ${
+                lang === "ar" ? "text-right" : "text-left"
+              }`}
+            >
+              {displayName}
             </div>
-            <div className="flex items-center flex-wrap gap-1.5 mt-1">
-              <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-md bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)]">
+            <div className="flex items-center flex-nowrap gap-1.5 mt-1.5 overflow-hidden">
+              <span
+                dir="ltr"
+                className="text-[11px] font-semibold px-1.5 py-0.5 rounded-md bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)] whitespace-nowrap shrink-0"
+              >
                 v{st.installed_version || item.version}
               </span>
-              <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-md border border-[var(--color-border-subtle)] text-[var(--color-text-muted)]">
+              <span
+                dir="ltr"
+                className="text-[11px] font-medium px-1.5 py-0.5 rounded-md border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] whitespace-nowrap shrink-0"
+              >
                 {item.category === "adobe" ? "Adobe CEP" : "Desktop"}
               </span>
               {st.has_update && (
-                <span className="text-[10.5px] font-bold px-1.5 py-0.5 rounded-md bg-[#3b63fb]/20 text-[#60a5fa]">
+                <span className="text-[10.5px] font-bold px-1.5 py-0.5 rounded-md bg-[#3b63fb]/20 text-[#60a5fa] whitespace-nowrap shrink-0">
                   {t.updateTag}
                 </span>
               )}
@@ -119,7 +132,7 @@ export const AppCard: React.FC<Props> = ({
           <div className="w-full flex flex-col gap-1.5">
             <div className="flex items-center justify-between text-[11.5px] text-[var(--color-text-secondary)]">
               <span>{task.status === "installing" ? t.installing : t.downloading}</span>
-              <strong className="tabular-nums">{task.progress}%</strong>
+              <strong dir="ltr" className="tabular-nums">{task.progress}%</strong>
             </div>
             <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
               <div
@@ -130,7 +143,10 @@ export const AppCard: React.FC<Props> = ({
           </div>
         ) : (
           <>
-            <span className="text-[11.5px] text-[var(--color-text-muted)] tabular-nums">
+            <span
+              dir={st.installed && !st.has_update ? undefined : "ltr"}
+              className="text-[11.5px] text-[var(--color-text-muted)] tabular-nums whitespace-nowrap"
+            >
               {st.installed && !st.has_update ? t.installedTag : humanBytes(item.setup_size)}
             </span>
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { computePosition, flip, offset, shift, VirtualElement } from "@floating-ui/dom";
 import { AnimatePresence, m } from "motion/react";
-import { Download, ExternalLink, FolderOpen, Play, Trash2 } from "lucide-react";
+import { Download, ExternalLink, FolderOpen, History, Play, Trash2, Wrench } from "lucide-react";
 import { CatalogItem } from "../lib/api";
 import { I18N, Lang } from "../lib/i18n";
 import { SPRINGS } from "../lib/motion";
@@ -13,6 +13,7 @@ interface Props {
   onInstall: (id: string) => void;
   onLaunch: (id: string) => void;
   onOpenFolder: (id: string) => void;
+  onOtherVersions: (item: CatalogItem) => void;
   onUninstall: (id: string) => void;
   onOpenDetails: (item: CatalogItem) => void;
 }
@@ -27,15 +28,19 @@ export const ContextMenu: React.FC<Props> = ({
   onInstall,
   onLaunch,
   onOpenFolder,
+  onOtherVersions,
   onUninstall,
   onOpenDetails,
 }) => {
   const t = I18N[lang];
   const floatingRef = useRef<HTMLDivElement>(null);
-  const [coords, setCoords] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [coords, setCoords] = useState<{ x: number; y: number }>(() =>
+    menu ? { x: menu.x, y: menu.y } : { x: 0, y: 0 }
+  );
 
   useEffect(() => {
     if (!menu || !floatingRef.current) return;
+    setCoords({ x: menu.x, y: menu.y });
     const virtualEl: VirtualElement = {
       getBoundingClientRect: () => ({
         width: 0,
@@ -85,13 +90,12 @@ export const ContextMenu: React.FC<Props> = ({
           transition={SPRINGS.snappy}
           style={{
             position: "fixed",
-            top: 0,
-            left: 0,
-            transform: `translate3d(${Math.round(coords.x)}px, ${Math.round(coords.y)}px, 0)`,
+            top: `${Math.round(coords.y)}px`,
+            left: `${Math.round(coords.x)}px`,
             zIndex: 450,
             boxShadow: "var(--shadow-elevated)",
           }}
-          className="min-w-[205px] p-1.5 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-strong)] flex flex-col gap-0.5"
+          className="min-w-[215px] p-1.5 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-strong)] flex flex-col gap-0.5"
         >
           <button
             role="menuitem"
@@ -102,10 +106,10 @@ export const ContextMenu: React.FC<Props> = ({
             className="w-full px-2.5 py-2 rounded-lg flex items-center gap-2.5 text-[12.5px] font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] cursor-pointer text-start"
           >
             <ExternalLink size={14} />
-            <span>{menu.item.name}</span>
+            <span dir="ltr">{menu.item.name}</span>
           </button>
 
-          {installed ? (
+          {installed && (
             <button
               role="menuitem"
               onClick={() => {
@@ -117,7 +121,7 @@ export const ContextMenu: React.FC<Props> = ({
               <Play size={14} />
               <span>{t.open}</span>
             </button>
-          ) : null}
+          )}
 
           <button
             role="menuitem"
@@ -127,8 +131,26 @@ export const ContextMenu: React.FC<Props> = ({
             }}
             className="w-full px-2.5 py-2 rounded-lg flex items-center gap-2.5 text-[12.5px] font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] cursor-pointer text-start"
           >
-            <Download size={14} />
-            <span>{menu.item.state?.has_update ? t.update : t.install}</span>
+            {installed && !menu.item.state?.has_update ? <Wrench size={14} /> : <Download size={14} />}
+            <span>
+              {menu.item.state?.has_update
+                ? t.update
+                : installed
+                ? t.repairReinstall
+                : t.install}
+            </span>
+          </button>
+
+          <button
+            role="menuitem"
+            onClick={() => {
+              onOtherVersions(menu.item);
+              onClose();
+            }}
+            className="w-full px-2.5 py-2 rounded-lg flex items-center gap-2.5 text-[12.5px] font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] cursor-pointer text-start"
+          >
+            <History size={14} />
+            <span>{t.otherVersions}</span>
           </button>
 
           {installed && (

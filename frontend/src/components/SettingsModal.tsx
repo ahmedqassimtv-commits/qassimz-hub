@@ -135,21 +135,40 @@ export const SettingsModal: React.FC<Props> = ({
                   {t.autoUpdates}
                 </div>
                 <div className="rounded-xl border border-[var(--color-border-subtle)] divide-y divide-[var(--color-border-subtle)] bg-[var(--color-surface-hover)]/40">
-                  {toggleRows.map((row) => (
-                    <label
-                      key={row.key}
-                      className="px-3.5 py-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-[var(--color-surface-hover)]/40"
-                    >
-                      <span className="text-[13px] font-medium">{row.label}</span>
-                      <input
-                        type="checkbox"
-                        data-setting={row.key}
-                        checked={Boolean(settings[row.key])}
-                        onChange={(e) => onToggleSetting(row.key, e.target.checked)}
-                        className="w-4 h-4 accent-[#3b63fb] cursor-pointer"
-                      />
-                    </label>
-                  ))}
+                  {toggleRows.map((row) => {
+                    const checked = Boolean(settings[row.key]);
+                    return (
+                      <label
+                        key={row.key}
+                        className="px-3.5 py-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-[var(--color-surface-hover)]/40"
+                      >
+                        <span className="text-[13px] font-medium">{row.label}</span>
+                        <span className="relative inline-flex items-center shrink-0">
+                          <input
+                            type="checkbox"
+                            data-setting={row.key}
+                            checked={checked}
+                            onChange={(e) => onToggleSetting(row.key, e.target.checked)}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 m-0"
+                          />
+                          <span
+                            dir="ltr"
+                            className={`pointer-events-none w-10 h-6 rounded-full p-0.5 flex items-center border transition-colors duration-200 ${
+                              checked
+                                ? "bg-[#3b63fb] border-[#60a5fa]/60 justify-end"
+                                : "bg-black/25 dark:bg-white/10 border-[var(--color-border-strong)] justify-start"
+                            }`}
+                          >
+                            <m.span
+                              layout
+                              transition={SPRINGS.snappy}
+                              className="w-[18px] h-[18px] rounded-full bg-white shadow-sm block"
+                            />
+                          </span>
+                        </span>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
             </div>

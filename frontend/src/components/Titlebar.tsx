@@ -149,11 +149,12 @@ export const Titlebar: React.FC<Props> = ({
           ) : (
             <button
               type="button"
+              dir="ltr"
               onClick={onOpenCommandPalette}
               title="Command Palette (Ctrl+K)"
-              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10.5px] font-semibold text-[var(--color-text-muted)] border border-[var(--color-border-subtle)] hover:text-[var(--color-text-primary)] cursor-pointer shrink-0"
+              className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10.5px] font-semibold text-[var(--color-text-muted)] border border-[var(--color-border-subtle)] hover:text-[var(--color-text-primary)] cursor-pointer shrink-0 whitespace-nowrap"
             >
-              <Command size={10} />K
+              Ctrl+K
             </button>
           )}
         </div>
@@ -256,8 +257,8 @@ export const Titlebar: React.FC<Props> = ({
 
         <span className="w-[1px] h-5 bg-[var(--color-border-subtle)] mx-1" aria-hidden="true" />
 
-        {/* Flush 46x48 Windows 11 Native Caption Controls (Always LTR) */}
-        <div className="hdr-win-controls" dir="ltr">
+        {/* Flush 46x48 Windows 11 Native Caption Controls (Close × always at outer corner) */}
+        <div className="hdr-win-controls" dir={lang === "ar" ? "rtl" : "ltr"}>
           <button id="btn-win-min" className="hdr-win-btn" onClick={onWinMin} title="Minimize" aria-label="Minimize">
             <svg width="10" height="10" viewBox="0 0 10 10" stroke="currentColor" strokeWidth="1" shapeRendering="crispEdges">
               <line x1="0" y1="5" x2="10" y2="5" />
